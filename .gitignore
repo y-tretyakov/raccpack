@@ -2,8 +2,7 @@
 /target/
 **/*.rs.bk
 
-# Cargo lockfile — library crate policy; workspace decision comes later
-Cargo.lock
+# Cargo lockfile — binary workspace policy: Cargo.lock is committed
 
 # Environment, tokens, secrets
 .env

@@ -4,7 +4,38 @@ CLI / TUI / Desktop tool for scanning projects, finding secrets, cleaning build 
 
 ## Status
 
-**pre-MVP / greenfield** — repository scaffold only, no code yet. Implementation starts with milestone **M1** on stage branch `m1-workspace-core`.
+**M1 in progress** — milestone M1 (workspace scaffold + core foundation) on stage branch `m1-workspace-core`. The Cargo workspace and crate skeleton build and test green; business logic (scan / secrets / pack / den) is not implemented yet.
+
+## Workspace structure
+
+```
+raccpack/
+  Cargo.toml                  # workspace manifest (resolver 2)
+  crates/
+    raccpack-core/            # library: domain + use-cases, no UI/CLI deps
+    raccpack-cli/             # binary: `racc` stub, links raccpack-core
+  LICENSE-MIT                 # MIT license
+  LICENSE-APACHE              # Apache-2.0 license
+```
+
+The workspace is dual-licensed **MIT OR Apache-2.0**. `Cargo.lock` is committed (binary workspace policy) so builds are reproducible.
+
+## Build
+
+```bash
+cargo build
+cargo test
+cargo run -p raccpack-cli
+```
+
+## License
+
+This project is licensed under either of:
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+at your option.
 
 ## Docs
 
