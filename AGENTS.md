@@ -120,6 +120,7 @@ cargo clippy -- -D warnings
 - Merge `dev → main` + `git tag` + GitHub Release — **только** на вехах: MVP `v0.1.0`, Alpha `v0.3.0`, Beta `v0.5.0`, RC `v0.9.0`, Stable `v1.0.0`. Между вехами в `main` ничего не мержить.
 - Hotfix/blocker после релиза: ветка от `main`/tag → PR в `main` → backport в `dev`.
 - Merge method фиксирован: **squash**; stage-ветки удаляются при merge.
+- Branch protection на GitHub **пока не включена** (приватные репозитории требуют GitHub Pro) — правила выше соблюдаются вручную через PR. После апгрейда настроить `main` (PR + 1 approval, no force push, no deletions) и `dev` (PR, no force push, no deletions).
 - Детали — в `README.md` (раздел Git workflow).
 
 ## Полезные ссылки на API (из спекуляций)

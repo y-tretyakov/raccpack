@@ -38,3 +38,7 @@ Rules:
 6. Hotfix/blocker after a milestone release: branch from `main` (or the tag), PR into `main`, then backport into `dev`.
 
 Merge method: **squash** (fixed for stage branches and for `dev → main`). Stage branches are deleted on merge.
+
+**Branch protection (status):** not yet enforced on GitHub — protected branches / rulesets on private repositories require **GitHub Pro**. Until the plan is upgraded, the rules above are followed manually (PRs into `dev`, squash merges, no force push, no deletions of `dev`/`main`). After upgrade, enable:
+- `main`: PR required + 1 approval, no force push, no deletions, restrict push to maintainers;
+- `dev`: PR required, no force push, no deletions.
