@@ -10,6 +10,7 @@ rust-version.workspace = true
 serde = { version = "1", features = ["derive"] }
 thiserror = "1"
 toml = "0.8"
+walkdir = "2"
 
 [dev-dependencies]
 serde_json = "1"

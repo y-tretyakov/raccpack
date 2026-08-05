@@ -2,9 +2,13 @@
 
 pub mod config;
 pub mod domain;
+pub mod scan;
 
 pub use config::{ConfigError, PathsConfig, RaccConfig, ScannerConfig};
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};
+pub use scan::{
+    ensure_scan_root, skip::SkipPolicy, skip::SkipReason, walk::WalkOptions, walk_tree,
+};
 
 /// Placeholder to keep the crate non-empty and testable.
 pub fn core_version() -> &'static str {

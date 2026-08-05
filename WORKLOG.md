@@ -10,7 +10,7 @@
 [x] M1.1 Workspace Cargo
 [x] M1.2 Domain DTO
 [x] M1.3 Config
-[ ] M1.4 Skip policy + walk
+[x] M1.4 Skip policy + walk
 ```
 
 ## Этапы
@@ -124,6 +124,51 @@
 - Merge `ConfigError` ↔ `domain::Error` (с `From`) — отложен до facade-фазы.
 - XDG резолвится вручную через env (`directories` не добавлен).
 - Скелеты `secrets/`/`archive/` — при старте M1.4/M3 (modularity §4).
+
+### M1.4 — Skip policy + walk (CLOSED)
+
+- **Дата:** 2026-08-05
+- **Ветка:** `m1-skip-walk`
+- **Статус:** done
+- **Dev:** dev-1.4 · **Test:** test-1.4 (параллельно) · rework dev-1.4 (doctest, попытка 2)
+
+#### Сделано
+- `scan/` модуль: тонкий `mod.rs` (re-exports), `skip.rs` (SkipPolicy/SkipReason), `walk.rs` (WalkOptions/walk_tree/ensure_scan_root).
+- `SkipPolicy`: `default_scan()` (18 имён в фиксированном порядке, включая `*.egg-info` как суффикс-паттерн), `empty()`, `with_custom_dir_names`, `with_skip_hidden_dirs` (default off), `should_skip_dir`/`skip_reason_dir` (детерминированный порядок DefaultDirName → CustomPattern → Hidden). Правило: паттерн с ведущим `*` = suffix match, иначе exact по lossy `file_name()`.
+- `WalkOptions` Default = { max_depth: 6 (из `config::default_max_depth()`), policy: default_scan(), include_root: false }.
+- `walk_tree`: `WalkDir` всегда `follow_links(false)` + `max_depth`; `filter_entry` пропускает только директории по policy; `include_root=false` не выдаёт root, `Err`-элементы не проглатываются.
+- `ensure_scan_root`: `Error::PathNotFound` / `Error::NotADirectory` (domain Error, без unwrap).
+- Rustdoc: инвариант «symlinks are never followed» в модульном доке и у `walk_tree`; `.DS_Store`/file-skip и `is_under_root`/path-containment задокументированы как follow-up; hidden-whitelist осознанно отсутствует (M1.4).
+- Wiring: `lib.rs` — `pub mod scan;` + additive re-exports; `Cargo.toml` — `walkdir = "2"` (только dependencies).
+- Rework 1: doc-блок в `walk.rs` был 4-space-indent и компилировался как невалидный doctest (E0425/E0433) → переписан в fenced `no_run` doctest с `#`-скрытыми setup-строками.
+
+#### Тесты (test-1.4)
+- `tests/skip_walk.rs` — 27 тестов: symlink isolation (наружу + cycle), skip node_modules/target/custom/suffix `*.egg-info`, max_depth (0/1/N), root validation (PathNotFound/NotADirectory/ok), default_scan состав, пустое дерево (0 и только-root), symlink не следует как dir, детерминизм, классификация причин (Default/Custom/Hidden/None), hidden-флаг off по умолчанию. Имена содержат `skip`|`walk` (см. замечание про команду ниже).
+
+#### Проверки (выполнены Orchestrator самостоятельно)
+- `cargo build --workspace` → pass
+- `cargo test -p raccpack-core` → pass (84: 12 lib + 22 config + 22 domain + 27 skip_walk + 1 doctest, 0 failed)
+- `cargo test -p raccpack-core -- skip walk` → pass (27 + 1 doctest)
+- `cargo clippy -p raccpack-core --all-targets -- -D warnings` → pass
+- `cargo fmt --all -- --check` → pass
+- grep unwrap/anyhow/Box<dyn>: только pre-existing `#[cfg(test)]` в domain (M1.2); в `src/scan/` чисто
+- WalkDir: только `walk.rs:76` с `follow_links(false)`
+
+#### Критерий готовности (DoD из m1.4 §9)
+- [x] `SkipPolicy::default_scan()` существует, включает `node_modules`, `target` и типичные cache/venv-имена
+- [x] `should_skip_dir` / `skip_reason_dir` детерминированы
+- [x] Walk-хелпер всегда создаёт `WalkDir` с `follow_links(false)`
+- [x] `max_depth` соблюдается
+- [x] Root validation через domain `Error` (PathNotFound/NotADirectory)
+- [x] Тесты §7 зелёные, включая symlink isolation
+- [x] `cargo test -p raccpack-core` green
+- [x] rustdoc: явный инвариант «symlinks are not followed»
+
+#### Follow-up / риски
+- Команда из спеки `cargo test -p raccpack-core skip walk` — невалидный синтаксис cargo (допустим только один TESTNAME до `--`). Корректно: `cargo test -p raccpack-core -- skip walk`. В спеку m1.4 §7 не правил (docs/ не трогаем без ссылки); зафиксировано здесь.
+- Hidden-флаг `with_skip_hidden_dirs(true)` применяется и к самому root: `tempfile::TempDir` (dot-dir) с включённым флагом даёт пустой walk — поведение по спеку, покрыто тестом через не-hidden subdir.
+- `.DS_Store`/file-skip — вне скоупа M1.4 (файлы не матчатся); `is_under_root`/path-containment — обязательный follow-up перед pack/stash.
+- M1.2-замечание «Config variant временный»: merge `ConfigError` ↔ `domain::Error` отложен до facade-фазы.
 
 ## Принятые решения
 
