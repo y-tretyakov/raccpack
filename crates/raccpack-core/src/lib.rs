@@ -1,7 +1,9 @@
 //! raccpack-core — domain and use-cases. No CLI/TUI/Desktop dependencies.
 
+pub mod config;
 pub mod domain;
 
+pub use config::{ConfigError, PathsConfig, RaccConfig, ScannerConfig};
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};
 
 /// Placeholder to keep the crate non-empty and testable.
