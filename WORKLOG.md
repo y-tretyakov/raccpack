@@ -11,6 +11,7 @@
 [x] M1.2 Domain DTO
 [x] M1.3 Config
 [x] M1.4 Skip policy + walk
+[x] M2.1 Marker files + skip dirs → candidates
 ```
 
 ## Этапы
@@ -172,6 +173,45 @@
 - M1.2-замечание «Config variant временный»: merge `ConfigError` ↔ `domain::Error` (единый enum или `From<ConfigError>`) отложен до facade-фазы / `AppContext`, чтобы UI не ветвился по двум типам ошибок.
 - Cargo.lock: после каждого merge сверять, что raw dev даёт актуальную версию (человек: «raw dev отдавал старую версию»). На актуальном SHA: toml, walkdir; dev: tempfile, serial_test — ок.
 - Windows: HOME/XDG-резолв Unix-центричен. Для v1 primary Linux — осознанно ок; на Windows позже (USERPROFILE / crate `directories`).
+
+### M2.1 — Marker files + skip dirs → candidates (CLOSED)
+
+- **Дата:** 2026-08-05
+- **Ветка:** `m2-sniff-candidates`
+- **Статус:** done
+- **Dev:** dev-m2.1 · **Test:** test-m2.1 (параллельно)
+
+#### Сделано
+- `scan/markers.rs` (created): `MarkerKind` (FileName/DirName), `MarkerDef`, `MarkerHit`, `DEFAULT_MARKERS` — 14 маркеров (Rust `Cargo.toml`, JS `package.json`, Go `go.mod`, Python `pyproject.toml`/`setup.py`/`requirements.txt`, JVM `pom.xml`/`build.gradle`/`build.gradle.kts`, Ruby `Gemfile`, PHP `composer.json`, C++ `CMakeLists.txt`, generic `Makefile`) + `.git` (DirName). Реестр-таблица: добавление маркера = одна строка (registry pattern).
+- `scan/candidates.rs` (created): `ProjectCandidate`, `CandidateOptions` (Default = depth 6 / `default_scan()` / no extras / `accept_git_only=true`), `find_candidates`. Алгоритм: `ensure_scan_root` → `walk_tree` (M1.4, `follow_links(false)`, max_depth, policy) + `inspect_dir` для каждой посещённой директории **и корня**; имена читаются одним `read_dir` в `HashSet<OsString>`, затем маркерная таблица перебирается в фиксированном порядке (детерминированные hits). `.git` не обходится walker'ом (skip-policy) и детектится через `read_dir` родителя — skip-политика не менялась. Симлинки не читаются (`symlink_metadata().is_symlink()`). Git-only фильтр через `accept_git_only`. Стабильная сортировка по `path`; nested-проекты не схлопываются.
+- Ошибки: `read_dir` → `Error::Io{path,source}`; walkdir-ошибки → `Error::Io` (если io-источник) или `Error::Other` (loop detection). Без `unwrap()`/`anyhow`/`Box<dyn Error>`.
+- `scan/mod.rs` + `lib.rs`: re-exports `MarkerKind/MarkerDef/MarkerHit/ProjectCandidate/CandidateOptions/find_candidates` (+ `DEFAULT_MARKERS` в scan) — additive, не breaking.
+
+#### Тесты (test-m2.1)
+- `tests/candidates.rs` (created) — 15 тестов: все кейсы §7 спеки (fixture app-rust/app-node/node_modules/nested/deep/only-git/empty-dir/target; находит 4 кандидата, node_modules/target исключены, max_depth, PathNotFound/NotADirectory, детерминизм, symlink не входит) + `accept_git_only=false`, root-as-candidate, `extra_markers` с language_hint, поля MarkerHit (Rust/JS/Go/.git), пустой root, поле `name`.
+
+#### Проверки (выполнены Orchestrator самостоятельно)
+- `cargo test -p raccpack-core` → pass (99: 12 lib + 15 candidates + 22 config + 22 domain + 27 skip_walk + 1 doctest, 0 failed)
+- `cargo test -p raccpack-core --test candidates` → pass (15)
+- `cargo clippy -p raccpack-core --all-targets -- -D warnings` → pass
+- `cargo fmt --all -- --check` → pass
+- `cargo doc -p raccpack-core --no-deps` → без warning/error (отчёт dev)
+- grep unwrap/expect/anyhow/Box<dyn в `src/scan/markers.rs` + `src/scan/candidates.rs` → чисто
+
+#### Критерий готовности (DoD из m2.1 §9)
+- [x] Таблица `DEFAULT_MARKERS` покрывает минимум Rust/Node/Go/Python/JVM + `.git`
+- [x] `find_candidates` возвращает `Vec<ProjectCandidate>` с markers и `is_git_repo`
+- [x] SkipPolicy соблюдается (нет кандидатов из `node_modules`/`target`)
+- [x] `follow_links(false)` сохранён
+- [x] Тесты §7 зелёные
+- [x] `cargo test -p raccpack-core` green
+- [x] rustdoc на `find_candidates` и `ProjectCandidate`
+
+#### Follow-up / риски
+- M2.2 (detect languages/frameworks → `Stack`) — следующий этап, вход `ProjectCandidate` (+ опционально уточнение name).
+- Extension-pattern маркеры (`*.csproj`/`*.sln`) осознанно отложены (спека: опционально в MVP); при необходимости — расширение `MarkerKind` отдельным этапом.
+- Команда из спеки `cargo test -p raccpack-core candidates markers` — невалидный синтаксис (несколько фильтров до `--`); корректно: `cargo test -p raccpack-core --test candidates` (аналогично замечанию M1.4).
+- `inspect_dir` повторяет `read_dir` для каждой посещённой директории (спека §5 — один read_dir на dir); при большом дереве возможна оптимизация через один проход walker'а, но это нарушает «маркеры по имени из entries» и отложено.
 
 ## Принятые решения
 
