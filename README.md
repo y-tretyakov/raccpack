@@ -4,7 +4,7 @@ CLI / TUI / Desktop tool for scanning projects, finding secrets, cleaning build 
 
 ## Status
 
-**M1 in progress** — milestone M1 (workspace scaffold + core foundation) on stage branch `m1-workspace-core`. The Cargo workspace and crate skeleton build and test green; business logic (scan / secrets / pack / den) is not implemented yet.
+**M1 done** — milestone M1 (workspace scaffold + core foundation: domain DTOs, config, SkipPolicy + safe walk) is closed. Next milestone: **M2 — sniff** (project discovery by markers). Business logic for scan / secrets / pack / den is not implemented yet; `racc` is a stub that prints the version.
 
 ## Workspace structure
 

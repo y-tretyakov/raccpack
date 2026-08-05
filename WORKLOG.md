@@ -166,9 +166,12 @@
 
 #### Follow-up / риски
 - Команда из спеки `cargo test -p raccpack-core skip walk` — невалидный синтаксис cargo (допустим только один TESTNAME до `--`). Корректно: `cargo test -p raccpack-core -- skip walk`. В спеку m1.4 §7 не правил (docs/ не трогаем без ссылки); зафиксировано здесь.
-- Hidden-флаг `with_skip_hidden_dirs(true)` применяется и к самому root: `tempfile::TempDir` (dot-dir) с включённым флагом даёт пустой walk — поведение по спеку, покрыто тестом через не-hidden subdir.
-- `.DS_Store`/file-skip — вне скоупа M1.4 (файлы не матчатся); `is_under_root`/path-containment — обязательный follow-up перед pack/stash.
-- M1.2-замечание «Config variant временный»: merge `ConfigError` ↔ `domain::Error` отложен до facade-фазы.
+- Hidden-флаг `with_skip_hidden_dirs(true)` применяется и к самому root: `tempfile::TempDir` (dot-dir) с включённым флагом даёт пустой walk — поведение по спеку, покрыто тестом через не-hidden subdir. В UX CLI/TUI при включённом hidden-режиме стоит явно предупреждать о скрытом root.
+- `.DS_Store`/file-skip — вне скоупа M1.4 (файлы не матчатся). Для dig/pack нужна **отдельная file-policy** — не смешивать с `SkipPolicy` для директорий.
+- `is_under_root`/path-containment — обязательный follow-up перед pack/stash (symlink / `..` / escape из root).
+- M1.2-замечание «Config variant временный»: merge `ConfigError` ↔ `domain::Error` (единый enum или `From<ConfigError>`) отложен до facade-фазы / `AppContext`, чтобы UI не ветвился по двум типам ошибок.
+- Cargo.lock: после каждого merge сверять, что raw dev даёт актуальную версию (человек: «raw dev отдавал старую версию»). На актуальном SHA: toml, walkdir; dev: tempfile, serial_test — ок.
+- Windows: HOME/XDG-резолв Unix-центричен. Для v1 primary Linux — осознанно ок; на Windows позже (USERPROFILE / crate `directories`).
 
 ## Принятые решения
 
@@ -182,3 +185,4 @@
 | 2026-08-05 | Разрез фаз: AGENTS описывает фазы 0–11 (Group enum, WalkSession…), roadmap — M1.1–M1.4. Orchestrator следует текущему backlog в WORKLOG/docs/mvp; НЕ прыгать в «фазу 7 walk session» вместо M1.3 Config. |
 | 2026-08-05 | AGENTS.md: обновлена строка «текущее состояние» (было «нет дерева crate», стало — workspace развёрнут, M1.1 done). |
 | 2026-08-05 | M1.3: config-стиль = секции `[paths]`/`[scanner]`; relative paths резолвятся от `current_dir()` (не от dir файла); `den_dir` default = `~/.raccpack/den`; `deny_unknown_fields` off; без canonicalize; `ConfigError` отдельный от `domain::Error` до facade-фазы. |
+| 2026-08-05 | M1.4: М1 закрыт (m1.4 merged #7). README Status обновлён: «M1 done, next M2 sniff». Замечания человека после приёмки (не блокеры, зафиксированы в follow-up M1.4): Cargo.lock сверять после merge; ConfigError↔Error на facade; is_under_root перед pack/stash; warning в UX про hidden root; отдельная file-policy; Windows HOME/XDG — позже. |
