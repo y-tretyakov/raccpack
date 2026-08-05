@@ -109,7 +109,7 @@ cargo fmt
 cargo clippy -- -D warnings
 ```
 
-Текущее состояние: в этой папке пока **нет дерева crate** (только документы: 5 корневых md + спекуляции `docs/mvp/`) — код удалён, пишем с чистого листа. Фаза 0.1 должна зафиксировать пустой baseline и определить, где разворачивать crate (`raccpack-core`).
+Текущее состояние: Cargo workspace развёрнут (M1.1 done): `crates/raccpack-core` + `crates/raccpack-cli` (binary `racc`), собирается `cargo build --workspace`. Дальнейший backlog и актуальный статус этапов — в `WORKLOG.md` и `docs/mvp/`; не ориентироваться на устаревшие описания «с нуля» из этого файла.
 
 ## Git workflow (обязательный)
 
