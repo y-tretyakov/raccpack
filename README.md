@@ -70,6 +70,6 @@ Rules:
 
 Merge method: **squash** (fixed for stage branches and for `dev → main`). Stage branches are deleted on merge.
 
-**Branch protection (status):** enforced via GitHub rulesets (repo is public).
+**Branch protection (status):** enforced via GitHub rulesets (repo is public). Both rulesets restrict merge method to **squash**.
 - `main`: PR required + 1 approval, no force push, no deletions (bypass: maintainers/admins).
 - `dev`: PR required, no force push, no deletions (bypass: maintainers/admins).
