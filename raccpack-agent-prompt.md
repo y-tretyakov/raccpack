@@ -9,7 +9,8 @@
 1. `raccpack-agent-workflow.md` — ОБЯЗАТЕЛБНЫЙ к выполнению порядок и алгоритм работ, «как правильно».
 2. `raccpack-architecture-vision.md` — Оьщее видение архитектуры.
 3. `raccpack-facade-and-den.md` — Дополнение к [видению архитектуры](raccpack-architecture-vision.md). 
-4. `raccpack-roadmap-v1.md` — Дорожная карта. (ОБЯЗАТЕЛЬНО после каждого выполненного этапа отмечать, что было выполнено и паралллельно писать в CHANGELOG).
+4. `raccpack-modularity.md` — Модульность secrets и archive backends.
+5. `raccpack-roadmap-v1.md` — Дорожная карта. (ОБЯЗАТЕЛЬНО после каждого выполненного этапа отмечать, что было выполнено и паралллельно писать в CHANGELOG).
 
 ## Жёсткие правила
 

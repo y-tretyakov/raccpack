@@ -24,6 +24,7 @@
 | `raccpack-agent-workflow.md` | **ОБЯЗАТЕЛЕН к выполнению**: как организована работа — Orchestrator (планирует/делегирует/принимает), Dev / Test / Docs субагенты, шаблоны поручений, rework-билеты, анти-паттерны | перед делегированием/приёмкой |
 | `raccpack-architecture-vision.md` | Слои: core / facade / UI; потоки данных; границы доверия; контракты DTO | для решений по архитектуре |
 | `raccpack-facade-and-den.md` | Конкретные сигнатуры facade (`sniff/dig/stash/rinse/pack/raid`), типы (`AppContext`, `ProgressSink`, `*Options`, `*Result`), структура den, manifest JSON | при работе с use-cases и отчётами |
+| `raccpack-modularity.md` | Модульность secrets и archive backends: один вид секрета/backend = один `*.rs`, registry как единственная точка агрегации | при реализации/рефакторинге secrets/archive |
 | `raccpack-roadmap-v1.md` | Версии MVP→1.0.0, фазы M/A/B/R/S, жёсткие зависимости вех | контекст приоритетов |
 | `docs/mvp/m{1..4}/*` | Детальные спекуляции этапов MVP (по файлу на этап) | **только по явной ссылке от человека** (правило «docs/ не читать без ссылки») |
 | `WORKLOG.md` | Журнал статусов этапов (создаётся в фазе 0.1) | после каждого этапа обновлять |
@@ -42,6 +43,97 @@
 - `WalkDir` в production → с `follow_links(false)`.
 - SensitiveRisk меняется только через severity API.
 - После каждого этапа — отчёт по шаблону (см. ниже). Критерий не выполнен → следующий этап не начинать.
+
+## Правила кодирования для Dev-субагентов (модульный Rust) — ОБЯЗАТЕЛЬНО в поручении
+
+Блок ниже **всегда** включать в задачу Dev-субагента (вместе со ссылкой на `raccpack-modularity.md`), когда этап пишет или рефакторит Rust-код. Это конвенция проекта, не опциональный полиш.
+
+```text
+You are implementing or changing Rust code in the raccpack workspace.
+
+### Hard rule: no giant source files
+
+- Prefer many small, single-responsibility modules over one large file.
+- Target: roughly 150–300 lines of logic per `.rs` file (excluding pure data tables and exhaustive tests). Soft upper bound ~400 lines; above that, split.
+- Never dump an entire subsystem (all secret matchers, all archive backends, full walk+detect+report) into a single file.
+
+### How to split (Rust idioms)
+
+1. **One concept ≈ one file**
+   - One secret matcher family → `secrets/matchers/aws.rs` (not everything in `secrets.rs`).
+   - One encryption backend → `archive/backends/age.rs`.
+   - One concern (types, engine, policy, layout) → its own module.
+
+2. **Module tree, not flat dumps**
+   - Use directories with `mod.rs` (or `module_name.rs` + `module_name/` in edition 2018+ style as used by the crate).
+   - Public API re-exported from the parent `mod.rs`; internals stay private where possible.
+   - Example shape:
+     ```
+     secrets/
+       mod.rs          # public API + re-exports
+       engine.rs       # orchestration only
+       types.rs        # DTOs / enums
+       groups.rs       # config mapping
+       matchers/
+         mod.rs        # registry only
+         aws.rs
+         github.rs
+         …
+     ```
+
+3. **Registry pattern for extensibility**
+   - Implementations live in separate files.
+   - A single `mod.rs` (or `registry.rs`) lists them (`all_matchers()`, `backend_by_name()`).
+   - Adding a feature = new file + one registration line. Do not edit a monolithic match/if ladder.
+
+4. **Types vs behavior**
+   - Put shared types/enums/error variants in `types.rs` (or domain modules).
+   - Put algorithms and I/O in engine/service modules that import those types.
+   - Do not mix large static tables, complex algorithms, and public API in one file.
+
+5. **Tests**
+   - Unit tests for a matcher/backend: prefer `#[cfg(test)]` in the same file, or a focused `tests/…` integration file.
+   - Do not create one 2000-line `tests.rs` that covers every matcher.
+
+### What “done” looks like for a change
+
+- New behavior lands in a new or clearly named module when it is a distinct concern.
+- Existing files that grow past the soft bound get split in the same PR (or a follow-up immediately after), not left to rot.
+- `mod.rs` files stay thin: declarations, re-exports, registry — not business logic.
+- No raw secrets, paths, or policy duplicated across UI crates; logic stays in `raccpack-core` modules as above.
+
+### Anti-patterns (reject / refactor)
+
+- `secrets.rs` with all filename patterns, content regexes, entropy, and risk scoring in one place.
+- `archive.rs` that implements age, tar, den paths, and staging in a single file.
+- Copy-pasting the same matcher logic into CLI/TUI/Desktop.
+- “I’ll split it later” while adding the third or fourth concern to the same file.
+
+### When in doubt
+
+- Ask: “Can this file be described in one short sentence?” If not, split.
+- Follow existing tree under `crates/raccpack-core/src/` and the modularity doc for secrets/archive.
+- Prefer consistency with current module boundaries over inventing a new layout without reason.
+
+Apply this to every new module and every non-trivial edit. Small, composable modules are mandatory, not optional polish.
+```
+
+Короткая версия (для тесных промптов):
+
+```text
+Rust modularity rules for this repo:
+
+- No giant `.rs` files. Aim 150–300 lines of logic; soft max ~400. Split earlier if multiple concerns.
+- One concept per file (one secret matcher, one encryption backend, one policy, etc.).
+- Use module directories + thin `mod.rs` (API + re-exports + registry only).
+- Extensibility via registry: implementations in separate files; register in one place.
+- Types in `types.rs` (or domain modules); algorithms in engine/service modules.
+- Do not put all secrets, all archive backends, or full pipeline logic in a single file.
+- Adding a feature = new file + one registry line, not growing a monolith.
+- Keep business logic in `raccpack-core`; UI crates only call the facade.
+
+Follow `raccpack-modularity.md` and the existing `src/` tree. If a file can’t be summarized in one sentence, split it.
+```
 
 ## Стартовые условия
 
