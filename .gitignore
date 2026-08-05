@@ -1,0 +1,31 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+
+# Cargo lockfile — library crate policy; workspace decision comes later
+Cargo.lock
+
+# Environment, tokens, secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.age
+
+# Den store — age-encrypted secrets, manifests, packs, staging
+/den/
+**/den/
+/manifests/
+/staging/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS junk
+.DS_Store
+Thumbs.db
