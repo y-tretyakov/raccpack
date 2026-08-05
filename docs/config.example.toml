@@ -1,0 +1,10 @@
+# Example raccpack configuration (MVP)
+
+[paths]
+# Directory that contains your projects
+scan_root = "~/DEV/PROJS"
+# Output vault for packs and (later) secret archives
+den_dir = "~/.raccpack/den"
+
+[scanner]
+max_depth = 6

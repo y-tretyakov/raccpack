@@ -9,7 +9,7 @@
 [x] 0.2 Baseline (empty) — зафиксирован в M1.1
 [x] M1.1 Workspace Cargo
 [x] M1.2 Domain DTO
-[ ] M1.3 Config
+[x] M1.3 Config
 [ ] M1.4 Skip policy + walk
 ```
 
@@ -87,6 +87,44 @@
 - `Error::Io` не PartialEq (io::Error) — сравнения через matches!/dyn-cast.
 - Config variant временный; на M1.3 решить ConfigError.
 
+### M1.3 — Config (CLOSED)
+
+- **Дата:** 2026-08-05
+- **Ветка:** `m1-config`
+- **Статус:** done
+- **Dev:** dev-1.3 · **Test:** test-1.3 (параллельно)
+
+#### Сделано
+- `RaccConfig` / `PathsConfig` / `ScannerConfig` — sections-style TOML (`[paths]`, `[scanner]`), `serde(default)`, `deny_unknown_fields` off (будущие секции не ломают парсинг). `max_depth` default = 6.
+- `load()` (RACCPACK_CONFIG → XDG default → `Default`), `load_from_path()` (FileNotFound / Read / Parse + validate), `scan_root_dir()` / `den_dir()` (default `~/.raccpack/den`), builder `with_scan_root` / `with_den_dir`.
+- `ConfigError` (thiserror, отдельный от `domain::Error`, без `From` на этом этапе) + `suggestion()` на ключевых вариантах.
+- Резолв путей: `~`→HOME (нет HOME → PathResolve, не silent `/`), relative→cwd, empty→missing, scan_root требует существующую директорию, без canonicalize. Правила зафиксированы в rustdoc `paths.rs`.
+- `docs/config.example.toml`; re-exports в `lib.rs` (additive, не breaking).
+- Модульность (по `raccpack-modularity.md`): пустые `secrets/`/`archive/` скелеты НЕ созданы — не блокируют config, задеплоено на M1.4/M3.
+
+#### Проверки (выполнены Orchestrator самостоятельно)
+- `cargo build -p raccpack-core` → pass
+- `cargo test -p raccpack-core` → pass (22 unit + 22 domain integration + 22 config integration, 0 failed)
+- `cargo test -p raccpack-core config` → pass (22)
+- `cargo clippy -p raccpack-core --all-targets -- -D warnings` → pass
+- `cargo fmt --check` → pass
+- grep unwrap/anyhow/Box<dyn Error>: только pre-existing `#[cfg(test)]` в domain (M1.2) и doc-комментарий
+
+#### Критерий готовности (DoD из m1.3)
+- [x] RaccConfig десериализуется из TOML
+- [x] load() и load_from_path() работают по правилам §5
+- [x] scan_root_dir()/den_dir() возвращают PathBuf или строгую ошибку
+- [x] ConfigError с Display + suggestion() на ключевых вариантах
+- [x] Нет anyhow / Box<dyn Error> в public API
+- [x] Тесты §9 зелёные (покрыты §9 + дополнительные кейсы 10–16)
+- [x] cargo test -p raccpack-core green
+- [x] docs/config.example.toml создан
+
+#### Follow-up / риски
+- Merge `ConfigError` ↔ `domain::Error` (с `From`) — отложен до facade-фазы.
+- XDG резолвится вручную через env (`directories` не добавлен).
+- Скелеты `secrets/`/`archive/` — при старте M1.4/M3 (modularity §4).
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -98,3 +136,4 @@
 | 2026-08-05 | Документация: спеки живут в `docs/` (mvp + roadmap/vision/facade) и дублируются ссылками из корня. Решение отложено: перенести спеки в `docs/`, оставить в корне README + AGENTS + WORKLOG (TODO позже, не сейчас). |
 | 2026-08-05 | Разрез фаз: AGENTS описывает фазы 0–11 (Group enum, WalkSession…), roadmap — M1.1–M1.4. Orchestrator следует текущему backlog в WORKLOG/docs/mvp; НЕ прыгать в «фазу 7 walk session» вместо M1.3 Config. |
 | 2026-08-05 | AGENTS.md: обновлена строка «текущее состояние» (было «нет дерева crate», стало — workspace развёрнут, M1.1 done). |
+| 2026-08-05 | M1.3: config-стиль = секции `[paths]`/`[scanner]`; relative paths резолвятся от `current_dir()` (не от dir файла); `den_dir` default = `~/.raccpack/den`; `deny_unknown_fields` off; без canonicalize; `ConfigError` отдельный от `domain::Error` до facade-фазы. |
