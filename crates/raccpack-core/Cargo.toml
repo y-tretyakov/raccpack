@@ -1,0 +1,9 @@
+[package]
+name = "raccpack-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Core library for raccpack: scan, secrets, pack, den"
+rust-version.workspace = true
+
+[dependencies]

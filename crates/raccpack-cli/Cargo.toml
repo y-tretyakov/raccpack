@@ -1,0 +1,14 @@
+[package]
+name = "raccpack-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "CLI for raccpack"
+rust-version.workspace = true
+
+[[bin]]
+name = "racc"
+path = "src/main.rs"
+
+[dependencies]
+raccpack-core = { path = "../raccpack-core" }
