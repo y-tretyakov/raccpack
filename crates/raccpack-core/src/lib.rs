@@ -1,10 +1,17 @@
 //! raccpack-core — domain and use-cases. No CLI/TUI/Desktop dependencies.
 
+pub mod app;
+pub mod cache;
 pub mod config;
 pub mod detect;
 pub mod domain;
 pub mod scan;
 
+pub use app::{
+    sniff, AppContext, NullProgress, OperationKind, ProgressEvent, ProgressSink, RunMode,
+    SecretExitPolicy, SniffOptions, SniffResult, WorkspacePaths,
+};
+pub use cache::{store_sniff_cache, try_load_sniff_cache};
 pub use config::{ConfigError, PathsConfig, RaccConfig, ScannerConfig};
 pub use detect::{candidate_to_project, detect_stack, detect_stacks, stack_from_candidate};
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};

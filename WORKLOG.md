@@ -13,6 +13,7 @@
 [x] M1.4 Skip policy + walk
 [x] M2.1 Marker files + skip dirs → candidates
 [x] M2.2 Detect languages/frameworks → Stack
+[x] M2.3 Facade sniff + versioned cache
 ```
 
 ## Этапы
@@ -340,6 +341,51 @@
   - Когда добавляете **4–5+ framework-правил в один файл** или конфигурируемое **«включить только Next»** — тогда split внутри экосистемы.
   - **НЕ делать** плоский `detect/frameworks/next.rs` рядом с языками: Next без Node-контекста почти бессмысленен.
 
+### M2.3 — Facade sniff + versioned cache (CLOSED)
+
+- **Дата:** 2026-08-06
+- **Ветка:** `m2.3-sniff-cache`
+- **Статус:** done
+- **Dev:** dev-m2.3 · **Test:** test-m2.3 (параллельно, без rework)
+
+#### Сделано
+- `app/` — facade-слой (spec §3): `context.rs` (`WorkspacePaths{scan_root,den_dir}` serde, `RunMode`+`is_dry_run()`, `SecretExitPolicy`, `AppContext` + `from_config(config, mode) -> Result<Self, ConfigError>`, exit_policy default FailOnCritical), `progress.rs` (`OperationKind`, `ProgressEvent`, `trait ProgressSink: Send`, `NullProgress`), `sniff.rs` (`SniffOptions`, `SniffResult`, `sniff`).
+- `sniff()` по алгоритму §4: `ensure_scan_root` → max_depth из opts или `config.scanner.max_depth` → policy `default_scan` + fp const `"default_scan_v1"` → cache-read (если `!force_refresh`) → `find_candidates` → `detect_stack` per candidate (enrich frameworks) + `project_size_bytes(...).unwrap_or_default()` (ошибка размера → 0, sniff не падает) → `ScanReport{schema_version: 1}` → best-effort `store_sniff_cache` (ошибка глотается) → progress-события 0/40/90/100 (`phase="scan"`, `OperationKind::Sniff`, phase_index=0, phase_count=1, overall==percent); cache-hit тоже эмитит complete `"Done (from cache)"`.
+- `cache/sniff_cache.rs` — **versioned XDG cache** (решение: вариант C спеки): `$XDG_CACHE_HOME/raccpack/sniff/{hash}.json`, fallback `~/.cache/raccpack/sniff/`; никогда не пишем в scan_root. Ключ — FNV-1a 64 по `root\0max_depth\0policy_fp` (не `DefaultHasher` — он рандомизирован по процессу и сломал бы hit). Entry JSON: `cache_schema` (const 1) / `core_version` / `root` / `max_depth` / `policy_fingerprint` / `created_at` (ISO-8601 UTC, helper без chrono) / `report`. Инвалидация по любому несовпадению; любые ошибки чтения → `Ok(None)` (miss); ошибки записи → `Error::Io` (sniff глотает); нерезолвящийся XDG/HOME → cache недоступен без ошибки.
+- `lib.rs`: `pub mod app;` + `pub mod cache;` + аддитивные re-exports (app: sniff/AppContext/WorkspacePaths/RunMode/SecretExitPolicy/OperationKind/ProgressEvent/ProgressSink/NullProgress/SniffOptions/SniffResult; cache: try_load_sniff_cache/store_sniff_cache) — не breaking. Существующие модули не тронуты.
+- `Cargo.toml`: `serde_json` перенесён из dev-dependencies в dependencies (JSON cache).
+
+#### Отклонение от спеки (зафиксировано в rustdoc `AppContext`)
+- Поле `secret_groups_override: Option<EnabledGroups>` НЕ введено: тип `EnabledGroups` появится только с секретной фазой (M3.x). Добавится аддитивно без placeholder-типов.
+
+#### Тесты (test-m2.3)
+- `tests/sniff_cache.rs` (created, 12 тестов): все 9 обязательных кейсов §8 (empty root; 2-project fixture с размерами/языками; skip node_modules/target; cache hit; force_refresh; max_depth change → miss; progress события монотонны + последний phase_complete=100; bad root PathNotFound/NotADirectory; serde roundtrip ScanReport через cache) + 2 бонусных (miss без файла, miss при другом max_depth). Все env-зависимые `#[serial]` + `CacheEnvGuard` (capture/restore XDG_CACHE_HOME, изоляция от реального `~/.cache`), den — sibling scan_root.
+
+#### Проверки (выполнены Orchestrator самостоятельно)
+- `cargo build --workspace` → pass
+- `cargo test -p raccpack-core` → pass (173: 35+19+22+31+22+4+27 unit + 12 sniff_cache + 1 doctest, 0 failed)
+- `cargo test -p raccpack-core --test sniff_cache` → pass (12)
+- `cargo clippy -p raccpack-core --all-targets -- -D warnings` → pass
+- `cargo fmt --all -- --check` → pass
+- `cargo doc -p raccpack-core --no-deps` → только pre-existing warning `markers/mod.rs:53` (M2.2-followup), новых нет
+- grep `unwrap(/expect(/anyhow/Box<dyn/WalkDir::new` в `app/`+`cache/`+`lib.rs` → чисто (`unwrap_or` на Option — допустимо; DefaultHasher только в doc-комментарии почему не используется)
+
+#### Критерий готовности (DoD из m2.3 §10)
+- [x] `sniff` реализован и возвращает `SniffResult`
+- [x] `ScanReport.schema_version == 1`
+- [x] Cache versioned; hit/miss/force_refresh покрыты тестами
+- [x] `ProgressSink` вызывается
+- [x] `NullProgress` работает
+- [x] Ошибка cache write не валит sniff
+- [x] Тесты §8 зелёные
+- [x] `cargo test -p raccpack-core` green
+- [x] Краткий rustdoc на `sniff` со ссылкой на поведение cache
+
+#### Риски / follow-up
+- Cache не проверяет mtime дерева (спека §5.2): свежесть только по ключу/версиям; mtime-инвалидация — опционально позже.
+- `secret_groups_override` — добавить аддитивно при M3.x вместе с `EnabledGroups` (помечено в rustdoc).
+- `serde_json` стал prod-зависимостью core (оправдано cache JSON).
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -358,3 +404,4 @@
 | 2026-08-06 | M2.2: `detect/` — top-level модуль (а не `scan/detect/`): спека §3 рекомендует отдельный модуль detect, architecture-vision — отдельная подсистема. Принята политика merge: language по приоритету §4.1 (tie → первый hit; fallback на первый hit с hint), frameworks union по registry-порядку с dedup, markers sorted+dedup. `StackDetector::detect -> Result<Stack, Error>` (deviation от иллюстрации modularity-документа, чтобы выразить `Error::Io`, спека §5). Парсинг manifest-deps — отложен на Alpha. |
 | 2026-08-06 | M2.2 follow-up (PR #13): **пустые markers → probe all detectors — принято** (осознанно path-only, чуть шире «matched ecosystem»; sniff-кейсы обычно с непустыми hits). `detect/mod.rs` ~400+ строк — ок до M2.3 (при росте вынести тесты в `detect/tests_unit.rs`). Symlink-тест `size.rs` — по сути `#[cfg(unix)]`, primary Linux ок. |
 | 2026-08-06 | M2.2 follow-up (PR #13), **идея «на вырост» (обязательно к реализации)**: фреймворки — вложенность внутри экосистемы (`detect/node/next.rs`, `detect/python/django.rs`, `detect/ruby/rails.rs` …), API снаружи без изменений (`StackDetector` по экосистемам). Сплит внутри экосистемы только при 4–5+ правил в одном файле или конфигурируемом «только Next». Плоский `detect/frameworks/` НЕ делать (Next без Node-контекста бессмысленен). |
+| 2026-08-06 | M2.3: cache-локация = **XDG** (`$XDG_CACHE_HOME/raccpack/sniff/{hash}.json`, fallback `~/.cache/raccpack/sniff/`) — вариант C спеки (не писать в scan_root). Ключ = FNV-1a 64 по root+max_depth+policy_fp (НЕ DefaultHasher). `AppContext.secret_groups_override` отложен до M3.x (нет типа EnabledGroups). |
