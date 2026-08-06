@@ -386,6 +386,12 @@
 - `secret_groups_override` — добавить аддитивно при M3.x вместе с `EnabledGroups` (помечено в rustdoc).
 - `serde_json` стал prod-зависимостью core (оправдано cache JSON).
 
+#### Follow-up review замечания (человек, 2026-08-06; PR #15) — НЕ блокеры, принято
+- **A. `project_size_bytes(...).unwrap_or_default()`** — ошибка size → 0, sniff не падает. Для UX sniff ок; если позже нужен fail-fast — отдельная политика/опция (не менять сейчас).
+- **B. `POLICY_FINGERPRINT = "default_scan_v1"`** — при смене `SkipPolicy::default_scan` обязателен bump строки; комментарий у const уже есть.
+- **C. Root-сравнение без canonicalize** (как config): одинаковый путь через разные представления (`/a/b` vs `/a/../a/b`) → разные cache-ключи. Для v1 приемлемо; canonicalize — отдельное решение (не сейчас).
+- **D. Progress — одна фаза `"scan"`** (phase_index 0, phase_count 1); для dig/pack мультифазность расширится позже. Оставлено как есть.
+
 ## Принятые решения
 
 | Дата | Решение |
