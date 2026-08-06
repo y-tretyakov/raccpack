@@ -7,8 +7,9 @@ pub mod scan;
 pub use config::{ConfigError, PathsConfig, RaccConfig, ScannerConfig};
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};
 pub use scan::{
-    ensure_scan_root, find_candidates, skip::SkipPolicy, skip::SkipReason, walk::WalkOptions,
-    walk_tree, CandidateOptions, MarkerDef, MarkerHit, MarkerKind, ProjectCandidate,
+    default_markers, ensure_scan_root, find_candidates, skip::SkipPolicy, skip::SkipReason,
+    walk::WalkOptions, walk_tree, CandidateOptions, MarkerDef, MarkerHit, MarkerKind,
+    ProjectCandidate,
 };
 
 /// Placeholder to keep the crate non-empty and testable.
