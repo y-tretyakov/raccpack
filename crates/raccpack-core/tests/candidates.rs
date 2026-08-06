@@ -377,3 +377,98 @@ fn candidate_name_is_directory_name() {
         assert_eq!(c.name, expected, "name for {:?}", c.path);
     }
 }
+
+// --- Case 15: nested projects are not collapsed -------------------------------------------
+
+#[test]
+fn nested_projects_are_not_collapsed() {
+    let root = TempDir::new().unwrap();
+    write(root.path(), "parent/Cargo.toml");
+    write(root.path(), "parent/child/Cargo.toml");
+
+    let cands = find(root.path(), &CandidateOptions::default());
+
+    assert_eq!(
+        cands.len(),
+        2,
+        "parent and its nested child must each be a candidate"
+    );
+    let rels = rel_paths(&cands, root.path());
+    assert_eq!(
+        rels,
+        vec![PathBuf::from("parent"), PathBuf::from("parent/child")],
+        "both candidates present and sorted by path"
+    );
+    assert_eq!(
+        names_of(&cands),
+        vec!["parent", "child"],
+        "parent and child must not be collapsed into a single candidate"
+    );
+    for c in &cands {
+        assert!(
+            c.markers.iter().any(|m| m.name == "Cargo.toml"),
+            "each candidate must carry its own marker hits"
+        );
+    }
+}
+
+// --- Case 16: a FILE named `.git` is not the DirName marker ----------------------------------
+
+#[test]
+fn file_named_git_is_not_a_git_marker() {
+    let root = TempDir::new().unwrap();
+    write(root.path(), "app/.git");
+    assert!(
+        root.path().join("app/.git").is_file(),
+        "fixture must place a regular file named `.git`"
+    );
+
+    let cands = find(root.path(), &CandidateOptions::default());
+    assert!(
+        cands.is_empty(),
+        "a file named `.git` must not count as the `DirName` marker: {cands:?}"
+    );
+}
+
+// --- Case 17: a DIRECTORY named `Cargo.toml` is not the FileName marker ----------------------
+
+#[test]
+fn directory_named_cargo_toml_is_not_a_marker() {
+    let root = TempDir::new().unwrap();
+    write_dir(root.path(), "fake/Cargo.toml");
+    assert!(
+        root.path().join("fake/Cargo.toml").is_dir(),
+        "fixture must place a directory named `Cargo.toml`"
+    );
+
+    let cands = find(root.path(), &CandidateOptions::default());
+    assert!(
+        cands.is_empty(),
+        "a directory named `Cargo.toml` must not match the `FileName` marker: {cands:?}"
+    );
+}
+
+// --- Case 18: a genuine `.git` directory is still a DirName marker ---------------------------
+
+#[test]
+fn git_dir_still_detected_as_dir_marker() {
+    let root = TempDir::new().unwrap();
+    write(root.path(), "repo/Cargo.toml");
+    write_dir(root.path(), "repo/.git");
+
+    let cands = find(root.path(), &CandidateOptions::default());
+    assert_eq!(cands.len(), 1);
+    let c = &cands[0];
+    assert_eq!(c.name, "repo");
+    assert!(
+        c.is_git_repo,
+        "a genuine `.git` directory must set is_git_repo"
+    );
+    let git = c
+        .markers
+        .iter()
+        .find(|m| m.name == ".git")
+        .unwrap_or_else(|| panic!("`.git` marker hit missing in {c:?}"));
+    assert_eq!(git.kind, MarkerKind::DirName);
+    assert_eq!(git.language_hint, None);
+}
