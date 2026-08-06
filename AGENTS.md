@@ -25,6 +25,7 @@
 | `raccpack-architecture-vision.md` | Слои: core / facade / UI; потоки данных; границы доверия; контракты DTO | для решений по архитектуре |
 | `raccpack-facade-and-den.md` | Конкретные сигнатуры facade (`sniff/dig/stash/rinse/pack/raid`), типы (`AppContext`, `ProgressSink`, `*Options`, `*Result`), структура den, manifest JSON | при работе с use-cases и отчётами |
 | `raccpack-modularity.md` | Модульность secrets и archive backends: один вид секрета/backend = один `*.rs`, registry как единственная точка агрегации | при реализации/рефакторинге secrets/archive |
+| `raccpack-markers-detect-modularity.md` | Модульность markers/detect по экосистемам: один язык/экосистема = один `*.rs` (group + детектор), registry в `markers/mod.rs`/`detect/mod.rs`, `candidates` не знает языков | при работе с `scan/markers/`, `scan/candidates.rs`, detect на M2.2 |
 | `raccpack-roadmap-v1.md` | Версии MVP→1.0.0, фазы M/A/B/R/S, жёсткие зависимости вех | контекст приоритетов |
 | `docs/mvp/m{1..4}/*` | Детальные спекуляции этапов MVP (по файлу на этап) | **только по явной ссылке от человека** (правило «docs/ не читать без ссылки») |
 | `WORKLOG.md` | Журнал статусов этапов (создаётся в фазе 0.1) | после каждого этапа обновлять |

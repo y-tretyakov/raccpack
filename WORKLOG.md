@@ -221,6 +221,47 @@
 - **E. Двойной обход (walk + read_dir per dir) — принято** для ясности; оптимизация на больших деревьях позже.
 - **F. WORKLOG backlog** — уже синхронизирован на SHA M2.1 (`[x] M2.1`).
 
+### M2.1-followup — markers modularity (CLOSED)
+
+- **Дата:** 2026-08-06
+- **Ветка:** `m2.1-markers-split`
+- **Статус:** done
+- **Dev:** dev-m2.1-split · **Test:** test-m2.1-split (параллельно)
+
+#### Сделано
+- Принятое решение `raccpack-markers-detect-modularity.md` зафиксировано в корне рядом с `raccpack-modularity.md` (один язык/экосистема ≈ один файл; агрегация только в registry; `candidates` не знает языков; detect по файлам экосистем — с M2.2).
+- `scan/markers.rs` разрезан в `scan/markers/`: `types.rs` (MarkerKind/MarkerDef/MarkerHit — определения без изменения), 10 group-файлов (`rust/node/go/python/jvm/ruby/php/cpp/make/git`), тонкий `mod.rs` — registry `default_markers() -> &'static [MarkerDef]` на `std::sync::OnceLock` (без новых deps, MSRV-safe). Порядок групп **воспроизводит эффективный порядок M2.1** (rust, node, go, python, jvm, ruby, php, cpp, make, git), а не иллюстративный python-before-go из документа — hit-порядок `find_candidates` не регрессирует.
+- `candidates.rs`: `DEFAULT_MARKERS` → `default_markers()`; публичный API `find_candidates`/`CandidateOptions`/`ProjectCandidate` без изменений.
+- Re-exports: `scan::default_markers` (+ additive в top-level `lib.rs`). Новый маркер/язык = новая строка в группе или новый group-файл + одна строка в `GROUPS`.
+
+#### Файлы
+- `raccpack-markers-detect-modularity.md` (created)
+- `crates/raccpack-core/src/scan/markers/{mod,types,rust,node,python,go,jvm,ruby,php,cpp,make,git}.rs` (created)
+- `crates/raccpack-core/src/scan/markers.rs` (deleted)
+- `crates/raccpack-core/src/scan/candidates.rs` (changed)
+- `crates/raccpack-core/src/scan/mod.rs` (changed)
+- `crates/raccpack-core/src/lib.rs` (changed)
+- `crates/raccpack-core/tests/markers_registry.rs` (created, 4 теста)
+
+#### Проверки (выполнены Orchestrator самостоятельно)
+- `cargo build --workspace` → pass
+- `cargo test -p raccpack-core` → pass (107: 12 lib + 19 candidates + 22 config + 22 domain + 4 markers_registry + 27 skip_walk + 1 doctest, 0 failed)
+- `cargo test -p raccpack-core --test markers_registry` → pass (4)
+- `cargo test -p raccpack-core --test candidates` → pass (19, файл без правок)
+- `cargo clippy -p raccpack-core --all-targets -- -D warnings` → pass
+- `cargo fmt --all -- --check` → pass
+- grep unwrap/expect/anyhow/Box<dyn/once_cell в изменённых файлах → чисто (только внутренний статик `DEFAULT_MARKERS` как `OnceLock` в mod.rs)
+
+#### Критерий готовности
+- [x] `markers.rs` → `markers/` registry, поведение не изменено
+- [x] `default_markers()` = 14 маркеров в точном порядке M2.1 (зафиксировано инвариант-тестом)
+- [x] `find_candidates` API/поведение не изменены (19 тестов candidates без правок)
+- [x] build/clippy/fmt green, без unwrap/anyhow/новых deps
+
+#### Follow-up / риски
+- **Breaking (pre-1.0):** публичный статик `scan::DEFAULT_MARKERS` → `scan::default_markers()`. Внешних callers нет; пометка для CHANGES при релизе.
+- `detect/` по экосистемам (`trait StackDetector` + registry в `detect/mod.rs`) — этап M2.2; резать сразу по файлам экосистем, не god-file `match language`.
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -235,3 +276,4 @@
 | 2026-08-05 | M1.3: config-стиль = секции `[paths]`/`[scanner]`; relative paths резолвятся от `current_dir()` (не от dir файла); `den_dir` default = `~/.raccpack/den`; `deny_unknown_fields` off; без canonicalize; `ConfigError` отдельный от `domain::Error` до facade-фазы. |
 | 2026-08-05 | M1.4: М1 закрыт (m1.4 merged #7). README Status обновлён: «M1 done, next M2 sniff». Замечания человека после приёмки (не блокеры, зафиксированы в follow-up M1.4): Cargo.lock сверять после merge; ConfigError↔Error на facade; is_under_root перед pack/stash; warning в UX про hidden root; отдельная file-policy; Windows HOME/XDG — позже. |
 | 2026-08-05 | M2.1 review: exact case-sensitive match маркеров (Linux v1); macOS/Windows case-insensitive FS — отдельная политика позже. `MarkerDef.extra_markers` пока `&'static str`; owned-вариант (String) — когда понадобится конфиг/CLI (M2.2+/facade). |
+| 2026-08-06 | M2.1-followup (`raccpack-markers-detect-modularity.md`): `markers.rs` → `markers/` по экосистемам, registry `default_markers()`; порядок групп = эффективный порядок M2.1 (behavior-preserving). `detect/` по файлам экосистем (trait + registry) — с M2.2. |

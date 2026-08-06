@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use crate::domain::Error;
 
-use super::markers::{MarkerDef, MarkerHit, MarkerKind, DEFAULT_MARKERS};
+use super::markers::{default_markers, MarkerDef, MarkerHit, MarkerKind};
 use super::walk::{ensure_scan_root, walk_tree, WalkOptions};
 
 /// A directory that looks like a project root because it contains markers.
@@ -34,7 +34,7 @@ pub struct CandidateOptions {
     pub max_depth: usize,
     /// Policy deciding which directories are skipped.
     pub policy: crate::scan::SkipPolicy,
-    /// Additional markers beyond [`DEFAULT_MARKERS`] (optional).
+    /// Additional markers beyond [`default_markers()`] (optional).
     pub extra_markers: Vec<MarkerDef>,
     /// If true, a directory with only `.git` and no other markers still
     /// becomes a candidate.
@@ -57,7 +57,7 @@ impl Default for CandidateOptions {
 /// The scan root is validated with [`ensure_scan_root`] and walked with
 /// [`walk_tree`] (symlinks never followed, `max_depth` and `policy` taken from
 /// `opts`). For every visited directory plus the root itself, the directory's
-/// entries are read once and matched against [`DEFAULT_MARKERS`] plus
+/// entries are read once and matched against [`default_markers()`] plus
 /// `opts.extra_markers` by exact, case-sensitive `file_name()`. Every
 /// directory with at least one matching marker becomes a [`ProjectCandidate`].
 ///
@@ -75,7 +75,7 @@ pub fn find_candidates(
 ) -> Result<Vec<ProjectCandidate>, Error> {
     ensure_scan_root(root)?;
 
-    let markers: Vec<MarkerDef> = DEFAULT_MARKERS
+    let markers: Vec<MarkerDef> = default_markers()
         .iter()
         .chain(opts.extra_markers.iter())
         .cloned()
