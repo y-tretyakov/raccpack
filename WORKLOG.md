@@ -308,6 +308,38 @@
 - `project_size_bytes` fail-fast на walk-ошибках (нечитаемый каталог роняет размер). Консистентно с `candidates.rs`, но для UX можно перевести на skip+continue позже.
 - `.git`-marker не влияет на language (по спека §4.1 таблица без `.git`) — покрыто тестом.
 
+#### Follow-up review замечания (человек, 2026-08-06; PR #13) — НЕ блокеры M2.2
+- **A. `detect/mod.rs` ~400+ строк — ок** (часть — `#[cfg(test)]` unit-тесты). Если разрастётся — вынести тесты в `detect/tests_unit.rs`; до M2.3 оставить как есть.
+- **B. Пустые markers → probe all detectors — ПРИНЯТО** (осознанно path-only, чуть шире, чем «только matched ecosystem»; для sniff-кейсов hits обычно не пустые). Зафиксировано как решение.
+- **C. Manifest deps (next/react в package.json) — отложено на Alpha** (в PR body) — корректно.
+- **D. `size.rs` symlink unit-тест** — по сути `#[cfg(unix)]` (unix symlink API); primary Linux — ок.
+- **E. Кэш GitHub иногда отстаёт от tip dev** — при ревью ориентироваться на merge SHA `45363aa`.
+
+#### Идея «на вырост» — модели detect-фреймворков (ОБЯЗАТЕЛЬНО к последующей реализации, не забыть)
+- Не глобальный список фреймворков, а **вложенность внутри экосистемы**:
+  ```
+  textdetect/
+    node/
+      mod.rs          # NodeDetector: matches + вызывает hints
+      next.rs
+      nuxt.rs
+      vite.rs
+      …
+    python/
+      mod.rs
+      django.rs
+    ruby/
+      mod.rs
+      rails.rs
+    types.rs
+    mod.rs            # all_detectors() без изменений снаружи
+  ```
+- Снаружи API тот же: `StackDetector` по экосистемам. Фреймворки — детали реализации экосистемы.
+- Практический критерий (когда сплитить):
+  - M2.2 / M2.3: оставить как есть.
+  - Когда добавляете **4–5+ framework-правил в один файл** или конфигурируемое **«включить только Next»** — тогда split внутри экосистемы.
+  - **НЕ делать** плоский `detect/frameworks/next.rs` рядом с языками: Next без Node-контекста почти бессмысленен.
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -324,3 +356,5 @@
 | 2026-08-05 | M2.1 review: exact case-sensitive match маркеров (Linux v1); macOS/Windows case-insensitive FS — отдельная политика позже. `MarkerDef.extra_markers` пока `&'static str`; owned-вариант (String) — когда понадобится конфиг/CLI (M2.2+/facade). |
 | 2026-08-06 | M2.1-followup (`raccpack-markers-detect-modularity.md`): `markers.rs` → `markers/` по экосистемам, registry `default_markers()`; порядок групп = эффективный порядок M2.1 (behavior-preserving). `detect/` по файлам экосистем (trait + registry) — с M2.2. |
 | 2026-08-06 | M2.2: `detect/` — top-level модуль (а не `scan/detect/`): спека §3 рекомендует отдельный модуль detect, architecture-vision — отдельная подсистема. Принята политика merge: language по приоритету §4.1 (tie → первый hit; fallback на первый hit с hint), frameworks union по registry-порядку с dedup, markers sorted+dedup. `StackDetector::detect -> Result<Stack, Error>` (deviation от иллюстрации modularity-документа, чтобы выразить `Error::Io`, спека §5). Парсинг manifest-deps — отложен на Alpha. |
+| 2026-08-06 | M2.2 follow-up (PR #13): **пустые markers → probe all detectors — принято** (осознанно path-only, чуть шире «matched ecosystem»; sniff-кейсы обычно с непустыми hits). `detect/mod.rs` ~400+ строк — ок до M2.3 (при росте вынести тесты в `detect/tests_unit.rs`). Symlink-тест `size.rs` — по сути `#[cfg(unix)]`, primary Linux ок. |
+| 2026-08-06 | M2.2 follow-up (PR #13), **идея «на вырост» (обязательно к реализации)**: фреймворки — вложенность внутри экосистемы (`detect/node/next.rs`, `detect/python/django.rs`, `detect/ruby/rails.rs` …), API снаружи без изменений (`StackDetector` по экосистемам). Сплит внутри экосистемы только при 4–5+ правил в одном файле или конфигурируемом «только Next». Плоский `detect/frameworks/` НЕ делать (Next без Node-контекста бессмысленен). |
