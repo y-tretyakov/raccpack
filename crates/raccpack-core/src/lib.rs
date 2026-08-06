@@ -1,15 +1,17 @@
 //! raccpack-core — domain and use-cases. No CLI/TUI/Desktop dependencies.
 
 pub mod config;
+pub mod detect;
 pub mod domain;
 pub mod scan;
 
 pub use config::{ConfigError, PathsConfig, RaccConfig, ScannerConfig};
+pub use detect::{candidate_to_project, detect_stack, detect_stacks, stack_from_candidate};
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};
 pub use scan::{
-    default_markers, ensure_scan_root, find_candidates, skip::SkipPolicy, skip::SkipReason,
-    walk::WalkOptions, walk_tree, CandidateOptions, MarkerDef, MarkerHit, MarkerKind,
-    ProjectCandidate,
+    default_markers, ensure_scan_root, find_candidates, project_size_bytes, skip::SkipPolicy,
+    skip::SkipReason, walk::WalkOptions, walk_tree, CandidateOptions, MarkerDef, MarkerHit,
+    MarkerKind, ProjectCandidate,
 };
 
 /// Placeholder to keep the crate non-empty and testable.

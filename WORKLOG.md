@@ -12,6 +12,7 @@
 [x] M1.3 Config
 [x] M1.4 Skip policy + walk
 [x] M2.1 Marker files + skip dirs → candidates
+[x] M2.2 Detect languages/frameworks → Stack
 ```
 
 ## Этапы
@@ -262,6 +263,51 @@
 - **Breaking (pre-1.0):** публичный статик `scan::DEFAULT_MARKERS` → `scan::default_markers()`. Внешних callers нет; пометка для CHANGES при релизе.
 - `detect/` по экосистемам (`trait StackDetector` + registry в `detect/mod.rs`) — этап M2.2; резать сразу по файлам экосистем, не god-file `match language`.
 
+### M2.2 — Detect languages/frameworks → Stack (CLOSED)
+
+- **Дата:** 2026-08-06
+- **Ветка:** `m2.2-detect-stack`
+- **Статус:** done
+- **Dev:** dev-m2.2 · **Test:** test-m2.2 (параллельно) · rework test-m2.2 (компиляция/фикстуры, попытка 2) · rework dev-m2.2 (doc warnings, попытка 2)
+
+#### Сделано
+- `detect/` — новый модуль по экосистемам (accepted decision `raccpack-markers-detect-modularity.md`): `trait StackDetector` (`id`/`matches`/`detect -> Result<Stack, Error>`) + таблица приоритетов языка §4.1 в `types.rs`; 10 детекторов (rust/node/go/python/jvm/ruby/php/cpp/make/git) по одному файлу; registry `all_detectors()` + оркестрация/merge в `mod.rs`. Размещение — top-level `src/detect/` (по рекомендации спеки §3 и архитектурному vision, где detect — отдельная подсистема; в modularity-документе дерево было иллюстративным).
+- Public API (спека §5): `stack_from_candidate` (PURE), `detect_stack` (PathNotFound/NotADirectory/Io), `detect_stacks` (fail-fast батч), `candidate_to_project` (§6). Re-exports в `lib.rs` additive.
+- Merge policy (rustdoc модуля): language — центрально по приоритету §4.1 (tie → первый hit в порядке markers; fallback на первый hit с hint для extra_markers); frameworks — union по registry-порядку с dedup (first wins); markers — сортированные уникальные имена hit'ов.
+- Framework hints по именам файлов (MVP, без парсинга манифестов): `next.config.{js,mjs,ts}`→Next.js, `nuxt.config.*`→Nuxt, `angular.json`→Angular, `vite.config.*`→Vite, `deno.json`→Deno, `manage.py`→Django, `Gemfile`+`config/application.rb` (config — реальная dir через `symlink_metadata`)→Rails, `build.sbt`→Scala/sbt. `detect_stack` с пустыми markers (path-only) пробирует все детекторы.
+- `scan/size.rs`: `project_size_bytes(path, policy, max_depth)` на существующем `walk_tree` (`follow_links(false)`, policy уважается). Симлинки не считаются и не следуются; unreadable-файлы skip+continue; walk-ошибки → fail-fast (`Error::Io`/`Other`). Re-export в `scan::mod.rs` и `lib.rs`.
+- Парсинг `package.json`/`Cargo.toml` (next/react/vue/axum по deps) — **отложен** (не блокер MVP, спека §4.2).
+
+#### Файлы
+- `crates/raccpack-core/src/detect/{mod,types,rust,node,go,python,jvm,ruby,php,cpp,make,git}.rs` (created)
+- `crates/raccpack-core/src/scan/size.rs` (created)
+- `crates/raccpack-core/src/scan/mod.rs` (changed), `crates/raccpack-core/src/lib.rs` (changed)
+- `crates/raccpack-core/tests/detect_stack.rs` (created, 22 теста)
+
+#### Проверки (выполнены Orchestrator самостоятельно)
+- `cargo build --workspace` → pass
+- `cargo test -p raccpack-core` → pass (161, 0 failed: 12 lib + 29 unit detect/size + 22 config + 22 domain + 19 candidates + 4 markers_registry + 27 skip_walk + 1 doctest + 22 detect_stack)
+- `cargo test -p raccpack-core -- detect` → pass; `-- stack` → pass
+- `cargo clippy -p raccpack-core --all-targets -- -D warnings` → pass
+- `cargo fmt --all -- --check` → pass
+- `cargo doc -p raccpack-core --no-deps` → без warning на `detect/` (остался один pre-existing warning `markers/mod.rs:53` — вне скоупа)
+- grep unwrap/expect/anyhow/Box<dyn: только `#[cfg(test)]`; `WalkDir` в новых файлах не используется (только `walk_tree`)
+
+#### Критерий готовности (DoD из m2.2 §9)
+- [x] `stack_from_candidate` / `detect_stack` заполняют `Stack` по правилам §4
+- [x] Приоритет language при конфликте задокументирован (rustdoc) и покрыт тестом
+- [x] Framework hints по именам файлов: Next.js + Nuxt/Angular/Vite/Deno/Django/Rails/Scala-sbt (7 экосистем)
+- [x] `project_size_bytes` уважает SkipPolicy и `follow_links(false)`
+- [x] Тесты §7 зелёные
+- [x] `cargo test -p raccpack-core` green
+
+#### Риски / follow-up
+- Парсинг manifest-файлов для framework-deps (next/react/vue/axum) — отложен на Alpha (спека §4.2 optional).
+- `trait StackDetector::detect` возвращает `Result<Stack, Error>` (а не `-> Stack`, как в иллюстрации modularity-документа): bare `Stack` не выражает `Error::Io` при shallow-read, что требует спека §5. Зафиксировано в rustdoc `detect/types.rs`.
+- Pre-existing rustdoc-warning `markers/mod.rs:53` (`GROUPS` — приватный item в ссылке из публичного док-комментария) — с M2.1-followup, вне скоупа M2.2; закрыть отдельным мелким этапом.
+- `project_size_bytes` fail-fast на walk-ошибках (нечитаемый каталог роняет размер). Консистентно с `candidates.rs`, но для UX можно перевести на skip+continue позже.
+- `.git`-marker не влияет на language (по спека §4.1 таблица без `.git`) — покрыто тестом.
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -277,3 +323,4 @@
 | 2026-08-05 | M1.4: М1 закрыт (m1.4 merged #7). README Status обновлён: «M1 done, next M2 sniff». Замечания человека после приёмки (не блокеры, зафиксированы в follow-up M1.4): Cargo.lock сверять после merge; ConfigError↔Error на facade; is_under_root перед pack/stash; warning в UX про hidden root; отдельная file-policy; Windows HOME/XDG — позже. |
 | 2026-08-05 | M2.1 review: exact case-sensitive match маркеров (Linux v1); macOS/Windows case-insensitive FS — отдельная политика позже. `MarkerDef.extra_markers` пока `&'static str`; owned-вариант (String) — когда понадобится конфиг/CLI (M2.2+/facade). |
 | 2026-08-06 | M2.1-followup (`raccpack-markers-detect-modularity.md`): `markers.rs` → `markers/` по экосистемам, registry `default_markers()`; порядок групп = эффективный порядок M2.1 (behavior-preserving). `detect/` по файлам экосистем (trait + registry) — с M2.2. |
+| 2026-08-06 | M2.2: `detect/` — top-level модуль (а не `scan/detect/`): спека §3 рекомендует отдельный модуль detect, architecture-vision — отдельная подсистема. Принята политика merge: language по приоритету §4.1 (tie → первый hit; fallback на первый hit с hint), frameworks union по registry-порядку с dedup, markers sorted+dedup. `StackDetector::detect -> Result<Stack, Error>` (deviation от иллюстрации modularity-документа, чтобы выразить `Error::Io`, спека §5). Парсинг manifest-deps — отложен на Alpha. |
