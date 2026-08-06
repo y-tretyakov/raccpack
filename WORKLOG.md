@@ -213,6 +213,14 @@
 - Команда из спеки `cargo test -p raccpack-core candidates markers` — невалидный синтаксис (несколько фильтров до `--`); корректно: `cargo test -p raccpack-core --test candidates` (аналогично замечанию M1.4).
 - `inspect_dir` повторяет `read_dir` для каждой посещённой директории (спека §5 — один read_dir на dir); при большом дереве возможна оптимизация через один проход walker'а, но это нарушает «маркеры по имени из entries» и отложено.
 
+#### Follow-up review замечания (человек, 2026-08-05; PR #11)
+- **A. Kind-aware matching — FIXED.** `inspect_dir` собирает `HashMap<OsString, bool>` (name → is_dir из `DirEntry::file_type()`, ошибки → `Error::Io`); `MarkerKind::FileName` матчит только не-директории, `DirName` — только директории. Файл `.git` и директория `Cargo.toml` больше не дают ложных hits. `file_type()` не следует симлинкам → симлинк не матчит `DirName`.
+- **B. Nested projects — TEST ADDED.** `nested_projects_are_not_collapsed` (parent + child оба с `Cargo.toml` → два кандидата). Плюс регрессия kind: `file_named_git_is_not_a_git_marker`, `directory_named_cargo_toml_is_not_a_marker`, `git_dir_still_detected_as_dir_marker`. candidates-тесты: 15 → 19.
+- **C. Case sensitivity — ЗАФИКСИРОВАНО.** Exact, case-sensitive match по `file_name()`; на macOS/Windows (case-insensitive FS) потребует политики — v1 primary Linux, осознанно ок (rustdoc `MarkerDef` уже отмечает).
+- **D. `extra_markers: Vec<MarkerDef>` с `&'static str` — НЕ блокер.** Owned-вариант (String) для конфига/CLI — отложено до M2.2+/facade (см. Решения).
+- **E. Двойной обход (walk + read_dir per dir) — принято** для ясности; оптимизация на больших деревьях позже.
+- **F. WORKLOG backlog** — уже синхронизирован на SHA M2.1 (`[x] M2.1`).
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -226,3 +234,4 @@
 | 2026-08-05 | AGENTS.md: обновлена строка «текущее состояние» (было «нет дерева crate», стало — workspace развёрнут, M1.1 done). |
 | 2026-08-05 | M1.3: config-стиль = секции `[paths]`/`[scanner]`; relative paths резолвятся от `current_dir()` (не от dir файла); `den_dir` default = `~/.raccpack/den`; `deny_unknown_fields` off; без canonicalize; `ConfigError` отдельный от `domain::Error` до facade-фазы. |
 | 2026-08-05 | M1.4: М1 закрыт (m1.4 merged #7). README Status обновлён: «M1 done, next M2 sniff». Замечания человека после приёмки (не блокеры, зафиксированы в follow-up M1.4): Cargo.lock сверять после merge; ConfigError↔Error на facade; is_under_root перед pack/stash; warning в UX про hidden root; отдельная file-policy; Windows HOME/XDG — позже. |
+| 2026-08-05 | M2.1 review: exact case-sensitive match маркеров (Linux v1); macOS/Windows case-insensitive FS — отдельная политика позже. `MarkerDef.extra_markers` пока `&'static str`; owned-вариант (String) — когда понадобится конфиг/CLI (M2.2+/facade). |

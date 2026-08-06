@@ -5,7 +5,7 @@
 //! entries once and matches them against the marker table. Directories that
 //! contain at least one marker become [`ProjectCandidate`]s.
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
@@ -109,10 +109,16 @@ pub fn find_candidates(
 
 /// Read one directory's entries and build a candidate when a marker matches.
 ///
-/// Directory names are collected once into a set, then the marker table is
-/// iterated in its fixed order so [`MarkerHit`] ordering is deterministic and
-/// independent of the filesystem's `read_dir` order. A directory that is a
-/// symlink is never read.
+/// Each entry's name and `file_type()` (dir vs not-dir) are recorded once into
+/// a map, then the marker table is iterated in its fixed order so
+/// [`MarkerHit`] ordering is deterministic and independent of the filesystem's
+/// `read_dir` order. A directory that is a symlink is never read.
+///
+/// Kind-aware matching honors [`MarkerKind`]: a `FileName` marker matches only
+/// non-directory entries, and a `DirName` marker only directories.
+/// `DirEntry::file_type()` does not follow symlinks, so a symlink reports its
+/// own type and `is_dir()` is false — a symlink never matches a `DirName`
+/// marker.
 fn inspect_dir(
     dir: &Path,
     markers: &[MarkerDef],
@@ -126,7 +132,7 @@ fn inspect_dir(
         return Ok(None);
     }
 
-    let mut names: HashSet<OsString> = HashSet::new();
+    let mut kinds: HashMap<OsString, bool> = HashMap::new();
     let entries = std::fs::read_dir(dir).map_err(|source| Error::Io {
         path: dir.to_path_buf(),
         source,
@@ -136,13 +142,27 @@ fn inspect_dir(
             path: dir.to_path_buf(),
             source,
         })?;
-        names.insert(entry.file_name());
+        let is_dir = entry
+            .file_type()
+            .map_err(|source| Error::Io {
+                path: dir.to_path_buf(),
+                source,
+            })?
+            .is_dir();
+        kinds.insert(entry.file_name(), is_dir);
     }
 
     let mut hits: Vec<MarkerHit> = Vec::new();
     let mut only_git = true;
     for marker in markers {
-        if !names.contains(OsStr::new(marker.name)) {
+        let Some(&is_dir) = kinds.get(OsStr::new(marker.name)) else {
+            continue;
+        };
+        let kind_matches = match marker.kind {
+            MarkerKind::FileName => !is_dir,
+            MarkerKind::DirName => is_dir,
+        };
+        if !kind_matches {
             continue;
         }
         let is_git = marker.kind == MarkerKind::DirName && marker.name == ".git";
