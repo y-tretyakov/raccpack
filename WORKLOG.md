@@ -17,6 +17,7 @@
 [x] M2.4 CLI sniff (racc sniff --root, text + --json)
 [x] M3.1 Filename patterns + risk model (severity API)
 [x] M3.2 Content markers (regex/prefix) + size limits + mask/fingerprint
+[x] M3.3 Facade dig (masked output, без raw в report)
 ```
 
 ## Этапы
@@ -553,6 +554,49 @@
 - **D. Serde на findings** — на M3.3 (facade dig), как планировали.
 - **E. Модульность** — одна data-table на content markers правильна (registry-паттерн); дробить на файлы имеет смысл только при росте правил / конфигурируемых группах (по аналогии с markers/detect по экосистемам).
 
+### M3.3 — Facade dig (masked output, без raw в report) (CLOSED)
+
+- **Дата:** 2026-08-08
+- **Ветка:** `m3.3-facade-dig`
+- **Статус:** done
+- **Dev:** dev-m3.3 · **Test:** test-m3.3 (параллельно, без rework)
+
+#### Сделано
+- `app/dig.rs` (created): `DigOptions` (`project`/`find_repeated`/`scan_content`/`use_heuristics`; manual `Default`, `scan_content` default true), `SensitiveFile` (path/risk/labels/content_match/git_status=None), `RepeatedSecret` (value_hash/masked/risk=max/paths/count), `DigResult` (root/files/repeated/duration_ms/files_scanned) — все serde, masked-only.
+- `dig()`: root = `opts.project` или `ctx.paths.scan_root` → `ensure_scan_root` → `scan_secrets_with_count` (max_depth из config, policy `default_scan`, min_risk Low, `scan_content`/`find_repeated` из opts) → mapping findings→`SensitiveFile` → `aggregate_by_hash` (группы по `content_match.value_hash`, только hash в ≥2 файлах, сортировка risk desc → hash asc, детерминизм) → progress 0/50/100 (`OperationKind::Dig`, phase `"dig"`, phase_complete на 100). **Read-only**: без cache, без age/stash, exit policy не применяется внутри.
+- `exit_code_for_secrets`: только 0/2 (`Ignore` / `FailOnCritical` / `FailOnHighOrAbove`) по спеке §5.
+- `secrets/scan.rs`: добавлен `pub(crate) fn scan_secrets_with_count` (счётчик regular files до обработки), публичный `scan_secrets` делегирует — поведение не изменено (все существующие тесты зелёные).
+- Аддитивный serde (`Serialize`/`Deserialize`) на `SensitiveFinding`/`FindingSource` — запланировано в follow-up M3.1/M3.2.
+- Re-exports: `app/mod.rs` + `lib.rs` (additive, не breaking; публичных callers нет).
+- `use_heuristics` принимается и игнорируется без ошибки (MVP); `opts.project` может быть абсолютным путём вне `scan_root` (рекомендация спеки §4 «Path containment»).
+
+#### Файлы
+- created: `crates/raccpack-core/src/app/dig.rs`, `crates/raccpack-core/tests/dig.rs`
+- changed: `crates/raccpack-core/src/app/mod.rs`, `crates/raccpack-core/src/lib.rs`, `crates/raccpack-core/src/secrets/finding.rs`, `crates/raccpack-core/src/secrets/scan.rs`
+
+#### Тесты
+- `cargo test --workspace` → pass (277 core: 63 lib + 20 dig + 19 candidates + 22 config + 33 content_secrets + 31 detect_stack + 22 domain_dto + 23 filename_secrets + 4 markers_registry + 27 skip_walk + 12 sniff_cache + 1 doctest, 0 failed; +19 cli)
+- `cargo test -p raccpack-core --test dig` → pass (20, все §7 + экстры)
+- `cargo clippy --workspace --all-targets -- -D warnings` → pass
+- `cargo fmt --all -- --check` → pass
+- `cargo doc -p raccpack-core --no-deps` → только pre-existing warning `markers/mod.rs:53` (M2.2-followup), новых нет
+- grep unwrap/expect/anyhow/Box<dyn в production новых/изменённых файлов → чисто (только `#[cfg(test)]`; `unwrap_or`/`unwrap_or_else` на Option допустимы)
+
+#### Критерий готовности (DoD из m3.3 §9)
+- [x] `dig` соответствует facade-сигнатуре
+- [x] DTO masked-only, serde roundtrip
+- [x] `exit_code_for_secrets` покрыт тестами
+- [x] Progress events (0/50/100, phase `"dig"`)
+- [x] Тесты §7 зелёные, включая «no raw in JSON»
+- [x] `cargo test -p raccpack-core` green
+
+#### Риски / follow-up
+- `DigOptions` — manual `Default` (не derived): иначе `scan_content` default был бы `false`, противореча спеке «default true».
+- `aggregate_by_hash` группирует только по `content_match` (высший content-hit на файл): секрет с более низким risk, не ставший `content_match`, в группировку не попадает — осознанное ограничение MVP.
+- `SensitiveFile.git_status` = `None` до git-фазы A4.
+- `use_heuristics` не реализован — ignored без ошибки (по спеке §4).
+- M3.4 (CLI `racc dig` + exit policy заготовка) — следующий этап; структура `Commands` в CLI уже готова.
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -576,3 +620,4 @@
 | 2026-08-08 | M3.1: severity helpers живут в `secrets/risk.rs` (inherent `SensitiveRisk::at_least` + `upgrade_risk`) — domain/risk.rs не тронут (узкий diff). `SensitiveFinding`/`FindingSource`/`FilenameMatch` без serde (по спеке M3.1); serde — аддитивно на M3.3. `filename.rs` содержит data-таблицу (~200 строк из ~450) — приемлемо по carve-out «pure data tables»; при росте — `secrets/patterns.rs`. Обе строки `aws_credentials`/`aws_credentials_path` сохранены по спеке (разные id, одинаковый risk). |
 | 2026-08-08 | M3.2: content-скан line-oriented с prefix-token extraction (token = alnum/`-`/`_` от вхождения префикса в любой позиции строки, не только старт) — зафиксировано в rustdoc `content.rs`. `private_key_header` — Regex (а не `Contains` из иллюстрации спеки): одна needle не выражает AND двух подстрок; поведение строже и покрыто тестом. `telegram_bot` отложен (шум, нужен length-bound). Единственный `.expect` в production — компиляция static regex-таблицы в `OnceLock` (fail-at-startup, спека §8 тест 9). `MaskedValue` сериализуем уже сейчас (нужен M3.3); `SensitiveFinding`/`FindingSource` serde — на M3.3. |
 | 2026-08-08 | M3.2 follow-up (PR #19), принято: шумные `generic_*` маркеры остаются как есть (тюнинг длины/denylist позже); prefix без length bound — ок для MVP (min/max length на `ContentMarker` — аддитивная эволюция позже, вернёт и `telegram_bot`); serde на findings — на M3.3; модульность content-markers — одна data-table + registry (не дробить до роста правил/конфигурируемых групп). |
+| 2026-08-08 | M3.3: DTO `dig` живут в `app/dig.rs` (по образцу `sniff`), не в domain/report — аддитивные re-exports в `lib.rs` делают их публичными для JSON CLI. `files_scanned` через `pub(crate) scan_secrets_with_count` (без изменения публичной сигнатуры `scan_secrets`). Serde на `SensitiveFinding`/`FindingSource` добавлен аддитивно (из follow-up M3.1/M3.2). `opts.project` допускает абсолютный путь вне `scan_root` (рекомендация спеки §4). |

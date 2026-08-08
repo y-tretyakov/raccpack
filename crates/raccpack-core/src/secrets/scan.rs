@@ -69,6 +69,18 @@ impl Default for SecretScanOptions {
 /// 5. The result is sorted by `path` ascending, then `risk` descending, so
 ///    output is deterministic.
 pub fn scan_secrets(root: &Path, opts: &SecretScanOptions) -> Result<Vec<SensitiveFinding>, Error> {
+    scan_secrets_with_count(root, opts).map(|(findings, _)| findings)
+}
+
+/// Like [`scan_secrets`] but also reports the number of regular files walked.
+///
+/// The count increments for every regular file entry yielded by the walk,
+/// before filename / content processing, so files that produce no finding are
+/// still counted. Used by the `dig` facade to report scan coverage.
+pub(crate) fn scan_secrets_with_count(
+    root: &Path,
+    opts: &SecretScanOptions,
+) -> Result<(Vec<SensitiveFinding>, u64), Error> {
     crate::scan::walk::ensure_scan_root(root)?;
 
     let walk_opts = crate::scan::walk::WalkOptions {
@@ -78,11 +90,13 @@ pub fn scan_secrets(root: &Path, opts: &SecretScanOptions) -> Result<Vec<Sensiti
     };
 
     let mut findings: Vec<SensitiveFinding> = Vec::new();
+    let mut files_scanned: u64 = 0;
     for item in crate::scan::walk::walk_tree(root, &walk_opts) {
         let entry = item.map_err(|err| map_walk_error(err, root))?;
         if !entry.file_type().is_file() {
             continue;
         }
+        files_scanned += 1;
         let path = entry.path();
 
         let filename_matches = match_filename_all(path)
@@ -154,7 +168,7 @@ pub fn scan_secrets(root: &Path, opts: &SecretScanOptions) -> Result<Vec<Sensiti
     }
 
     findings.sort_by(|a, b| a.path.cmp(&b.path).then(b.risk.cmp(&a.risk)));
-    Ok(findings)
+    Ok((findings, files_scanned))
 }
 
 /// Map a [`walkdir::Error`] to the domain [`Error`] type.
