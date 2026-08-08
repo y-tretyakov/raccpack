@@ -1,29 +1,40 @@
-//! Secret detection engine: filename patterns and the risk model.
+//! Secret detection engine: filename patterns, content markers, masking, and
+//! the risk model.
 //!
-//! This stage implements name-based secret detection from a static pattern
-//! table plus the severity API. Pattern categories covered by
-//! [`DEFAULT_FILENAME_PATTERNS`]:
+//! This module implements secret detection from static pattern tables plus the
+//! severity API:
 //!
-//! - **Environment files**: `.env`, `.env.local`, `.env.production`, `.env.*`
-//! - **Private keys / SSH**: `id_rsa`, `id_ed25519`, `id_ecdsa`, `*.pem`,
-//!   `*.key`, `*.ppk`
-//! - **Keystores / certificates**: `*.p12`, `*.pfx`, `*.jks`
-//! - **Registry / config credentials**: `.netrc`, `.npmrc`, `.pypirc`,
-//!   `kubeconfig`, `.git-credentials`, `.htpasswd`, Docker `config.json`
-//! - **Cloud / service accounts**: `credentials`, `*-service-account*`,
-//!   `*-sa.json`, `secrets.{json,yaml,yml}`
-//! - **Wallets**: `wallet.dat`
+//! - **Filename patterns** ([`DEFAULT_FILENAME_PATTERNS`]) match names like
+//!   `.env`, `id_rsa`, `*.pem`, `.netrc`, `secrets.json` and more — see
+//!   [`filename`].
+//! - **Content markers** ([`DEFAULT_CONTENT_MARKERS`]) match file contents with
+//!   prefix / contains / regex rules (AWS keys, PEM headers, GitHub tokens,
+//!   Stripe keys, connection strings, JWT-like tokens) guarded by size and
+//!   binary limits — see [`content`].
+//! - **Masking** ([`mask`]) turns any raw value into a public-safe
+//!   [`MaskedValue`]: a short preview, a stable blake3 `value_hash`, and a byte
+//!   length. Raw values never appear in results, logs, or Debug output.
+//! - **Combined scan** ([`scan_secrets`]) merges filename + content detections
+//!   per path, upgrading risk via [`upgrade_risk`].
 //!
-//! Content markers (M3.2) and the facade `dig` use-case (M3.3) build on this
-//! module.
+//! The facade `dig` use-case (M3.3) builds on [`scan`].
 
+pub mod content;
 pub mod filename;
 pub mod finding;
+pub mod mask;
 pub mod risk;
+pub mod scan;
 
+pub use content::{
+    scan_file_content, ContentHit, ContentMarker, ContentMatchKind, ContentScanLimits,
+    DEFAULT_CONTENT_MARKERS,
+};
 pub use filename::{
     match_filename, match_filename_all, scan_filenames, FilenameMatch, FilenamePattern,
     FilenameScanOptions, NameMatchKind, DEFAULT_FILENAME_PATTERNS,
 };
 pub use finding::{FindingSource, SensitiveFinding};
+pub use mask::{fingerprint_secret, mask_secret, MaskedValue};
 pub use risk::{upgrade_risk, SensitiveRisk};
+pub use scan::{scan_secrets, SecretScanOptions};

@@ -373,9 +373,14 @@ pub fn scan_filenames(
             path: entry.path().to_path_buf(),
             risk: matched.risk,
             source: FindingSource::Filename {
-                pattern_id: matched.pattern_id,
+                pattern_id: matched.pattern_id.clone(),
             },
-            label: matched.label,
+            label: matched.label.clone(),
+            sources: vec![FindingSource::Filename {
+                pattern_id: matched.pattern_id,
+            }],
+            labels: vec![matched.label],
+            content_match: None,
         });
     }
 

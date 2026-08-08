@@ -16,6 +16,7 @@
 [x] M2.3 Facade sniff + versioned cache
 [x] M2.4 CLI sniff (racc sniff --root, text + --json)
 [x] M3.1 Filename patterns + risk model (severity API)
+[x] M3.2 Content markers (regex/prefix) + size limits + mask/fingerprint
 ```
 
 ## Этапы
@@ -503,6 +504,48 @@
 - **C. `filename.rs` ~450 строк — принято.** ~200 строк — чистая data-таблица (carve-out «pure data tables»); при росте — split в `secrets/patterns.rs` отдельным follow-up PR.
 - **D. Модульность «один секрет = один файл» — подтверждено.** Для content matchers (M3.2) уместна; для статической name-таблицы один registry (`DEFAULT_FILENAME_PATTERNS`) правильнее. Текущая реализация согласована с data-driven подходом.
 
+### M3.2 — Content markers (regex/prefix/contains) + size limits + mask/fingerprint (CLOSED)
+
+- **Дата:** 2026-08-08
+- **Ветка:** `m3.2-content-markers`
+- **Статус:** done
+- **Dev:** dev-m3.2 · **Test:** test-m3.2 (параллельно, без rework)
+
+#### Сделано
+- `secrets/mask.rs` (created): `MaskedValue { masked, value_hash, original_len }` (serde, единственный value-carrying DTO), `mask_secret` (≤8 байт → `"****"`; >8 → first 4 chars + `…` + last 2 chars, char-based без паники, `original_len` в байтах), `fingerprint_secret` = blake3 hex.
+- `secrets/content.rs` (created): `ContentMatchKind` (Prefix/Contains/Regex), `ContentMarker`, `DEFAULT_CONTENT_MARKERS` — 12 строк в точном порядке спеки §4.2 (`telegram_bot` осознанно отложен), `ContentScanLimits` (default 1 MiB / 1 MiB / skip_binary), `ContentHit`, `scan_file_content` — best-effort: skip empty / oversize (`max_file_bytes`) / binary (null в первых 8 KiB), line-oriented lossy read до `max_read_bytes`, 1-based line numbers, по-hit на каждое вхождение, Prefix-token = alnum/`-`/`_` от вхождения, read-ошибки → `Error::Io`. Regex компилируются один раз в `OnceLock`; единственный санкционированный `.expect` в production (static-таблица, fail-at-startup по спеке §8 тест 9, задокументирован в `content.rs`).
+- `secrets/finding.rs` (changed, additive): `FindingSource::Content { marker_id, masked, line }`; `SensitiveFinding` + `sources`/`labels`/`content_match`; инвариант `source == sources[0]`, `label == labels[0]` в rustdoc.
+- `secrets/filename.rs` (changed): `scan_filenames` заполняет новые поля (одно место конструктора).
+- `secrets/scan.rs` (created): `SecretScanOptions` (max_depth / policy / min_risk / scan_content (default true) / limits / find_repeated — placeholder для M3.3, не агрегируется), `scan_secrets` — один walk, per-path merge filename+content, risk = max через `upgrade_risk`, per-source `min_risk`-фильтр, content read-error → best-effort skip (не роняет), walk-ошибки не глотаются, сортировка path asc → risk desc.
+- `mod.rs` / `lib.rs`: re-exports (additive); `Cargo.toml`: `regex = "1"`, `blake3 = "1"` (+ `regex` в dev-dependencies для integration-теста).
+
+#### Файлы
+- created: `crates/raccpack-core/src/secrets/mask.rs`, `content.rs`, `scan.rs`, `crates/raccpack-core/tests/content_secrets.rs`
+- changed: `Cargo.toml`, `Cargo.lock` (regex 1.13.1, blake3 1.8.6), `src/lib.rs`, `src/secrets/{mod,finding,filename}.rs`
+
+#### Тесты
+- unit: mask.rs (7) + content.rs (9) + scan.rs (6) = 22 новых; lib unit всего 63.
+- integration `tests/content_secrets.rs` — 33: все 10 обязательных кейсов §8 (AKIA Critical+masked+raw не в Debug, PEM Critical, oversize→skip content но `.env` filename жив, binary skip, `.env`+password → risk max + 2 sources, masked не содержит raw, одинаковый raw в 2 файлах → одинаковый `value_hash`, node_modules не сканируется, таблица 12 строк/порядок/уникальность/regex-компиляция, empty file без паники) + экстры: content-only finding, line numbers, per-line/per-occurrence hits, `scan_content: false`, `min_risk: Critical` фильтрует High, mask-таблица (0/4/8/9/15, char-based/byte-len), fingerprint детерминизм, сортировка path asc, unreadable skip (cfg unix, root-aware), `max_read_bytes` truncation, upgrade High→Critical, root validation PathNotFound.
+- Команды: `cargo test -p raccpack-core -- content mask secret scan` → pass; `cargo test -p raccpack-core` → 257 (0 failed); `cargo test --workspace` → pass; `cargo clippy -p raccpack-core --all-targets -- -D warnings` → pass; `cargo fmt --all -- --check` → pass; `cargo doc -p raccpack-core --no-deps` → только pre-existing warning `markers/mod.rs:53`.
+
+#### Критерий готовности (DoD из m3.2 §10)
+- [x] Content markers table + scan with size/binary limits
+- [x] `mask_secret` + `fingerprint_secret` стабильны и протестированы
+- [x] Merge filename + content через risk upgrade
+- [x] Нет raw в public serializable types (только `MaskedValue`; Debug-тесты на finding/MaskedValue)
+- [x] Тесты §8 зелёные
+- [x] `cargo test -p raccpack-core` green
+
+#### Риски / follow-up
+- `generic_secret_assign` / `generic_api_key_assign` шумные (`\S{8,}` / `{16,}`) — тюнинг при табличных тестах позже.
+- `telegram_bot` отложен: нужен length-bound на `bot`+digits, иначе ложные срабатывания.
+- `private_key_header` — Regex вместо `Contains` из иллюстрации спеки (одна `Contains`-needle не выражает AND «-----BEGIN»+«PRIVATE KEY»); поведение строже, `-----BEGIN RSA PRIVATE KEY-----` матчится.
+- Prefix-семантика: матч по вхождению префикса в любой позиции строки (не только старт) — зафиксировано в rustdoc; при необходимости канонизировать отдельным решением.
+- `MaskedValue` уже serde (нужно M3.3); `SensitiveFinding`/`FindingSource` serde — аддитивно на M3.3 (как замечал M3.1).
+- `SensitiveFinding` получил новые поля (additive; конструктор литералом в `filename.rs` обновлён). Breaking: нет (внешних callers нет).
+- Спека-команда `cargo test -p raccpack-core content mask secrets` — невалидный синтаксис (несколько фильтров до `--`); корректно `-- content mask secret scan` (аналогично M1.4/M2.1/M3.1).
+- M3.3 (facade `dig`) — следующий этап, входы: `scan_secrets`/`SecretScanOptions`, `MaskedValue`, `upgrade_risk`.
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -524,3 +567,4 @@
 | 2026-08-06 | M2.3: cache-локация = **XDG** (`$XDG_CACHE_HOME/raccpack/sniff/{hash}.json`, fallback `~/.cache/raccpack/sniff/`) — вариант C спеки (не писать в scan_root). Ключ = FNV-1a 64 по root+max_depth+policy_fp (НЕ DefaultHasher). `AppContext.secret_groups_override` отложен до M3.x (нет типа EnabledGroups). |
 | 2026-08-08 | M2.4: JSON sniff-вывод = **весь `SniffResult`** (report + from_cache + duration_ms) — решение §5 спеки зафиксировано; для этого `SniffResult` получил `Serialize/Deserialize` (additive, non-breaking). CLI human-вывод — plain table (без ANSI), размеры binary-единицы. |
 | 2026-08-08 | M3.1: severity helpers живут в `secrets/risk.rs` (inherent `SensitiveRisk::at_least` + `upgrade_risk`) — domain/risk.rs не тронут (узкий diff). `SensitiveFinding`/`FindingSource`/`FilenameMatch` без serde (по спеке M3.1); serde — аддитивно на M3.3. `filename.rs` содержит data-таблицу (~200 строк из ~450) — приемлемо по carve-out «pure data tables»; при росте — `secrets/patterns.rs`. Обе строки `aws_credentials`/`aws_credentials_path` сохранены по спеке (разные id, одинаковый risk). |
+| 2026-08-08 | M3.2: content-скан line-oriented с prefix-token extraction (token = alnum/`-`/`_` от вхождения префикса в любой позиции строки, не только старт) — зафиксировано в rustdoc `content.rs`. `private_key_header` — Regex (а не `Contains` из иллюстрации спеки): одна needle не выражает AND двух подстрок; поведение строже и покрыто тестом. `telegram_bot` отложен (шум, нужен length-bound). Единственный `.expect` в production — компиляция static regex-таблицы в `OnceLock` (fail-at-startup, спека §8 тест 9). `MaskedValue` сериализуем уже сейчас (нужен M3.3); `SensitiveFinding`/`FindingSource` serde — на M3.3. |
