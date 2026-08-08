@@ -546,6 +546,13 @@
 - Спека-команда `cargo test -p raccpack-core content mask secrets` — невалидный синтаксис (несколько фильтров до `--`); корректно `-- content mask secret scan` (аналогично M1.4/M2.1/M3.1).
 - M3.3 (facade `dig`) — следующий этап, входы: `scan_secrets`/`SecretScanOptions`, `MaskedValue`, `upgrade_risk`.
 
+#### Follow-up review замечания (человек, 2026-08-08; PR #19) — НЕ блокеры, принято
+- **A. Шумные маркеры `generic_secret_assign` / `generic_api_key_assign`** — дают FP; тюнинг позже (min/max длина value, denylist). В PR отмечено; оставлено как есть для MVP.
+- **B. Prefix без length bound** — `AKIA`/`ghp_` матчат любой token после префикса; для MVP ок. При желании — min/max length на `ContentMarker` (аддитивное поле позже, затронет таблицу+тесты).
+- **C. `telegram_bot` отложен** — осознанно; вернуть с length constraint (не раньше введения length-поля из B).
+- **D. Serde на findings** — на M3.3 (facade dig), как планировали.
+- **E. Модульность** — одна data-table на content markers правильна (registry-паттерн); дробить на файлы имеет смысл только при росте правил / конфигурируемых группах (по аналогии с markers/detect по экосистемам).
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -568,3 +575,4 @@
 | 2026-08-08 | M2.4: JSON sniff-вывод = **весь `SniffResult`** (report + from_cache + duration_ms) — решение §5 спеки зафиксировано; для этого `SniffResult` получил `Serialize/Deserialize` (additive, non-breaking). CLI human-вывод — plain table (без ANSI), размеры binary-единицы. |
 | 2026-08-08 | M3.1: severity helpers живут в `secrets/risk.rs` (inherent `SensitiveRisk::at_least` + `upgrade_risk`) — domain/risk.rs не тронут (узкий diff). `SensitiveFinding`/`FindingSource`/`FilenameMatch` без serde (по спеке M3.1); serde — аддитивно на M3.3. `filename.rs` содержит data-таблицу (~200 строк из ~450) — приемлемо по carve-out «pure data tables»; при росте — `secrets/patterns.rs`. Обе строки `aws_credentials`/`aws_credentials_path` сохранены по спеке (разные id, одинаковый risk). |
 | 2026-08-08 | M3.2: content-скан line-oriented с prefix-token extraction (token = alnum/`-`/`_` от вхождения префикса в любой позиции строки, не только старт) — зафиксировано в rustdoc `content.rs`. `private_key_header` — Regex (а не `Contains` из иллюстрации спеки): одна needle не выражает AND двух подстрок; поведение строже и покрыто тестом. `telegram_bot` отложен (шум, нужен length-bound). Единственный `.expect` в production — компиляция static regex-таблицы в `OnceLock` (fail-at-startup, спека §8 тест 9). `MaskedValue` сериализуем уже сейчас (нужен M3.3); `SensitiveFinding`/`FindingSource` serde — на M3.3. |
+| 2026-08-08 | M3.2 follow-up (PR #19), принято: шумные `generic_*` маркеры остаются как есть (тюнинг длины/denylist позже); prefix без length bound — ок для MVP (min/max length на `ContentMarker` — аддитивная эволюция позже, вернёт и `telegram_bot`); serde на findings — на M3.3; модульность content-markers — одна data-table + registry (не дробить до роста правил/конфигурируемых групп). |
