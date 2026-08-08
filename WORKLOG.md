@@ -597,6 +597,14 @@
 - `use_heuristics` не реализован — ignored без ошибки (по спеке §4).
 - M3.4 (CLI `racc dig` + exit policy заготовка) — следующий этап; структура `Commands` в CLI уже готова.
 
+#### Follow-up review замечания (человек, 2026-08-08; PR #20) — НЕ блокеры, принято
+- **A. `aggregate_by_hash` смотрит только `content_match`** — на finding берётся один highest-risk content hit; два разных секрета в одном файле → в `repeated` попадёт только «лучший». Для MVP (cross-file by primary match) ок; позже — итерировать все `FindingSource::Content`.
+- **B. `SensitiveFile` упрощён** — нет `FindingSource`/`pattern_id`, только labels + content_match. Для CLI/TUI достаточно; если dig JSON нужен как audit trail — добавить sources аддитивно позже.
+- **C. `min_risk` захардкожен Low** — пока нет config knob — нормально. При появлении `secret_groups`/threshold — прокинуть из `AppContext`.
+- **D. `ctx.mode`/`ctx.exit_policy` не трогаются в dig** — правильно (dig всегда read-only; exit — на CLI). Стоит явно оставить комментарий в rustdoc, что `RunMode` на dig не влияет.
+- **E. `use_heuristics` ignored** — зафиксировано, ок для MVP.
+- **F. `RepeatedSecret.paths`** — порядок появления в walk, не отсортирован (тест сортирует сам). Можно sort при сборке для стабильного JSON — косметика.
+
 ## Принятые решения
 
 | Дата | Решение |
