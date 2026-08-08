@@ -497,6 +497,12 @@
 - Замечание из спеки (аналогично M1.4/M2.1): `cargo test -p raccpack-core filename risk secrets` (несколько фильтров до `--`) — невалидный синтаксис; корректно `-- filename risk secrets`.
 - M3.2 (content markers + file size limits) — следующий этап, входы: `SensitiveFinding`/`FindingSource` и `upgrade_risk`.
 
+#### Follow-up review замечания (человек, 2026-08-08; PR #18) — НЕ блокеры, принято
+- **A. Дубль `credentials` (aws_credentials / aws_credentials_path) — принято как есть.** Два Exact-ряда с одним `pattern` матчят одно и то же `file_name()`; второй ряд избыточен, пока нет path-segment matching. Работает корректно (обе строки возвращаются, risk одинаковый). Решение: оставить на M3.1 (по спеке), при введении path-context (например, `~/.aws/` для дига) — пересмотреть/схлопнуть в одну строку.
+- **B. `config.json` → Medium — принято.** Много легитимных Docker/прочих config-файлов; false positives ожидаемы на Medium. Зафиксировано в PR body.
+- **C. `filename.rs` ~450 строк — принято.** ~200 строк — чистая data-таблица (carve-out «pure data tables»); при росте — split в `secrets/patterns.rs` отдельным follow-up PR.
+- **D. Модульность «один секрет = один файл» — подтверждено.** Для content matchers (M3.2) уместна; для статической name-таблицы один registry (`DEFAULT_FILENAME_PATTERNS`) правильнее. Текущая реализация согласована с data-driven подходом.
+
 ## Принятые решения
 
 | Дата | Решение |
