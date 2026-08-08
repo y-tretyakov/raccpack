@@ -12,3 +12,11 @@ path = "src/main.rs"
 
 [dependencies]
 raccpack-core = { path = "../raccpack-core" }
+clap = { version = "4", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+assert_cmd = "2.1.2"
+predicates = "3.1.4"
+serde_json = "1.0.151"
+tempfile = "3.27.0"

@@ -14,6 +14,7 @@
 [x] M2.1 Marker files + skip dirs → candidates
 [x] M2.2 Detect languages/frameworks → Stack
 [x] M2.3 Facade sniff + versioned cache
+[x] M2.4 CLI sniff (racc sniff --root, text + --json)
 ```
 
 ## Этапы
@@ -392,6 +393,57 @@
 - **C. Root-сравнение без canonicalize** (как config): одинаковый путь через разные представления (`/a/b` vs `/a/../a/b`) → разные cache-ключи. Для v1 приемлемо; canonicalize — отдельное решение (не сейчас).
 - **D. Progress — одна фаза `"scan"`** (phase_index 0, phase_count 1); для dig/pack мультифазность расширится позже. Оставлено как есть.
 
+### M2.4 — CLI sniff (racc sniff --root, text + --json) (CLOSED)
+
+- **Дата:** 2026-08-08
+- **Ветка:** `m2.4-cli-sniff`
+- **Статус:** done
+- **Dev:** dev-m2.4 · **Test:** test-m2.4 (параллельно, без rework)
+
+#### Сделано
+- **core (additive, non-breaking):** `#[derive(Serialize, Deserialize)]` на `SniffResult` (`crates/raccpack-core/src/app/sniff.rs`) — JSON выводит весь `SniffResult` (`report` + `from_cache` + `duration_ms`), решение по спеке §5 зафиксировано. Поля/API не менялись.
+- **CLI** (структура по спеке §3, сразу `Commands` enum для будущего M3.4 dig):
+  - `cli.rs` — `Cli` (clap, `name="racc"`, version, about) + `GlobalOpts` (`-c/--config`, `--root`, `--den`, `--json` — все `global=true`, работают до и после подкоманды) + `Commands::Sniff` с `--force-refresh` и `--max-depth`; unit-тесты clap parse (5).
+  - `commands/sniff.rs` — `run_sniff`: config (`--config`→`load_from_path`, иначе `RaccConfig::load`) → overrides `--root`/`--den` → `AppContext::from_config(…, DryRun)` → `SniffOptions` → `sniff` с `NullProgress` → печать.
+  - `output.rs` — human: `Scan root`, сводка `Projects / Total size / ms / cache: hit|miss`, таблица `NAME STACK SIZE GIT PATH` со стабильным выравниванием; `human_size` (KiB/MiB/GiB/TiB, 1 знак); без ANSI; 0 проектов → заголовок+сводка, exit 0; unit-тесты (4). JSON: `serde_json::to_string_pretty(&SniffResult)`.
+  - `error.rs` — `CliError` (Config/Core/Json) с `From`-конверсиями, `report()` печатает `error: …` + `hint: suggestion()` в stderr, `exit_code()` = 1. Кода 2 в sniff нет.
+  - `main.rs` — тонкий: `Cli::parse()` → dispatch → `ExitCode`.
+- `Cargo.toml` CLI: deps `clap`(derive) + `serde_json`; dev-deps `assert_cmd`, `predicates`, `tempfile`, `serde_json`.
+- CLI **не** дублирует domain-логику — только facade `sniff`; без dig/pack subcommands; без интерактива; `--den` не требуется.
+
+#### Файлы
+- `crates/raccpack-core/src/app/sniff.rs` (changed — additive serde on SniffResult)
+- `crates/raccpack-cli/Cargo.toml` (changed)
+- `crates/raccpack-cli/src/main.rs` (changed), `src/cli.rs` (created), `src/error.rs` (created), `src/output.rs` (created), `src/commands/{mod,sniff}.rs` (created)
+- `crates/raccpack-cli/tests/cli_sniff.rs` (created, Test-субагент)
+- `Cargo.lock` (changed)
+
+#### Тесты
+- `cargo build --workspace` → pass
+- `cargo test --workspace` → pass (192, 0 failed: 173 core + 19 cli [9 unit + 10 integration])
+- `cargo test -p raccpack-cli` → pass (9 unit + 10 integration)
+- `cargo clippy --workspace --all-targets -- -D warnings` → pass
+- `cargo fmt --all -- --check` → pass
+- grep unwrap/expect/anyhow/Box<dyn в CLI production `src/` → чисто (только `#[cfg(test)]`)
+- Manual E2E: text-вывод, `--json` (валидный SniffResult, cache hit на 2-м прогоне `from_cache:true`), `--root /no/such` → exit 1 + `hint:` в stderr
+
+#### Критерий готовности (DoD из m2.4 §10)
+- [x] `racc sniff --root PATH` работает (text)
+- [x] `racc sniff --root PATH --json` печатает валидный JSON `SniffResult`
+- [x] `--force-refresh`, `--max-depth` пробрасываются в `SniffOptions` (тест max-depth исключает глубокий проект)
+- [x] `--config` / `--root` override работают (тест: root wins над config scan_root)
+- [x] Exit 0/1 по правилам §6 (2 — только для secrets policy, в sniff не используется)
+- [x] Ошибки показывают `suggestion()` (печать `hint:`)
+- [x] Тесты §8 зелёные (parse unit + 10 integration через assert_cmd/tempfile)
+- [x] `cargo build -p raccpack-cli` green
+- [x] `racc sniff --help` читаемый (тест)
+
+#### Риски / follow-up
+- clap-ошибки парсинга аргументов обрабатывает сам `Cli::parse()` (exit 2 — стандарт clap, к §6 не относится).
+- `--max-depth 0` не валидируется на CLI — пробрасывается как есть; валидация `>= 1` остаётся за core (config `InvalidMaxDepth`), при необходимости добавить на CLI позже.
+- `--den` в sniff пробрасывается в config, но не используется (sniff read-only) — это по спеке.
+- М3.4 `racc dig` добавится в `Commands::Dig` рядом (структура уже готова).
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -411,3 +463,4 @@
 | 2026-08-06 | M2.2 follow-up (PR #13): **пустые markers → probe all detectors — принято** (осознанно path-only, чуть шире «matched ecosystem»; sniff-кейсы обычно с непустыми hits). `detect/mod.rs` ~400+ строк — ок до M2.3 (при росте вынести тесты в `detect/tests_unit.rs`). Symlink-тест `size.rs` — по сути `#[cfg(unix)]`, primary Linux ок. |
 | 2026-08-06 | M2.2 follow-up (PR #13), **идея «на вырост» (обязательно к реализации)**: фреймворки — вложенность внутри экосистемы (`detect/node/next.rs`, `detect/python/django.rs`, `detect/ruby/rails.rs` …), API снаружи без изменений (`StackDetector` по экосистемам). Сплит внутри экосистемы только при 4–5+ правил в одном файле или конфигурируемом «только Next». Плоский `detect/frameworks/` НЕ делать (Next без Node-контекста бессмысленен). |
 | 2026-08-06 | M2.3: cache-локация = **XDG** (`$XDG_CACHE_HOME/raccpack/sniff/{hash}.json`, fallback `~/.cache/raccpack/sniff/`) — вариант C спеки (не писать в scan_root). Ключ = FNV-1a 64 по root+max_depth+policy_fp (НЕ DefaultHasher). `AppContext.secret_groups_override` отложен до M3.x (нет типа EnabledGroups). |
+| 2026-08-08 | M2.4: JSON sniff-вывод = **весь `SniffResult`** (report + from_cache + duration_ms) — решение §5 спеки зафиксировано; для этого `SniffResult` получил `Serialize/Deserialize` (additive, non-breaking). CLI human-вывод — plain table (без ANSI), размеры binary-единицы. |
