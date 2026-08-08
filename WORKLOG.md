@@ -15,6 +15,7 @@
 [x] M2.2 Detect languages/frameworks → Stack
 [x] M2.3 Facade sniff + versioned cache
 [x] M2.4 CLI sniff (racc sniff --root, text + --json)
+[x] M3.1 Filename patterns + risk model (severity API)
 ```
 
 ## Этапы
@@ -449,6 +450,53 @@
 - **B. `Progress = NullProgress`** — CLI пока без прогресс-бара; для M2.4 ок, progress-бар для CLI/TUI — отдельный этап позже (facade уже эмитит `ProgressEvent`).
 - **C. hint на missing root** — integration-тест ассертит непустой stderr и подстроки `scan_root`/`--root` (не хрупко цепляется за wording); формат `hint: <suggestion()>` покрыт через `CliError::report`/`suggestion()`.
 
+### M3.1 — Filename patterns + risk model (severity API) (CLOSED)
+
+- **Дата:** 2026-08-08
+- **Ветка:** `m3.1-filename-patterns`
+- **Статус:** done
+- **Dev:** dev-m3.1 · **Test:** test-m3.1 (параллельно, без rework)
+
+#### Сделано
+- `secrets/` — новый модуль: `mod.rs` (модульный док со списком pattern categories), `filename.rs` (таблица + matching + scan), `finding.rs` (`SensitiveFinding`/`FindingSource`), `risk.rs` (severity helpers).
+- `DEFAULT_FILENAME_PATTERNS` — data-driven `pub static &[FilenamePattern]`, **28 строк в точном порядке спеки §4.2** (env, keys/SSH, keystores/certs, registry/config, cloud/service-account, wallets). `aws_credentials` + `aws_credentials_path` (обе High `credentials`) сохранены как две строки с разными id — по спеке. Единственная точка агрегации: новый паттерн = одна строка.
+- `NameMatchKind` (Exact/Suffix/Prefix/Contains) — plain substring-сравнение по lossy `file_name()`, case-sensitive (Linux v1), без regex/glob; `Contains` осознанно редко.
+- `match_filename` (max risk; при равенстве — первая строка таблицы) / `match_filename_all` (все совпадения в порядке таблицы).
+- `scan_filenames` — `ensure_scan_root` → `walk_tree` (`follow_links(false)`, max_depth, policy из opts) → только **files**, `min_risk` через `SensitiveRisk::at_least`, walk-ошибки не глотаются (`io_error()` → `Error::Io`, иначе `Error::Other`), сортировка path asc → risk desc (детерминизм). Содержимое не читается.
+- `FilenameScanOptions` с `Default` (max_depth = `config::default_max_depth()`, policy = `default_scan()`, min_risk = Low).
+- Severity API: `SensitiveRisk::at_least(min)` (inherent impl в `secrets/risk.rs`, domain не тронут) + `upgrade_risk(a, b) = max` — единственное санкционированное место upgrade (FINAL-правило «upgrade только через severity API»).
+- `lib.rs`: `pub mod secrets;` + аддитивные re-exports (`match_filename`, `match_filename_all`, `scan_filenames`, `upgrade_risk`, `FilenamePattern`, `NameMatchKind`, `FilenameMatch`, `FilenameScanOptions`, `SensitiveFinding`, `FindingSource`, `DEFAULT_FILENAME_PATTERNS`) — additive, не breaking. Другие модули не тронуты; `Cargo.toml` не менялся (tempfile уже dev-dep).
+
+#### Тесты
+- `tests/filename_secrets.rs` (created, Test-субагент) — 23 теста: все 10 обязательных кейсов §7 (`.env`→High `env_file`, `id_rsa`→Critical, `notes.txt`→None, `foo.pem`→High suffix, dual-pattern max risk + порядок `match_filename_all`, scan не заходит в `node_modules`, `min_risk: Critical` фильтрует High, ordering Low<Medium<High<Critical, `upgrade_risk` never downgrade, детерминизм) + extra: tie-break первой строки, `credentials` basename (обе строки), `wallet.dat`/containing → Critical, директория `.env` не даёт finding, `max_depth`, PathNotFound/NotADirectory, case-sensitivity (`.ENV` не матчится), `at_least`, целостность таблицы (28 строк/уникальные id), symlink-dir не обходится (cfg unix).
+- `secrets/filename.rs` unit (`#[cfg(test)]`): 28 строк, уникальные id, поведение каждого kind; `secrets/risk.rs` unit: `upgrade_risk` max, `at_least` inclusive.
+
+#### Проверки (выполнены Orchestrator самостоятельно)
+- `cargo build --workspace` → pass
+- `cargo test --workspace` → pass (201 core: 40 lib + 19 candidates + 22 config + 22 domain_dto + 31 detect_stack + 23 filename_secrets + 4 markers_registry + 27 skip_walk + 12 sniff_cache + 1 doctest; 0 failed; +19 cli)
+- `cargo test -p raccpack-core -- filename risk secrets` → pass (9 lib + 21 integration; 2 не попали в фильтр — имена без filename/risk/secrets, зелёные в полном прогоне)
+- `cargo clippy -p raccpack-core --all-targets -- -D warnings` → pass
+- `cargo fmt --all -- --check` → pass
+- `cargo doc -p raccpack-core --no-deps` → только pre-existing warning `markers/mod.rs:53` (M2.2-followup), новых нет
+- grep unwrap/expect/anyhow/Box<dyn в `src/secrets/` → чисто (кроме `unwrap_or`/`unwrap_or_else` на Option — допустимо; `#[cfg(test)]`)
+
+#### Критерий готовности (DoD из m3.1 §9)
+- [x] Data-driven `DEFAULT_FILENAME_PATTERNS` с минимум env/keys/certs
+- [x] `match_filename` / `scan_filenames` работают
+- [x] Risk upgrade через `max` / `upgrade_risk`
+- [x] SkipPolicy + no symlink follow
+- [x] Тесты §7 зелёные
+- [x] `cargo test -p raccpack-core` green
+- [x] rustdoc: список pattern categories (модульный док `secrets/mod.rs`)
+
+#### Риски / follow-up
+- `.key` suffix — осознанные false positives на High (по спеке).
+- `match_filename` tie-break и порядок `match_filename_all` завязаны на порядок строк таблицы (фиксирован спекой §4.2); тесты `env_local_tie_breaks_to_first_in_table` / `env_production_dual_pattern_max_risk` и integrity-тест (28 строк) придётся обновлять при осознанной перестановке/добавлении паттернов.
+- `filename.rs` ~450 строк (453) — выше мягкого предела ~400, но ~200 из них — чистая data-таблица (carve-out «pure data tables»); logic ~250 строк. При росте таблицы — вынести в `secrets/patterns.rs` (registry-паттерн сохраняется).
+- `SensitiveFinding`/`FindingSource`/`FilenameMatch` пока без serde: M3.3 facade dig потребует serde-вывода — добавить аддитивно на M3.3 (сейчас по спеке не требуется).
+- Замечание из спеки (аналогично M1.4/M2.1): `cargo test -p raccpack-core filename risk secrets` (несколько фильтров до `--`) — невалидный синтаксис; корректно `-- filename risk secrets`.
+- M3.2 (content markers + file size limits) — следующий этап, входы: `SensitiveFinding`/`FindingSource` и `upgrade_risk`.
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -469,3 +517,4 @@
 | 2026-08-06 | M2.2 follow-up (PR #13), **идея «на вырост» (обязательно к реализации)**: фреймворки — вложенность внутри экосистемы (`detect/node/next.rs`, `detect/python/django.rs`, `detect/ruby/rails.rs` …), API снаружи без изменений (`StackDetector` по экосистемам). Сплит внутри экосистемы только при 4–5+ правил в одном файле или конфигурируемом «только Next». Плоский `detect/frameworks/` НЕ делать (Next без Node-контекста бессмысленен). |
 | 2026-08-06 | M2.3: cache-локация = **XDG** (`$XDG_CACHE_HOME/raccpack/sniff/{hash}.json`, fallback `~/.cache/raccpack/sniff/`) — вариант C спеки (не писать в scan_root). Ключ = FNV-1a 64 по root+max_depth+policy_fp (НЕ DefaultHasher). `AppContext.secret_groups_override` отложен до M3.x (нет типа EnabledGroups). |
 | 2026-08-08 | M2.4: JSON sniff-вывод = **весь `SniffResult`** (report + from_cache + duration_ms) — решение §5 спеки зафиксировано; для этого `SniffResult` получил `Serialize/Deserialize` (additive, non-breaking). CLI human-вывод — plain table (без ANSI), размеры binary-единицы. |
+| 2026-08-08 | M3.1: severity helpers живут в `secrets/risk.rs` (inherent `SensitiveRisk::at_least` + `upgrade_risk`) — domain/risk.rs не тронут (узкий diff). `SensitiveFinding`/`FindingSource`/`FilenameMatch` без serde (по спеке M3.1); serde — аддитивно на M3.3. `filename.rs` содержит data-таблицу (~200 строк из ~450) — приемлемо по carve-out «pure data tables»; при росте — `secrets/patterns.rs`. Обе строки `aws_credentials`/`aws_credentials_path` сохранены по спеке (разные id, одинаковый risk). |

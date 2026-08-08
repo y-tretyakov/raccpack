@@ -6,6 +6,7 @@ pub mod config;
 pub mod detect;
 pub mod domain;
 pub mod scan;
+pub mod secrets;
 
 pub use app::{
     sniff, AppContext, NullProgress, OperationKind, ProgressEvent, ProgressSink, RunMode,
@@ -19,6 +20,11 @@ pub use scan::{
     default_markers, ensure_scan_root, find_candidates, project_size_bytes, skip::SkipPolicy,
     skip::SkipReason, walk::WalkOptions, walk_tree, CandidateOptions, MarkerDef, MarkerHit,
     MarkerKind, ProjectCandidate,
+};
+pub use secrets::{
+    match_filename, match_filename_all, scan_filenames, upgrade_risk, FilenameMatch,
+    FilenamePattern, FilenameScanOptions, FindingSource, NameMatchKind, SensitiveFinding,
+    DEFAULT_FILENAME_PATTERNS,
 };
 
 /// Placeholder to keep the crate non-empty and testable.
