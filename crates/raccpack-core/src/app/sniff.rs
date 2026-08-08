@@ -1,5 +1,7 @@
 use std::time::Instant;
 
+use serde::{Deserialize, Serialize};
+
 use crate::cache::{store_sniff_cache, try_load_sniff_cache};
 use crate::detect::{candidate_to_project, detect_stack};
 use crate::domain::{Result, ScanReport};
@@ -24,7 +26,7 @@ pub struct SniffOptions {
 }
 
 /// Outcome of a [`sniff`] run.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SniffResult {
     /// The produced scan report.
     pub report: ScanReport,
