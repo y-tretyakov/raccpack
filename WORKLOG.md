@@ -444,6 +444,11 @@
 - `--den` в sniff пробрасывается в config, но не используется (sniff read-only) — это по спеке.
 - М3.4 `racc dig` добавится в `Commands::Dig` рядом (структура уже готова).
 
+#### Follow-up review замечания (человек, 2026-08-08; PR #17) — НЕ блокеры, принято
+- **A. `--root` только global** — в clap нет per-command root; doc-комментарий «also per-command» в `cli.rs` не точен, по факту флаг global. Для sniff достаточно; при добавлении `dig` (M3.4) уточнить формулировку/поведение.
+- **B. `Progress = NullProgress`** — CLI пока без прогресс-бара; для M2.4 ок, progress-бар для CLI/TUI — отдельный этап позже (facade уже эмитит `ProgressEvent`).
+- **C. hint на missing root** — integration-тест ассертит непустой stderr и подстроки `scan_root`/`--root` (не хрупко цепляется за wording); формат `hint: <suggestion()>` покрыт через `CliError::report`/`suggestion()`.
+
 ## Принятые решения
 
 | Дата | Решение |
