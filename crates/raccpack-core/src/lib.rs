@@ -9,8 +9,9 @@ pub mod scan;
 pub mod secrets;
 
 pub use app::{
-    sniff, AppContext, NullProgress, OperationKind, ProgressEvent, ProgressSink, RunMode,
-    SecretExitPolicy, SniffOptions, SniffResult, WorkspacePaths,
+    dig, exit_code_for_secrets, sniff, AppContext, DigOptions, DigResult, NullProgress,
+    OperationKind, ProgressEvent, ProgressSink, RepeatedSecret, RunMode, SecretExitPolicy,
+    SensitiveFile, SniffOptions, SniffResult, WorkspacePaths,
 };
 pub use cache::{store_sniff_cache, try_load_sniff_cache};
 pub use config::{ConfigError, PathsConfig, RaccConfig, ScannerConfig};

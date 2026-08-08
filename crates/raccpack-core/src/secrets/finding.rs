@@ -17,7 +17,7 @@ use crate::domain::SensitiveRisk;
 use super::mask::MaskedValue;
 
 /// Where a [`SensitiveFinding`] came from.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FindingSource {
     /// Matched a filename pattern from the
     /// [`crate::secrets::filename`] pattern table.
@@ -35,7 +35,7 @@ pub enum FindingSource {
 }
 
 /// A sensitive file discovered by a secrets scan.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SensitiveFinding {
     /// Path of the sensitive file.
     pub path: PathBuf,
