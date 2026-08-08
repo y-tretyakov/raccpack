@@ -22,8 +22,10 @@ pub use scan::{
     MarkerKind, ProjectCandidate,
 };
 pub use secrets::{
-    match_filename, match_filename_all, scan_filenames, upgrade_risk, FilenameMatch,
-    FilenamePattern, FilenameScanOptions, FindingSource, NameMatchKind, SensitiveFinding,
+    fingerprint_secret, mask_secret, match_filename, match_filename_all, scan_file_content,
+    scan_filenames, scan_secrets, upgrade_risk, ContentHit, ContentMarker, ContentMatchKind,
+    ContentScanLimits, FilenameMatch, FilenamePattern, FilenameScanOptions, FindingSource,
+    MaskedValue, NameMatchKind, SecretScanOptions, SensitiveFinding, DEFAULT_CONTENT_MARKERS,
     DEFAULT_FILENAME_PATTERNS,
 };
 
