@@ -359,7 +359,7 @@ pub fn scan_filenames(
 
     let mut findings: Vec<SensitiveFinding> = Vec::new();
     for item in crate::scan::walk::walk_tree(root, &walk_opts) {
-        let entry = item.map_err(|err| map_walk_error(err, root))?;
+        let entry = item.map_err(|err| crate::scan::walk::map_walk_error(err, root))?;
         if !entry.file_type().is_file() {
             continue;
         }
@@ -386,23 +386,6 @@ pub fn scan_filenames(
 
     findings.sort_by(|a, b| a.path.cmp(&b.path).then(b.risk.cmp(&a.risk)));
     Ok(findings)
-}
-
-/// Map a [`walkdir::Error`] to the domain [`Error`] type.
-///
-/// IO errors map to [`Error::Io`] with the offending path (falling back to the
-/// scan root); walkdir errors without an IO source (e.g. loop detection) map to
-/// [`Error::Other`].
-fn map_walk_error(err: walkdir::Error, root: &Path) -> Error {
-    let path = err
-        .path()
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| root.to_path_buf());
-    let message = err.to_string();
-    match err.into_io_error() {
-        Some(source) => Error::Io { path, source },
-        None => Error::Other { message },
-    }
 }
 
 #[cfg(test)]

@@ -1,6 +1,7 @@
 //! raccpack-core — domain and use-cases. No CLI/TUI/Desktop dependencies.
 
 pub mod app;
+pub mod archive;
 pub mod cache;
 pub mod config;
 pub mod detect;
@@ -12,6 +13,9 @@ pub use app::{
     dig, exit_code_for_secrets, sniff, AppContext, DigOptions, DigResult, NullProgress,
     OperationKind, ProgressEvent, ProgressSink, RepeatedSecret, RunMode, SecretExitPolicy,
     SensitiveFile, SniffOptions, SniffResult, WorkspacePaths,
+};
+pub use archive::{
+    pack_tree, should_deny_file_in_pack, ContentDenyOptions, PackTreeOptions, PackTreeResult,
 };
 pub use cache::{store_sniff_cache, try_load_sniff_cache};
 pub use config::{ConfigError, PathsConfig, RaccConfig, ScannerConfig};

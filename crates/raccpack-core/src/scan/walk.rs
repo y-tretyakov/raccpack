@@ -97,6 +97,23 @@ pub fn walk_tree<'a>(
         })
 }
 
+/// Map a [`walkdir::Error`] to the domain [`Error`] type.
+///
+/// IO errors map to [`Error::Io`] with the offending path (falling back to the
+/// scan root); walkdir errors without an IO source (e.g. loop detection) map to
+/// [`Error::Other`].
+pub(crate) fn map_walk_error(err: walkdir::Error, root: &Path) -> Error {
+    let path = err
+        .path()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| root.to_path_buf());
+    let message = err.to_string();
+    match err.into_io_error() {
+        Some(source) => Error::Io { path, source },
+        None => Error::Other { message },
+    }
+}
+
 /// Validate that `root` exists and is a directory.
 ///
 /// Returns [`Error::PathNotFound`] when `root` does not exist and
