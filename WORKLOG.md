@@ -19,6 +19,7 @@
 [x] M3.2 Content markers (regex/prefix) + size limits + mask/fingerprint
 [x] M3.3 Facade dig (masked output, без raw в report)
 [x] M3.4 CLI dig (racc dig + exit policy FailOnCritical)
+[x] M4.1 Pack tar+zstd + name deny + SkipPolicy
 ```
 
 ## Этапы
@@ -652,6 +653,52 @@
 - **B. `ctx.exit_policy` из AppContext не используется — принято.** Policy живёт только на CLI (`--fail-on`), согласовано с M3.3 (dig read-only, exit на CLI). При появлении config-конфигурации политики — прокинуть из `AppContext` (аддитивно).
 - **C. Shared helpers вынесены из sniff — хорошо.** При росте CLI (stash/pack/raid) — вынести общее (config load/overrides, вывод, exit) в `commands/common.rs`; сейчас 2 подкоманды — оставить как есть.
 
+### M4.1 — Pack tar+zstd с deny-list по имени и SkipPolicy (CLOSED)
+
+- **Дата:** 2026-08-09
+- **Ветка:** `m4-pack-tar-zstd`
+- **Статус:** done
+- **Dev:** dev-m4.1 · **Test:** test-m4.1 (параллельно, без rework)
+
+#### Сделано
+- `archive/` — новый модуль: тонкий `mod.rs` (док + re-exports), `deny.rs` (name/content deny helpers), `pack.rs` (pack_tree + options/result).
+- `deny.rs`: `should_deny_file_in_pack(&Path) -> bool` — name deny через таблицу filename-secrets (`match_filename`, risk ≥ High, spec §4.1); `ContentDenyOptions{enabled, min_risk}` (Default: off / Critical); `content_deny_hit(&Path, &ContentDenyOptions) -> Result<bool, Error>` — off → `Ok(false)`, иначе `scan_file_content` с `ContentScanLimits::default()`, hit ≥ min_risk → omit; open/read-ошибки → `Error::Io` (fail closed).
+- `pack.rs`: `PackTreeOptions` (Default: `SkipPolicy::default_scan()`, max_depth 64, zstd_level 3, `deny_name_secrets: true`, content_deny default), `PackTreeResult{output, size_bytes, file_count, skipped_secret_files, skipped_dir_names}`, `pack_tree(source, output, &opts) -> Result<PackTreeResult, Error>`:
+  - `ensure_scan_root` (PathNotFound/NotADirectory) → `File::create(output)` → `zstd::Encoder::new(level)` → `tar::Builder`.
+  - inline `WalkDir::new(source).follow_links(false).max_depth(opts.max_depth)` + `filter_entry`, прунящий skip-директории глубже root по policy и считающий `skipped_dir_names` в closure (root никогда не прунится) — отклонение от «walk только через walk_tree»: walk_tree не даёт счётчик пропруненных директорий, задокументировано.
+  - per entry: root skip → dir/symlink/не-regular skip (пустые директории не сохраняются, задокументировано) → name deny (`skipped_secret_files++`) → content deny (`skipped_secret_files++`) → append через `append_path_with_name(entry.path(), rel_name)`; `rel_name` = POSIX relative от `strip_prefix(source)`, компоненты `ParentDir/RootDir/Prefix` → `Error::Other` (защита от escape).
+  - finish: `builder.finish()` → `builder.into_inner()` → `encoder.finish()` → `size_bytes = file.metadata().len()`.
+  - rustdoc-контракт: root архива = содержимое `source` (`src/main.rs`, без обёртки); symlink никогда не следуются/не архивируются; `output` пишется напрямую, атомарность — facade M4.2/M4.3; `output` НЕ должен лежать внутри `source`.
+- `scan/walk.rs`: приватный `map_walk_error` из `secrets/filename.rs` поднят до `pub(crate)` (общий для pack); `filename.rs` переведён на общий хелпер — поведение не изменено (все filename-тесты зелёные).
+- `Cargo.toml`: `tar = "0.4"`, `zstd = "0.13"` в `[dependencies]` **и** `[dev-dependencies]` (интеграционные тесты распаковывают архив; integration-крейты видят только dev-deps).
+- `lib.rs`: `pub mod archive;` + аддитивные re-exports (`pack_tree`, `PackTreeOptions`, `PackTreeResult`, `should_deny_file_in_pack`, `ContentDenyOptions`) — не breaking.
+
+#### Файлы
+- created: `crates/raccpack-core/src/archive/{mod,deny,pack}.rs`, `crates/raccpack-core/tests/pack.rs`
+- changed: `crates/raccpack-core/src/lib.rs`, `crates/raccpack-core/src/scan/walk.rs`, `crates/raccpack-core/src/secrets/filename.rs`, `crates/raccpack-core/Cargo.toml`, `Cargo.lock`
+
+#### Тесты
+- unit: `pack.rs` (4: defaults, posix-relative, escape-rejection, end-to-end pack+unpack) + `deny.rs` (6: name-deny threshold, defaults, content-deny off/on/min-risk/IO) — в `#[cfg(test)]`.
+- integration `tests/pack.rs` (18, Test-субагент): все 9 кейсов §7 (состав архива ровно `src/main.rs`+`notes.txt`, `.env` исключён, нет путей под `target/`/`node_modules/`, symlink не следует `/etc/passwd`, `file_count==2`, `skipped_secret_files>=1`, roundtrip set путей, пустая директория → валидный архив `file_count==0`, zstd levels 1/9/22) + экстры: PathNotFound, NotADirectory, `deny_name_secrets:false` (`.env` включён), content-deny enabled/disabled (файл с `AKIA…` omitted/включён), `size_bytes==metadata`, `skipped_dir_names>=1`, `should_deny_file_in_pack` по risk. Fixture spec §7 через tempfile; symlink `#[cfg(unix)]`; без сети/git.
+- команды: `cargo test -p raccpack-core --test pack` → pass (18); `cargo test -p raccpack-core -- pack archive` → pass; `cargo test --workspace` → pass (353: 306 core + 47 cli, 0 failed); `cargo build --workspace` → pass; `cargo clippy --workspace --all-targets -- -D warnings` → pass; `cargo fmt --all -- --check` → pass; `cargo doc -p raccpack-core --no-deps` → только pre-existing warning `markers/mod.rs:53` (M2.2-followup), новых нет; grep unwrap/expect/anyhow/Box<dyn в `src/archive/` → только `#[cfg(test)]`.
+
+#### Критерий готовности (DoD из m4.1 §9)
+- [x] `pack_tree` создаёт валидный `.tar.zst` (проверено end-to-end: pack → zstd decode → tar list)
+- [x] SkipPolicy + name deny работают
+- [x] Symlinks не раскрывают внешний FS
+- [x] Stats: size_bytes, file_count, skipped_secret_files
+- [x] Тесты §7 зелёные
+- [x] `cargo test -p raccpack-core` green
+
+#### Риски / follow-up
+- content-deny **off** по умолчанию (`enabled:false`) в чистом M4.1; полная интеграция (default on) — M4.3 (spec §4.2/§5.2).
+- Порядок проверок в pack: type-checks (dir/symlink/не-file) до deny-проверок — отличается от sketch §5.2 (там symlink после deny). Поведение эквивалентно для фикстуры; symlink с именем секрета не попадает в `skipped_secret_files` — осознанно (счётчик про файлы, исключённые deny-правилами).
+- Пустые директории не сохраняются в M4.1 (spec §7 test 8 допускает «or only dirs»; выбрано files-only, задокументировано в rustdoc).
+- Root архива = содержимое `source` (рекомендация §5.2); альтернатива `project_slug/` обёртка не выбрана.
+- `skipped_dir_names` считает только директории, пропруненные policy (не deny-файлы, не symlink'и) — поле «optional stats».
+- Контракт «`output` не внутри `source`» — на caller; проверка `is_under_root` (follow-up M1.4) по-прежнему нужна для facade/den-writer M4.2.
+- M4.2 (запись в `den/packs/…` + `.den-version` + README) — следующий этап; вход: `PackTreeResult`/`pack_tree`.
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -677,3 +724,4 @@
 | 2026-08-08 | M3.2 follow-up (PR #19), принято: шумные `generic_*` маркеры остаются как есть (тюнинг длины/denylist позже); prefix без length bound — ок для MVP (min/max length на `ContentMarker` — аддитивная эволюция позже, вернёт и `telegram_bot`); serde на findings — на M3.3; модульность content-markers — одна data-table + registry (не дробить до роста правил/конфигурируемых групп). |
 | 2026-08-08 | M3.3: DTO `dig` живут в `app/dig.rs` (по образцу `sniff`), не в domain/report — аддитивные re-exports в `lib.rs` делают их публичными для JSON CLI. `files_scanned` через `pub(crate) scan_secrets_with_count` (без изменения публичной сигнатуры `scan_secrets`). Serde на `SensitiveFinding`/`FindingSource` добавлен аддитивно (из follow-up M3.1/M3.2). `opts.project` допускает абсолютный путь вне `scan_root` (рекомендация спеки §4). |
 | 2026-08-09 | M3.4: `--fail-on` через `#[derive(ValueEnum)] FailOnPolicy` в `cli.rs` (clap сам валидирует `ignore/critical/high`), mapping в `to_exit_policy()`. Exit-код dig возвращается из `run()` (`Result<ExitCode, CliError>`), `run_sniff` сигнатура не менялась. Human-таблица dig сортирует копию files risk desc → path asc (JSON — как есть из facade). `--max-depth` прокидывается через `config.scanner.max_depth` ДО `AppContext` (dig уважает через context). Общие `load_config`/`apply_overrides` из `sniff.rs` → `pub(crate)` и переиспользованы в `dig.rs` (без дублирования). README Status по-прежнему не трогаем (конвенция этапов). |
+| 2026-08-09 | M4.1: `archive/` — отдельный top-level модуль по spec §3 (`deny.rs` — deny helpers, `pack.rs` — packing; тонкий `mod.rs`). Root архива = содержимое `source` (entries `src/main.rs`, без `project_slug/` обёртки), зафиксировано в rustdoc. Name-deny через единый источник `secrets::match_filename` (risk ≥ High), НЕ дублированная таблица hard-deny (spec §4.1 рекомендация). Inline `WalkDir` в pack.rs (не `walk_tree`) — осознанно, чтобы считать `skipped_dir_names` в `filter_entry`-closure (walk_tree не даёт счётчик пропруненных директорий); `follow_links(false)` сохранён. `map_walk_error` поднят в `scan/walk.rs` как `pub(crate)` (общий для filename/pack). `tar`/`zstd` добавлены и в deps, и в dev-deps (integration-тесты распаковывают архив). Порядок проверок в pack: type-checks до deny (отклонение от sketch §5.2, осознанно). Пустые директории не сохраняются (files-only в M4.1). Атомарность записи — на facade M4.2/M4.3; контракт «output вне source» — на caller (`is_under_root` — follow-up). |
