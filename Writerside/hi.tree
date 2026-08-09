@@ -1,26 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE tree SYSTEM "https://resources.jetbrains.com/writerside/1.0/tree.dtd">
-<tree>
-    <toc-element topic="topics/introduction.md" home="true"/>
-
+<!DOCTYPE instance-profile
+        SYSTEM "https://resources.jetbrains.com/writerside/1.0/product-profile.dtd">
+<instance-profile id="hi" name="Raccpack" start-page="introduction.md">
+    <toc-element topic="introduction.md"/>
     <toc-element toc-title="Начало работы">
-        <toc-element topic="topics/installation.md"/>
-        <toc-element topic="topics/quick-start.md"/>
+        <toc-element topic="installation.md"/>
+        <toc-element topic="quick-start.md"/>
     </toc-element>
-
     <toc-element toc-title="Использование">
-        <toc-element topic="topics/cli-usage.md"/>
-        <toc-element topic="topics/configuration.md"/>
-        <toc-element topic="topics/tui-usage.md"/>
-        <toc-element topic="topics/desktop-usage.md"/>
+        <toc-element topic="cli-usage.md"/>
+        <toc-element topic="configuration.md"/>
+        <toc-element topic="tui-usage.md"/>
+        <toc-element topic="desktop-usage.md"/>
     </toc-element>
-
     <toc-element toc-title="Справочник">
-        <toc-element topic="topics/concepts.md"/>
-        <toc-element topic="topics/architecture.md"/>
-        <toc-element topic="topics/facade-api.md"/>
+        <toc-element topic="concepts.md"/>
+        <toc-element topic="architecture.md"/>
+        <toc-element topic="facade-api.md"/>
     </toc-element>
-
-    <toc-element topic="topics/roadmap.md"/>
-    <toc-element topic="topics/troubleshooting.md"/>
-</tree>
+    <toc-element topic="roadmap.md"/>
+    <toc-element topic="troubleshooting.md"/>
+</instance-profile>
