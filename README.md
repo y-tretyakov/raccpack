@@ -1,7 +1,7 @@
 # raccpack
 
 <p align="center">
-  <img src="RaccPack.webp" alt="raccpack" width="256"/>
+  <img src="RaccPack.webp" alt="raccpack" width="435"/>
 </p>
 
 <p align="center">
