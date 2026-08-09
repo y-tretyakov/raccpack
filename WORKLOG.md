@@ -705,6 +705,49 @@
 - **C. Medium names (`config.json`) не deny — принято.** Порог deny = High осознанно (спека §4.1), Medium не попадает в pack-deny.
 - **D. Модульность `archive` — принято.** `pack.rs` + `deny.rs` ок; age/7z backends позже отдельными файлами (`archive/backends/age.rs` и т.п.), как в `raccpack-modularity.md`.
 
+### M4.2 — Den layout (ensure_den, naming, place_pack) (CLOSED)
+
+- **Дата:** 2026-08-09
+- **Ветка:** `m4.2-den-layout`
+- **Статус:** done
+- **Dev:** dev-m4.2 · **Test:** test-m4.2 (параллельно) · rework test-m4.2 (clippy doc-lazy-continuation, попытка 2) · rework dev-m4.2 (doc-warnings на приватные submodule'ы, попытка 2)
+
+#### Сделано
+- `den/` — новый модуль по spec M4.2 §3: тонкий `mod.rs` (док + re-exports), `layout.rs` (ensure_den / version gate / README), `names.rs` (slug / timestamp / short_id / pack_relative_path), `place.rs` (place_pack + request/result).
+- `ensure_den` (idempotent): `create_dir_all(root)` → chmod `0700` best-effort (Unix, ошибки игнор) → version gate (`.den-version` отсутствует → write `"1\n"`; есть → major-only check через `parse_major`, `"1"`/`"1.5"` → ok, `"2"`/`"99"`/`garbage` → `Error::DenVersion`) → README.txt при отсутствии (template §9.6) → `create_dir_all` для packs/staging/manifests/secrets. Возвращает `DenPaths{root, packs, staging, manifests, secrets}`.
+- `Error::DenVersion { found, expected }` — новый additive-вариант в `domain::Error` + `suggestion()` («Point den_dir at a compatible den, or migrate…»). Exhaustive match'ей в репо нет (CLI — blanket `From<Error>`), проверено.
+- `names.rs`: `project_slug` (basename из пути через `rsplit(['/','\\'])`, sanitize `[a-zA-Z0-9._-]`, whitespace→`-`, прочие символы drop, cap 80, пусто → `"project"`), `utc_timestamp_now` (`YYYYMMDDThhmmssZ`, civil-date алгоритм без chrono; проверен Orchestrator'ом против `date -u`: 2026-08-09 == 2026-08-09), `short_id` (8 строчных hex из blake3(nanos + seed addr)), `pack_relative_path` (`packs/{yyyy}/{mm}/{slug}__{ts}.tar.zst`, yyyy/mm из ts; короткий ts → fallback `"0000"`/`"00"`, без паники).
+- `place.rs`: `place_pack` — ensure_den → slug/ts → `pack_relative_path` → `reject_escaping` (защита от `..`/RootDir/Prefix в caller-поданном timestamp, Error::Other) → create_dir_all(parent) → rename; cross-device (EXDEV 18 / Windows 17 через `raw_os_error`, т.к. `ErrorKind::CrossesDevices` stable лишь с 1.85, MSRV 1.75) → copy+remove source → chmod `0600` best-effort → size из metadata. При ошибке source остаётся у caller; staging-файл при успехе не остаётся (rename его потребляет).
+- `staging_pack_path(den_root, short_id)` → `staging/{short_id}/pack.tar.zst` (в layout.rs).
+- `lib.rs`: `pub mod den;` + аддитивные re-exports (`ensure_den`, `place_pack`, `project_slug`, `utc_timestamp_now`, `short_id`, `pack_relative_path`, `staging_pack_path`, `DenPaths`, `PlacePackRequest`, `PlacePackResult`, `DEN_VERSION`) — не breaking.
+- **`.gitignore` (necessary):** правило `**/den/` (ден-хранилище) игнорировало новый исходный модуль `src/den/`; добавлена точечная негация `!crates/raccpack-core/src/den/` (проверено `git check-ignore` → файлы не игнорируются; `**/den/` для хранилищ продолжает работать).
+
+#### Файлы
+- created: `crates/raccpack-core/src/den/{mod,layout,names,place}.rs`, `crates/raccpack-core/tests/den_layout.rs`
+- changed: `crates/raccpack-core/src/domain/error.rs`, `crates/raccpack-core/src/lib.rs`, `.gitignore`
+
+#### Тесты
+- unit (в `den/*`): layout 6 (skeleton+idempotent, incompatible 99, same-major `1.5`, garbage, never-rewrite readme, staging path) + names 10 (slug sanitize/path/dots/fallback/cap-80, timestamp shape/year, short_id 8-hex, pack path yyyy-mm, no-panic short ts) + place 4 (move into layout, generated ts, creates skeleton, rejects escaping ts) = 20.
+- integration `tests/den_layout.rs` (13, Test-субагент): §5.1 idempotent skeleton+readme (`"1\n"` + подстроки template), §5.2 `99`→err + `1`→ok, §5.3 slug sanitize `"My App!"`→`My-App` (+path, +cap-80, +safe-chars), §5.4/5.5/5.6 place_pack move → `packs/2026/08/My-App__20260804T155230Z.tar.zst` + relative starts `packs/` + size matches + source moved, missing source → err, §5.7 concurrency `std::thread::scope` два ts → оба файла (no clobber), + форматы timestamp/short_id/pack_rel/staging.
+- команды: `cargo test -p raccpack-core --test den_layout` → 13 pass; `cargo test -p raccpack-core -- den layout` → 28 pass (13 integration + 20 unit — 5 не попадают в фильтр, зелёные в полном прогоне); `cargo test --workspace` → pass (386: 339 core + 47 cli, 0 failed); `cargo build --workspace` → pass; `cargo clippy --workspace --all-targets -- -D warnings` → pass; `cargo fmt --all -- --check` → pass; `cargo doc -p raccpack-core --no-deps` → только pre-existing warning `markers/mod.rs:53` (GROUPS), новых нет.
+
+#### Критерий готовности (DoD из m4.2 §7)
+- [x] `ensure_den` + version gate (99/garbage → error; 1.5 → ok)
+- [x] README + directory skeleton (template §9.6 точный)
+- [x] `place_pack` atomic-ish rename в правильный relative layout
+- [x] Naming conventions совпадают с facade-doc §9.2
+- [x] Тесты §5 зелёные (7 обязательных + бонусы)
+- [x] `cargo test -p raccpack-core` green (386 workspace)
+
+#### Риски / follow-up
+- `.gitignore`-негация `!crates/raccpack-core/src/den/` — хрупко к переименованию модуля `den`; при смене имени модуля обновить. Альтернатива (переименовать правило `**/den/` в `**/{den,den/,manifests/…}`) — отдельный вопрос, не сейчас.
+- `short_id` = blake3(nanos + seed addr) — коллизия двух вызовов в одном наносекунде теоретически возможна (тест `assert_ne` на практике стабилен); при строгой уникальности — перейти на явный счётчик/rand позже.
+- `Error::DenVersion` — additive variant публичного enum: для CHANGES пометить как breaking (exhaustive match'и внешних callers сломаются). Внешних callers нет (pre-1.0).
+- `ensure_den` создаёт пустые `manifests/`/`secrets/` dirs (по спеке M4.2 §4.1); manifest JSON и age — позже (A3/Alpha).
+- `place_pack` не удаляет staging-dir (только файл): пустой `staging/{short_id}/` остаётся до `den gc` (позже) — осознанно, spec M4.2 §4.4.
+- Cross-device fallback протестирован только логикой (EXDEV не воспроизводится на одном FS в CI); при необходимости — интеграционный тест с разными mount points.
+- M4.3 (facade `pack` + DryRun/Commit) — следующий этап; входы: `pack_tree`/`PackTreeResult` (M4.1) + `place_pack`/`ensure_den` (M4.2). Facade обязан: staging path вне source + temp + rename (M4.1 follow-up A/B), удалять temp при ошибке, DryRun не писать.
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -731,3 +774,4 @@
 | 2026-08-08 | M3.3: DTO `dig` живут в `app/dig.rs` (по образцу `sniff`), не в domain/report — аддитивные re-exports в `lib.rs` делают их публичными для JSON CLI. `files_scanned` через `pub(crate) scan_secrets_with_count` (без изменения публичной сигнатуры `scan_secrets`). Serde на `SensitiveFinding`/`FindingSource` добавлен аддитивно (из follow-up M3.1/M3.2). `opts.project` допускает абсолютный путь вне `scan_root` (рекомендация спеки §4). |
 | 2026-08-09 | M3.4: `--fail-on` через `#[derive(ValueEnum)] FailOnPolicy` в `cli.rs` (clap сам валидирует `ignore/critical/high`), mapping в `to_exit_policy()`. Exit-код dig возвращается из `run()` (`Result<ExitCode, CliError>`), `run_sniff` сигнатура не менялась. Human-таблица dig сортирует копию files risk desc → path asc (JSON — как есть из facade). `--max-depth` прокидывается через `config.scanner.max_depth` ДО `AppContext` (dig уважает через context). Общие `load_config`/`apply_overrides` из `sniff.rs` → `pub(crate)` и переиспользованы в `dig.rs` (без дублирования). README Status по-прежнему не трогаем (конвенция этапов). |
 | 2026-08-09 | M4.1: `archive/` — отдельный top-level модуль по spec §3 (`deny.rs` — deny helpers, `pack.rs` — packing; тонкий `mod.rs`). Root архива = содержимое `source` (entries `src/main.rs`, без `project_slug/` обёртки), зафиксировано в rustdoc. Name-deny через единый источник `secrets::match_filename` (risk ≥ High), НЕ дублированная таблица hard-deny (spec §4.1 рекомендация). Inline `WalkDir` в pack.rs (не `walk_tree`) — осознанно, чтобы считать `skipped_dir_names` в `filter_entry`-closure (walk_tree не даёт счётчик пропруненных директорий); `follow_links(false)` сохранён. `map_walk_error` поднят в `scan/walk.rs` как `pub(crate)` (общий для filename/pack). `tar`/`zstd` добавлены и в deps, и в dev-deps (integration-тесты распаковывают архив). Порядок проверок в pack: type-checks до deny (отклонение от sketch §5.2, осознанно). Пустые директории не сохраняются (files-only в M4.1). Атомарность записи — на facade M4.2/M4.3; контракт «output вне source» — на caller (`is_under_root` — follow-up). |
+| 2026-08-09 | M4.2: `den/` — отдельный top-level модуль по spec M4.2 §3 (`layout.rs` — ensure_den/version gate/README, `names.rs` — slug/timestamp/short_id/pack_rel, `place.rs` — place_pack; тонкий `mod.rs`). Version gate major-only (`parse_major`, `1.5` → ok, `99`/`garbage` → err). `Error::DenVersion { found, expected }` — additive variant + suggestion (CLI — blanket From<Error>, exhaustive match'ей нет). `short_id` = blake3(nanos + seed addr), 8 hex (без новых deps). `utc_timestamp_now` = `YYYYMMDDThhmmssZ` на civil-date алгоритме без chrono (проверен против `date -u`). `place_pack` = rename с cross-device fallback (EXDEV=18/17 через `raw_os_error` из-за MSRV 1.75) + `reject_escaping` от `..` в caller-timestamp. `.gitignore`: негация `!crates/raccpack-core/src/den/` (иначе `**/den/` для хранилищ игнорил исходный модуль). chmod `0700` den / `0600` pack — best-effort (Unix). |

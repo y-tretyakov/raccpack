@@ -17,6 +17,8 @@
 **/den/
 /manifests/
 /staging/
+# ...but the core source module named `den` is source code, not a store
+!crates/raccpack-core/src/den/
 
 # IDE / editor
 .idea/

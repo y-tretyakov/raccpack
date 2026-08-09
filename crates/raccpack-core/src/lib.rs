@@ -4,6 +4,7 @@ pub mod app;
 pub mod archive;
 pub mod cache;
 pub mod config;
+pub mod den;
 pub mod detect;
 pub mod domain;
 pub mod scan;
@@ -19,6 +20,10 @@ pub use archive::{
 };
 pub use cache::{store_sniff_cache, try_load_sniff_cache};
 pub use config::{ConfigError, PathsConfig, RaccConfig, ScannerConfig};
+pub use den::{
+    ensure_den, pack_relative_path, place_pack, project_slug, short_id, staging_pack_path,
+    utc_timestamp_now, DenPaths, PlacePackRequest, PlacePackResult, DEN_VERSION,
+};
 pub use detect::{candidate_to_project, detect_stack, detect_stacks, stack_from_candidate};
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};
 pub use scan::{
