@@ -699,6 +699,12 @@
 - Контракт «`output` не внутри `source`» — на caller; проверка `is_under_root` (follow-up M1.4) по-прежнему нужна для facade/den-writer M4.2.
 - M4.2 (запись в `den/packs/…` + `.den-version` + README) — следующий этап; вход: `PackTreeResult`/`pack_tree`.
 
+#### Follow-up review замечания (человек, 2026-08-09; PR #22) — НЕ блокеры
+- **A. Частичный output при ошибке mid-pack — принято.** Документировано в rustdoc `pack_tree` (§Errors). Facade обязан удалять temp при ошибке — **не забыть в M4.2/M4.3** (обязательное требование к facade-pack).
+- **B. `output` внутри `source` — только контракт в rustdoc, runtime-check нет — принято.** Facade обязан давать staging path снаружи source (M4.2/M4.3); `is_under_root`/runtime-check остаётся follow-up.
+- **C. Medium names (`config.json`) не deny — принято.** Порог deny = High осознанно (спека §4.1), Medium не попадает в pack-deny.
+- **D. Модульность `archive` — принято.** `pack.rs` + `deny.rs` ок; age/7z backends позже отдельными файлами (`archive/backends/age.rs` и т.п.), как в `raccpack-modularity.md`.
+
 ## Принятые решения
 
 | Дата | Решение |
