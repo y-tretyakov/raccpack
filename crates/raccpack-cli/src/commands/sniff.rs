@@ -25,7 +25,7 @@ pub fn run_sniff(global: GlobalOpts, args: SniffArgs) -> Result<(), CliError> {
 }
 
 /// Load the config from an explicit path or from the default resolution.
-fn load_config(path: Option<&Path>) -> Result<RaccConfig, CliError> {
+pub(crate) fn load_config(path: Option<&Path>) -> Result<RaccConfig, CliError> {
     match path {
         Some(path) => Ok(RaccConfig::load_from_path(path)?),
         None => Ok(RaccConfig::load()?),
@@ -33,7 +33,7 @@ fn load_config(path: Option<&Path>) -> Result<RaccConfig, CliError> {
 }
 
 /// Apply `--root` and `--den` overrides to the loaded config.
-fn apply_overrides(mut config: RaccConfig, global: &GlobalOpts) -> RaccConfig {
+pub(crate) fn apply_overrides(mut config: RaccConfig, global: &GlobalOpts) -> RaccConfig {
     if let Some(root) = &global.root {
         config = config.with_scan_root(root.clone());
     }
