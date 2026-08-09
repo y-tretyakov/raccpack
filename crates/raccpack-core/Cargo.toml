@@ -14,8 +14,12 @@ toml = "0.8"
 walkdir = "2"
 regex = "1"
 blake3 = "1"
+tar = "0.4"
+zstd = "0.13"
 
 [dev-dependencies]
 regex = "1"
 serial_test = "3"
 tempfile = "3"
+tar = "0.4"
+zstd = "0.13"
