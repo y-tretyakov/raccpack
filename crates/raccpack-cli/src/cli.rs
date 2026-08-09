@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
+use raccpack_core::SecretExitPolicy;
 
 /// Command-line interface for the `racc` binary.
 #[derive(Debug, Parser)]
@@ -43,6 +44,8 @@ pub struct GlobalOpts {
 pub enum Commands {
     /// Discover projects under scan root
     Sniff(SniffArgs),
+    /// Find and classify sensitive files
+    Dig(DigArgs),
 }
 
 /// Options specific to `racc sniff`.
@@ -55,6 +58,52 @@ pub struct SniffArgs {
     /// Override scanner.max_depth
     #[arg(long, value_name = "N")]
     pub max_depth: Option<usize>,
+}
+
+/// Options specific to `racc dig`.
+#[derive(Debug, Args, Default)]
+pub struct DigArgs {
+    /// Limit dig to one project directory
+    #[arg(long, value_name = "PATH")]
+    pub project: Option<PathBuf>,
+
+    /// Disable content scan (filename only)
+    #[arg(long)]
+    pub no_content: bool,
+
+    /// Find repeated secrets across files
+    #[arg(long)]
+    pub repeated: bool,
+
+    /// Exit policy for sensitive findings
+    #[arg(long, value_name = "POLICY", value_enum)]
+    pub fail_on: Option<FailOnPolicy>,
+
+    /// Override max depth
+    #[arg(long, value_name = "N")]
+    pub max_depth: Option<usize>,
+}
+
+/// Exit policy selected via `--fail-on`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum FailOnPolicy {
+    /// Never fail the run because of sensitive findings
+    Ignore,
+    /// Fail on CRITICAL findings only (default)
+    Critical,
+    /// Fail on HIGH or above
+    High,
+}
+
+impl FailOnPolicy {
+    /// Map the CLI value to the core exit policy.
+    pub fn to_exit_policy(self) -> SecretExitPolicy {
+        match self {
+            Self::Ignore => SecretExitPolicy::Ignore,
+            Self::Critical => SecretExitPolicy::FailOnCritical,
+            Self::High => SecretExitPolicy::FailOnHighOrAbove,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -98,6 +147,7 @@ mod tests {
                 assert!(args.force_refresh);
                 assert_eq!(args.max_depth, Some(3));
             }
+            _ => panic!("expected sniff command"),
         }
     }
 
@@ -111,5 +161,78 @@ mod tests {
     #[test]
     fn command_line_is_valid_clap_definition() {
         Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn dig_args_default_to_false_and_none() {
+        let args = DigArgs::default();
+        assert!(args.project.is_none());
+        assert!(!args.no_content);
+        assert!(!args.repeated);
+        assert!(args.fail_on.is_none());
+        assert!(args.max_depth.is_none());
+    }
+
+    #[test]
+    fn clap_parse_dig_with_all_flags() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "dig",
+            "--project",
+            "/tmp/app",
+            "--no-content",
+            "--repeated",
+            "--fail-on",
+            "high",
+            "--max-depth",
+            "4",
+        ])
+        .expect("parse should succeed");
+        match cli.command {
+            Commands::Dig(args) => {
+                assert_eq!(args.project, Some(PathBuf::from("/tmp/app")));
+                assert!(args.no_content);
+                assert!(args.repeated);
+                assert_eq!(args.fail_on, Some(FailOnPolicy::High));
+                assert_eq!(args.max_depth, Some(4));
+            }
+            _ => panic!("expected dig command"),
+        }
+    }
+
+    #[test]
+    fn clap_parse_dig_without_fail_on_defaults_to_none() {
+        let cli =
+            Cli::try_parse_from(["racc", "dig", "--root", "/tmp"]).expect("parse should succeed");
+        match cli.command {
+            Commands::Dig(args) => {
+                assert!(args.fail_on.is_none(), "default fail_on is None");
+                assert!(!args.no_content, "content scan enabled by default");
+                assert!(!args.repeated, "repeated disabled by default");
+            }
+            _ => panic!("expected dig command"),
+        }
+    }
+
+    #[test]
+    fn clap_rejects_unknown_fail_on_policy() {
+        let result = Cli::try_parse_from(["racc", "dig", "--fail-on", "bogus"]);
+        assert!(result.is_err(), "unknown --fail-on value must be rejected");
+    }
+
+    #[test]
+    fn fail_on_policy_maps_to_core_exit_policy() {
+        assert_eq!(
+            FailOnPolicy::Ignore.to_exit_policy(),
+            SecretExitPolicy::Ignore
+        );
+        assert_eq!(
+            FailOnPolicy::Critical.to_exit_policy(),
+            SecretExitPolicy::FailOnCritical
+        );
+        assert_eq!(
+            FailOnPolicy::High.to_exit_policy(),
+            SecretExitPolicy::FailOnHighOrAbove
+        );
     }
 }

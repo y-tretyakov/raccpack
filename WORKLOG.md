@@ -18,6 +18,7 @@
 [x] M3.1 Filename patterns + risk model (severity API)
 [x] M3.2 Content markers (regex/prefix) + size limits + mask/fingerprint
 [x] M3.3 Facade dig (masked output, без raw в report)
+[x] M3.4 CLI dig (racc dig + exit policy FailOnCritical)
 ```
 
 ## Этапы
@@ -605,6 +606,50 @@
 - **E. `use_heuristics` ignored** — зафиксировано, ок для MVP.
 - **F. `RepeatedSecret.paths`** — порядок появления в walk, не отсортирован (тест сортирует сам). Можно sort при сборке для стабильного JSON — косметика.
 
+### M3.4 — CLI dig (racc dig + exit policy FailOnCritical) (CLOSED)
+
+- **Дата:** 2026-08-09
+- **Ветка:** `m3.4-cli-dig`
+- **Статус:** done
+- **Dev:** dev-m3.4 · **Test:** test-m3.4 (параллельно, без rework)
+
+#### Сделано
+- `cli.rs`: `Commands::Dig(DigArgs)` + `DigArgs` (`project`/`no_content`/`repeated`/`fail_on`/`max_depth`) + `FailOnPolicy` (`#[derive(ValueEnum)]`: ignore/critical/high) с `to_exit_policy()` → `SecretExitPolicy`; `--fail-on` default → FailOnCritical. Unit-тесты clap parse (4 новых: default None, все флаги, reject unknown policy, policy mapping).
+- `commands/dig.rs` (created): `run_dig(global, args) -> Result<ExitCode, CliError>` — config load + overrides (общие `load_config`/`apply_overrides` из `sniff.rs` переведены в `pub(crate)`, переиспользованы, без дублирования) → `--max-depth` выставляется в `config.scanner.max_depth` ДО `AppContext` (dig уважает через context) → `AppContext::from_config(config, DryRun)` → `DigOptions{ project, find_repeated, scan_content: !no_content, use_heuristics: None }` → `dig` с `NullProgress` → вывод → `exit_code_for_secrets` → exit 0/2; stderr-сообщение `Sensitive findings triggered exit policy (…)` только при code!=0 и не-JSON (§4 шаг 9).
+- `output.rs`: `print_dig`/`format_dig` (JSON — полный `DigResult` pretty; human — `Dig root:`, сводка `Files scanned / Findings / Repeated / ms`, таблица `RISK LABEL PATH`, блок `Repeated secrets:` с `hash=xxxx…` префиксом). Human-таблица сортирует **копию** files risk desc → path asc; `RISK` через `SensitiveRisk::as_str()`, `LABEL` = `labels[0]`; без raw. Unit-тесты (5 новых: сортировка, сводка/шапки, repeated-блок только при непустом, отсутствие raw, JSON serde).
+- `main.rs`: `run() -> Result<ExitCode, CliError>`; Sniff → `Ok(SUCCESS)` (сигнатура `run_sniff` не менялась), Dig → `run_dig`; `main` возвращает код напрямую.
+- Core **не менялся** (вся логика уже в `dig`/`exit_code_for_secrets` facade M3.3).
+
+#### Файлы
+- `crates/raccpack-cli/src/cli.rs` (changed), `src/commands/dig.rs` (created), `src/commands/mod.rs` (changed), `src/commands/sniff.rs` (changed — `pub(crate)` visibility хелперов), `src/output.rs` (changed), `src/main.rs` (changed)
+- `crates/raccpack-cli/tests/cli_dig.rs` (created, Test-субагент)
+
+#### Тесты
+- `cargo test -p raccpack-cli --test cli_dig` → pass (18, все кейсы §6 + DoD §8 + бонус)
+- `cargo test --workspace` → pass (324: 277 core + 47 cli [19 unit + 18 dig + 10 sniff], 0 failed)
+- `cargo clippy --workspace --all-targets -- -D warnings` → pass
+- `cargo fmt --all -- --check` → pass
+- grep unwrap/expect/anyhow/Box<dyn в CLI production `src/` (вне `#[cfg(test)]`) → чисто; raw-секреты не печатаются (интеграционные тесты ассертит отсутствие raw токена в stdout)
+- Manual E2E: text + `--json` (валидный DigResult, `raw leak: False`), `--fail-on critical` → exit 2 + stderr policy, `--no-content` → filename-only (.env High), `--root /no/such` → exit 1
+
+#### Критерий готовности (DoD из m3.4 §8)
+- [x] `racc dig --root PATH` text + `--json`
+- [x] `--fail-on` / default FailOnCritical → exit 0/2
+- [x] `--no-content`, `--repeated`, `--project` пробрасываются
+- [x] Human output без raw
+- [x] Exit 1 на ошибки IO/config
+- [x] Тесты §6 зелёные (18 integration + 4+5 unit)
+- [x] Help `racc dig --help` понятный (тест на все флаги)
+
+#### Риски / follow-up
+- `racc dig --project PATH` без `--root` требует настроенный `scan_root` в конфиге (AppContext строится от конфига, `opts.project` — только ограничение скана) — соответствует спеке §3; при необходимости добавить `--project`-как-root позднее.
+- stderr-сообщение политики печатает Debug-имя (`FailOnCritical`); если позже захочется human-имя (`fail on critical`) — тривиальная правка `commands/dig.rs` (тест цепляется только за подстроку `policy`).
+- `--max-depth 0` не валидируется на CLI (проходит в config мимо `validate`); поведение соответствует M2.4-замечанию про sniff `--max-depth`.
+- README Status не обновлялся в M2.4–M3.4 (конвенция этапов); обновить отдельно при подведении MVP.
+
+#### Follow-up review замечания (человек, 2026-08-09; PR #21) — НЕ блокеры
+- (заполняется после ревью)
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -629,3 +674,4 @@
 | 2026-08-08 | M3.2: content-скан line-oriented с prefix-token extraction (token = alnum/`-`/`_` от вхождения префикса в любой позиции строки, не только старт) — зафиксировано в rustdoc `content.rs`. `private_key_header` — Regex (а не `Contains` из иллюстрации спеки): одна needle не выражает AND двух подстрок; поведение строже и покрыто тестом. `telegram_bot` отложен (шум, нужен length-bound). Единственный `.expect` в production — компиляция static regex-таблицы в `OnceLock` (fail-at-startup, спека §8 тест 9). `MaskedValue` сериализуем уже сейчас (нужен M3.3); `SensitiveFinding`/`FindingSource` serde — на M3.3. |
 | 2026-08-08 | M3.2 follow-up (PR #19), принято: шумные `generic_*` маркеры остаются как есть (тюнинг длины/denylist позже); prefix без length bound — ок для MVP (min/max length на `ContentMarker` — аддитивная эволюция позже, вернёт и `telegram_bot`); serde на findings — на M3.3; модульность content-markers — одна data-table + registry (не дробить до роста правил/конфигурируемых групп). |
 | 2026-08-08 | M3.3: DTO `dig` живут в `app/dig.rs` (по образцу `sniff`), не в domain/report — аддитивные re-exports в `lib.rs` делают их публичными для JSON CLI. `files_scanned` через `pub(crate) scan_secrets_with_count` (без изменения публичной сигнатуры `scan_secrets`). Serde на `SensitiveFinding`/`FindingSource` добавлен аддитивно (из follow-up M3.1/M3.2). `opts.project` допускает абсолютный путь вне `scan_root` (рекомендация спеки §4). |
+| 2026-08-09 | M3.4: `--fail-on` через `#[derive(ValueEnum)] FailOnPolicy` в `cli.rs` (clap сам валидирует `ignore/critical/high`), mapping в `to_exit_policy()`. Exit-код dig возвращается из `run()` (`Result<ExitCode, CliError>`), `run_sniff` сигнатура не менялась. Human-таблица dig сортирует копию files risk desc → path asc (JSON — как есть из facade). `--max-depth` прокидывается через `config.scanner.max_depth` ДО `AppContext` (dig уважает через context). Общие `load_config`/`apply_overrides` из `sniff.rs` → `pub(crate)` и переиспользованы в `dig.rs` (без дублирования). README Status по-прежнему не трогаем (конвенция этапов). |
