@@ -648,7 +648,9 @@
 - README Status не обновлялся в M2.4–M3.4 (конвенция этапов); обновить отдельно при подведении MVP.
 
 #### Follow-up review замечания (человек, 2026-08-09; PR #21) — НЕ блокеры
-- (заполняется после ревью)
+- **A. Human table: только primary label (`labels[0]`), без masked preview — принято.** Для MVP ок; полный masked есть в JSON (`content_match`). Если позже нужен preview в human — добавить отдельную колонку (сортировка/тесты не меняются).
+- **B. `ctx.exit_policy` из AppContext не используется — принято.** Policy живёт только на CLI (`--fail-on`), согласовано с M3.3 (dig read-only, exit на CLI). При появлении config-конфигурации политики — прокинуть из `AppContext` (аддитивно).
+- **C. Shared helpers вынесены из sniff — хорошо.** При росте CLI (stash/pack/raid) — вынести общее (config load/overrides, вывод, exit) в `commands/common.rs`; сейчас 2 подкоманды — оставить как есть.
 
 ## Принятые решения
 
