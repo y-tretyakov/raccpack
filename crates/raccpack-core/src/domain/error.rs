@@ -22,6 +22,12 @@ pub enum Error {
     /// Invalid configuration input.
     #[error("invalid configuration: {message}")]
     Config { message: String },
+    /// Incompatible major version in an existing den's `.den-version`.
+    #[error("incompatible den version: found {found}, expected {expected}")]
+    DenVersion {
+        found: String,
+        expected: &'static str,
+    },
     /// Catch-all for errors without a dedicated variant.
     #[error("{message}")]
     Other { message: String },
@@ -33,6 +39,9 @@ impl Error {
         match self {
             Error::PathNotFound { .. } => Some("Check that scan_root exists and is accessible."),
             Error::NotADirectory { .. } => Some("Provide a directory path, not a file."),
+            Error::DenVersion { .. } => {
+                Some("Point den_dir at a compatible den, or migrate it with a future `racc den migrate` command.")
+            }
             _ => None,
         }
     }
