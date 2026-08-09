@@ -748,6 +748,11 @@
 - Cross-device fallback протестирован только логикой (EXDEV не воспроизводится на одном FS в CI); при необходимости — интеграционный тест с разными mount points.
 - M4.3 (facade `pack` + DryRun/Commit) — следующий этап; входы: `pack_tree`/`PackTreeResult` (M4.1) + `place_pack`/`ensure_den` (M4.2). Facade обязан: staging path вне source + temp + rename (M4.1 follow-up A/B), удалять temp при ошибке, DryRun не писать.
 
+#### Follow-up review замечания (человек, 2026-08-09; PR #23) — НЕ блокеры
+- **A. Overwrite existing pack — принято, учесть в M4.3.** Если `slug__ts` уже существует, `fs::rename` (Unix) молча перезапишет, (Windows) может упасть. Facade `pack` (M4.3) обязан генерировать уникальный ts (или явный conflict-сигнал), чтобы не перезаписывать существующий артефакт. В `place_pack` перезапись остаётся как есть (низкоуровневый helper, семантика rename).
+- **B. chmod `0700`/`0600` best-effort — принято.** На Windows no-op (только `#[cfg(unix)]`); для v1 ок, документировано.
+- **C. Дубль civil-date с `cache/sniff_cache.rs` — принято, не блокер.** `den/names.rs` и `cache/sniff_cache.rs` содержат две копии civil-date-конверсии; вынести в общий `util` (например `util/time.rs`) можно позже отдельным этапом, не сейчас.
+
 ## Принятые решения
 
 | Дата | Решение |
