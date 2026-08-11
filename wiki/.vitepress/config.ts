@@ -137,6 +137,7 @@ export default defineConfig({
     },
   },
   themeConfig: {
+    appearance: 'dark',
     i18nRouting: false,
     logo: '/logo.webp',
     siteTitle: 'raccpack',
