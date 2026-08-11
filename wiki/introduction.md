@@ -27,7 +27,7 @@ Den — это ваше локальное защищённое хранилищ
 
 ## Как это работает (коротко)
 
-![Пайплайн raccpack: sniff → dig → stash → rinse → pack → raid](/how-it-works.webp)
+![Пайплайн raccpack: sniff → dig → stash → rinse → pack → raid](/how-it-works__ru.webp)
 
 Вы указываете две папки:
 
