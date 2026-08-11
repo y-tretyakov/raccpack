@@ -89,6 +89,15 @@ export default defineConfig({
     ['link', { rel: 'icon', href: '/raccpack/favicon.ico', type: 'image/x-icon' }],
   ],
   lastUpdated: true,
+  markdown: {
+    container: {
+      tipLabel: 'СОВЕТ',
+      warningLabel: 'ПРЕДУПРЕЖДЕНИЕ',
+      dangerLabel: 'ОПАСНОСТЬ',
+      infoLabel: 'ИНФО',
+      detailsLabel: 'Дополнительно'
+    }
+  },
   locales: {
     root: {
       label: 'Русский',
