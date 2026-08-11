@@ -753,6 +753,39 @@
 - **B. chmod `0700`/`0600` best-effort — принято.** На Windows no-op (только `#[cfg(unix)]`); для v1 ок, документировано.
 - **C. Дубль civil-date с `cache/sniff_cache.rs` — принято, не блокер.** `den/names.rs` и `cache/sniff_cache.rs` содержат две копии civil-date-конверсии; вынести в общий `util` (например `util/time.rs`) можно позже отдельным этапом, не сейчас.
 
+### Docs — Writerside → VitePress wiki (CLOSED)
+
+- **Дата:** 2026-08-11
+- **Ветка:** `docs-vitepress`
+- **Статус:** done
+- **Спека:** `raccpack-writerside-to-vitepress-prompt.md` (amended: wiki dir = `wiki/`, package manager = pnpm)
+- **Dev:** dev-vitepress (попытка 1 прервана) → попытка 2 · rework (EN switcher 404 + trailing newlines) · **Test:** test-vitepress
+
+#### Сделано
+- **Scaffold:** корневой `package.json` (pnpm@11.9.0, scripts `wiki:dev/build/preview`) + `pnpm-lock.yaml` + `pnpm-workspace.yaml` (allowBuilds esbuild — pnpm 11 не читает build-settings из package.json) + `.gitignore` (node_modules, `wiki/.vitepress/dist/`, `wiki/.vitepress/cache/`).
+- **VitePress:** `wiki/.vitepress/config.ts` — `base: '/raccpack/'`, `cleanUrls: false`, `lastUpdated: true`, `locales` root-RU + en (skeleton), nav+sidebar по смыслу `hi.tree` (все 12 топиков достижимы), `search.provider: 'local'`, editLink→`.../edit/dev/wiki/:path`, favicon head. Theme: `theme/index.ts` (extends DefaultTheme) + `custom.css` (brand `#c96c2c`).
+- **Assets:** `wiki/public/logo.webp` + `wiki/public/favicon.ico` (копии корневых `header-logo.webp`/`favicon.ico`). **Отклонение от спеки:** VitePress резолвит public dir как `<srcDir>/public`, каталог `wiki/.vitepress/public` игнорируется — проверено эмпирически, assets в `wiki/public/`.
+- **Контент:** 12/12 топиков из `Writerside/topics/*` перенесены 1:1 (diff только разрешённые изменения). Callouts: Note→`::: info` ×11, Warning→`::: warning` ×5 (алиасы note/important не использовались). Внутренние ссылки `(foo.md)` → `(/foo)`. Якоря `{#den-structure}`, `{#sniff-no-projects}`, `{#sniff-stale}` — stripped + auto-slug (внутренних ссылок на них нет; кириллические slug'и). `wiki/index.md` = зеркало introduction (не redirect; выбор задокументирован).
+- **EN skeleton:** `wiki/en/index.md` + `wiki/en/introduction.md` stub («English documentation is in progress», ссылка на RU).
+- **CI:** новый `.github/workflows/wiki.yml` (push/PR to dev по путям `wiki/**`, workflow, package.json, pnpm-lock, pnpm-workspace.yaml + workflow_dispatch; build: setup-node 22 → corepack → `pnpm install --frozen-lockfile` → `pnpm run wiki:build` → upload-artifact `wiki/.vitepress/dist`; deploy: environment `github-pages` + url → configure/upload-pages-artifact/deploy-pages; permissions contents/pages/id-token; concurrency pages).
+- **Удаление Writerside:** `Writerside/` целиком + `.github/workflows/build-docs.yml`; `docs/` остаётся только dev-документацией (README.md, config.example.toml, mvp/ untouched — не публикуются). README: badge → `wiki.yml`, добавлена секция User wiki (`pnpm run wiki:dev/build/preview`, deploy Pages, RU-first). crates/ не тронуты.
+- **Rework (по Test):** `i18nRouting: false` в themeConfig — переключатель языка EN ведёт на locale root `/en/` вместо несуществующих `/en/<page>.html` (skeleton имеет только index+introduction). Восстановлены trailing newlines в `wiki/*.md`.
+
+#### Тесты (Test-субагент, независимая приёмка)
+- `pnpm install` → ok; `pnpm run wiki:build` → exit 0, ошибок 0, warnings 0, dead-links 0 (vitepress 1.6.4).
+- dist: 13 RU `.html` (index + 12 топиков) + `en/{index,introduction}.html` + assets + `hashmap.json` (local search); mvp/README/config.example — не публикуются.
+- preview base `/raccpack/`: `/`, `/introduction.html`, `/index.html`, `/en/`, `/en/introduction.html`, `/logo.webp`, `/favicon.ico` → все 200. После rework: switcher на RU-страницах → `/raccpack/en/` (не 404).
+- callouts в html: 0 `<blockquote>`, рендерятся как `custom-block`/`.info`/`.warning`.
+- locales: `lang="ru-RU"` root, `lang="en-US"` en; switcher RU/EN присутствует.
+- `cargo build --workspace` → pass; `git diff dev -- crates/ Cargo.toml Cargo.lock` → пусто (docs-only).
+- DoD 7: 12/12 пунктов подтверждены.
+
+#### Риски / follow-up
+- EN — skeleton (полный перевод вне скоупа этого этапа).
+- Auto-slug кириллических заголовков: старые Writerside deep-links `…/introduction.html` сохраняются (`cleanUrls: false`), остальные старые URL могут отличаться (re-redirect карта не делалась — опционально).
+- Assets в `wiki/public/` (не `.vitepress/public`) — зафиксировано как отклонение спеки; при апгрейде VitePress проверить.
+- Корневые untracked логотипы (`favicon.ico`, `header-logo.*`, `icon.svg`, `raccpack-icon.*`) — пре-стейдж noise, не из миграции, не коммитились.
+
 ## Принятые решения
 
 | Дата | Решение |
@@ -780,3 +813,4 @@
 | 2026-08-09 | M3.4: `--fail-on` через `#[derive(ValueEnum)] FailOnPolicy` в `cli.rs` (clap сам валидирует `ignore/critical/high`), mapping в `to_exit_policy()`. Exit-код dig возвращается из `run()` (`Result<ExitCode, CliError>`), `run_sniff` сигнатура не менялась. Human-таблица dig сортирует копию files risk desc → path asc (JSON — как есть из facade). `--max-depth` прокидывается через `config.scanner.max_depth` ДО `AppContext` (dig уважает через context). Общие `load_config`/`apply_overrides` из `sniff.rs` → `pub(crate)` и переиспользованы в `dig.rs` (без дублирования). README Status по-прежнему не трогаем (конвенция этапов). |
 | 2026-08-09 | M4.1: `archive/` — отдельный top-level модуль по spec §3 (`deny.rs` — deny helpers, `pack.rs` — packing; тонкий `mod.rs`). Root архива = содержимое `source` (entries `src/main.rs`, без `project_slug/` обёртки), зафиксировано в rustdoc. Name-deny через единый источник `secrets::match_filename` (risk ≥ High), НЕ дублированная таблица hard-deny (spec §4.1 рекомендация). Inline `WalkDir` в pack.rs (не `walk_tree`) — осознанно, чтобы считать `skipped_dir_names` в `filter_entry`-closure (walk_tree не даёт счётчик пропруненных директорий); `follow_links(false)` сохранён. `map_walk_error` поднят в `scan/walk.rs` как `pub(crate)` (общий для filename/pack). `tar`/`zstd` добавлены и в deps, и в dev-deps (integration-тесты распаковывают архив). Порядок проверок в pack: type-checks до deny (отклонение от sketch §5.2, осознанно). Пустые директории не сохраняются (files-only в M4.1). Атомарность записи — на facade M4.2/M4.3; контракт «output вне source» — на caller (`is_under_root` — follow-up). |
 | 2026-08-09 | M4.2: `den/` — отдельный top-level модуль по spec M4.2 §3 (`layout.rs` — ensure_den/version gate/README, `names.rs` — slug/timestamp/short_id/pack_rel, `place.rs` — place_pack; тонкий `mod.rs`). Version gate major-only (`parse_major`, `1.5` → ok, `99`/`garbage` → err). `Error::DenVersion { found, expected }` — additive variant + suggestion (CLI — blanket From<Error>, exhaustive match'ей нет). `short_id` = blake3(nanos + seed addr), 8 hex (без новых deps). `utc_timestamp_now` = `YYYYMMDDThhmmssZ` на civil-date алгоритме без chrono (проверен против `date -u`). `place_pack` = rename с cross-device fallback (EXDEV=18/17 через `raw_os_error` из-за MSRV 1.75) + `reject_escaping` от `..` в caller-timestamp. `.gitignore`: негация `!crates/raccpack-core/src/den/` (иначе `**/den/` для хранилищ игнорил исходный модуль). chmod `0700` den / `0600` pack — best-effort (Unix). |
+| 2026-08-11 | Docs-этап (изолированный, не M-этап): Writerside → VitePress. Wiki в `wiki/` (root=RU, en=skeleton), пакетный менеджер **pnpm** (спеку read: `raccpack-writerside-to-vitepress-prompt.md`). Схема URLs: `base '/raccpack/'`, `cleanUrls:false` (старые `introduction.html` живут), root locale = RU (короткие пути), EN под `/en/`. Callout mapping: Note→`::: info`, Warning→`::: warning`, Important→`::: warning Important`, Caution/Danger→`::: danger`, Tip→`::: tip`, Details→`::: details <title>` (алиасы note/important не используются). CI `.github/workflows/wiki.yml`, Pages env `github-pages` (dev allowed). `docs/` остаётся dev-спеками и в wiki НЕ публикуется. |
