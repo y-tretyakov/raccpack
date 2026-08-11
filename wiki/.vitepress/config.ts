@@ -111,10 +111,6 @@ export default defineConfig({
         outline: { label: 'На этой странице' },
         docFooter: { prev: 'Предыдущая страница', next: 'Следующая страница' },
         lastUpdated: { text: 'Обновлено' },
-        editLink: {
-          pattern: 'https://github.com/y-tretyakov/raccpack/edit/dev/wiki/:path',
-          text: 'Редактировать эту страницу на GitHub',
-        },
       },
     },
     en: {
@@ -129,10 +125,6 @@ export default defineConfig({
         outline: { label: 'On this page' },
         docFooter: { prev: 'Previous page', next: 'Next page' },
         lastUpdated: { text: 'Last updated' },
-        editLink: {
-          pattern: 'https://github.com/y-tretyakov/raccpack/edit/dev/wiki/:path',
-          text: 'Edit this page on GitHub',
-        },
       },
     },
   },
