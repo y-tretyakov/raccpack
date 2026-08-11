@@ -8,7 +8,7 @@
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.75-orange?style=flat-square&logo=rust" alt="Rust"/></a>
   <a href="https://doc.rust-lang.org/cargo/"><img src="https://img.shields.io/badge/Cargo-workspace-blue?style=flat-square&logo=cargo" alt="Cargo"/></a>
   <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.1.0-blue?style=flat-square" alt="version"/></a>
-  <a href="https://github.com/y-tretyakov/raccpack/actions/workflows/build-docs.yml"><img src="https://github.com/y-tretyakov/raccpack/actions/workflows/build-docs.yml/badge.svg?style=flat-square" alt="CI"/></a>
+  <a href="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml"><img src="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml/badge.svg?style=flat-square" alt="CI"/></a>
   <a href="https://github.com/y-tretyakov/raccpack"><img src="https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-success?style=flat-square" alt="Windows | Linux | macOS"/></a>
   <a href="https://tauri.app"><img src="https://img.shields.io/badge/Tauri-Desktop-purple?style=flat-square&logo=tauri" alt="Tauri"/></a>
   <a href="https://clap.rs"><img src="https://img.shields.io/badge/CLI-clap-ee4b2b?style=flat-square" alt="CLI"/></a>
@@ -56,7 +56,15 @@ at your option.
 
 ## Docs
 
-Architecture vision and roadmap live in [`docs/`](docs/). Main knowledge documents at the repo root:
+**User wiki** lives in [`wiki/`](wiki/) and is built with [VitePress](https://vitepress.dev). The site is published to GitHub Pages at <https://y-tretyakov.github.io/raccpack/>.
+
+- Serve locally: `pnpm install && pnpm run wiki:dev`
+- Build: `pnpm run wiki:build` (output in `wiki/.vitepress/dist/`)
+- Preview a build: `pnpm run wiki:preview`
+- Deploy is handled by the `.github/workflows/wiki.yml` workflow.
+- The wiki is RU-first (root locale) with an English skeleton under `wiki/en/`.
+
+**Development docs** live in [`docs/`](docs/) — these are dev specs, not part of the published wiki. Main knowledge documents at the repo root:
 
 - `raccpack-agent-prompt.md` — main spec (phases 0–11, stage criteria)
 - `raccpack-architecture-vision.md` — layers, trust boundaries, DTO contracts

@@ -1,0 +1,17 @@
+{
+  "name": "raccpack-docs",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "wiki:dev": "vitepress dev wiki",
+    "wiki:build": "vitepress build wiki",
+    "wiki:preview": "vitepress preview wiki"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}
