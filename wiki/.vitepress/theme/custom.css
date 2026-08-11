@@ -16,6 +16,14 @@
   background-color: var(--acc-bg);
 }
 
+.custom-block.info,
+.custom-block.tip,
+.custom-block.warning,
+.custom-block.danger,
+.custom-block.details {
+  border-left-color: var(--acc);
+}
+
 .custom-block .custom-block-title {
   display: flex;
   align-items: center;
