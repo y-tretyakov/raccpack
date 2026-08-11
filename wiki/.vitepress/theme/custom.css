@@ -10,7 +10,7 @@
 .custom-block {
   position: relative;
   border-radius: 8px;
-  border-left: 4px solid color-mix(in srgb, var(--acc) 25%, transparent);
+  border-left: 5px solid var(--acc);
   padding: 12px 16px 10px;
   color: var(--vp-c-text-1);
   background-color: var(--acc-bg);
