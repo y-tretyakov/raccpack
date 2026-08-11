@@ -30,3 +30,8 @@
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Node.js / pnpm (VitePress wiki)
+node_modules/
+wiki/.vitepress/dist/
+wiki/.vitepress/cache/
