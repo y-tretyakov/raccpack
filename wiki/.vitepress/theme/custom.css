@@ -156,6 +156,60 @@ body.iol-lightbox-lock {
   overflow: hidden;
 }
 
+.iol-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.iol-wrap,
+.iol-wrap img {
+  cursor: zoom-in;
+}
+
+.iol-wrap img {
+  display: block;
+}
+
+.iol-wrap:hover img {
+  outline: 2px solid color-mix(in srgb, var(--vp-c-brand-3) 45%, transparent);
+  outline-offset: 3px;
+  transition: outline-color 0.2s ease;
+}
+
+.iol-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.iol-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.iol-wrap:hover .iol-icon {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .iol-icon {
+    opacity: 0.55;
+  }
+}
+
 /* ===== Sidebar brand ===== */
 
 @media (min-width: 960px) {
