@@ -9,23 +9,7 @@ description: "Как устроен raccpack: слои core и facade, инте�
 
 ## Общая схема
 
-```
-┌──────────────────────────────────────────────────┐
-│            Пользовательские интерфейсы            │
-│   CLI (clap)    TUI (Ratatui)    Desktop (Tauri) │
-└──────────────┬──────────────┬────────────────────┘
-               │              │
-               └──────────────┘
-                      ▼
-           Application services (facade)
-        sniff · dig · stash · rinse · pack · raid
-                      ▼
-                raccpack-core (ядро)
-   config · scan · detect · secrets · clean · archive
-   policy · git · cache · report · error
-                      ▼
-        файловая система · git · age · tar+zstd
-```
+![Общая схема: интерфейсы → facade → ядро](/architecture.webp)
 
 ## Главное правило
 
@@ -78,18 +62,7 @@ description: "Как устроен raccpack: слои core и facade, инте�
 
 ## Поток данных (happy path)
 
-```
-1. Выбрать scan_root и den_dir
-2. sniff → список проектов со стеком и размером
-3. dig → чувствительные файлы + повторяющиеся секреты
-4. Пользователь смотрит риски и подтверждает
-5. raid:
-     a. stash → age-архив секретов в den/secrets/
-     b. rinse → удаление мусора
-     c. pack → архив проекта без секретов
-     d. move → размещение в den + JSON-манифест
-6. Отчёт: что убрано, куда легли артефакты
-```
+![Поток данных (happy path): sniff → dig → raid](/happy-path.webp)
 
 ## Расширяемость
 
