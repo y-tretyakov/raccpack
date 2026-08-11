@@ -1,18 +1,18 @@
 import DefaultTheme from 'vitepress/theme'
-import { h, onMounted, watch } from 'vue'
-import { useRoute } from 'vitepress'
-import mediumZoom from 'medium-zoom'
+import { h, onBeforeUnmount, onMounted } from 'vue'
 import SidebarBrand from './components/SidebarBrand.vue'
+import ImageLightbox from './components/ImageLightbox.vue'
+import { openLightbox } from './components/lightbox-store'
 import './custom.css'
 
-let zoom: { detach: () => void } | null = null
-
-function initZoom(): void {
-  zoom?.detach()
-  zoom = mediumZoom('.vp-doc img:not(.VPImage)', {
-    background: 'rgba(0, 0, 0, 0.85)',
-    margin: 24,
-  })
+function onDocumentClick(e: MouseEvent): void {
+  const target = e.target as HTMLElement | null
+  if (!target || !(target instanceof HTMLImageElement)) return
+  if (!target.closest('.vp-doc')) return
+  if (target.classList.contains('VPImage')) return
+  e.preventDefault()
+  e.stopPropagation()
+  openLightbox(target.currentSrc || target.src, target.alt || '')
 }
 
 export default {
@@ -20,12 +20,10 @@ export default {
   Layout: () =>
     h(DefaultTheme.Layout, null, {
       'sidebar-nav-before': () => h(SidebarBrand),
+      'layout-bottom': () => h(ImageLightbox),
     }),
   setup(): void {
-    const route = useRoute()
-    onMounted(() => {
-      initZoom()
-      watch(() => route.path, () => initZoom())
-    })
+    onMounted(() => document.addEventListener('click', onDocumentClick))
+    onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
   },
 }

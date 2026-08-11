@@ -11,10 +11,7 @@
     "wiki:build": "vitepress build wiki",
     "wiki:preview": "vitepress preview wiki"
   },
-  "devDependencies": {
+"devDependencies": {
     "vitepress": "^1.6.4"
-  },
-  "dependencies": {
-    "medium-zoom": "^1.1.0"
   }
 }

@@ -150,14 +150,10 @@
   --acc-bg: color-mix(in srgb, #8b5cf6 16%, transparent);
 }
 
-/* ===== medium-zoom full-size image preview ===== */
+/* ===== Image lightbox ===== */
 
-.medium-zoom-overlay {
-  z-index: 999;
-}
-
-.medium-zoom-image--opened {
-  z-index: 1000;
+body.iol-lightbox-lock {
+  overflow: hidden;
 }
 
 /* ===== Sidebar brand ===== */
