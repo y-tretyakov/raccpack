@@ -176,7 +176,7 @@ pub fn rinse(ctx: &AppContext, opts: &RinseOptions,
 ```rust
 pub struct PackOptions {
     pub project: PathBuf,
-    pub output_name: Option<String>,  // по умолчанию {name}-{timestamp}.tar.zst
+    pub output_name: Option<String>,  // по умолчанию {slug}__{ts}.tar.zst
     pub deny_content_secrets: bool,   // проверять содержимое при упаковке
     pub zstd_level: Option<u32>,
 }
@@ -194,9 +194,9 @@ pub fn pack(ctx: &AppContext, opts: &PackOptions,
             progress: &mut dyn ProgressSink) -> Result<PackResult>;
 ```
 
-Ядро упаковки (`pack_tree`) уже реализовано (tar+zstd, deny по имени, skip-политика), как и facade `pack` с режимами DryRun/Commit. CLI-команда `racc pack` доступна начиная с MVP 0.1.
+Ядро упаковки (`pack_tree`) и facade `pack` (DryRun/Commit) реализованы, как и CLI-команда `racc pack`.
 
-**Статус: ядро реализовано, CLI планируется.**
+**Статус: ядро и CLI реализованы (MVP 0.1).**
 
 ### `raid` — полный цикл
 
