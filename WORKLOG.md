@@ -794,6 +794,49 @@
 - Runtime-guard staging-under-project основан на компонентном `Path::starts_with` (без canonicalize), как и остальные path-решения репозитория; вырожденные пути `/a/b` vs `/a/../a/b` не детектятся — осознанно (как M2.3 C).
 - M4.4 (CLI `racc pack` + ручной E2E) — следующий этап; вход: `pack`/`PackOptions`/`PackResult` из этого этапа.
 
+#### Follow-up review замечания (человек, 2026-08-12) — P1/P2
+- **P1-1 README устарел** → **FIXED** в M4.3-followup P1.
+- **P1-2 `filter_entry` мутирует счётчик в `archive/pack.rs`** → **FIXED** в M4.3-followup P1 (DFS).
+- **P1-3 двойной `ensure_den`** (facade + place_pack) → **FIXED** в M4.3-followup P1 (`place_pack_ensured`).
+- **P1-4 отдельный SkipPolicy для pack** (`default_scan()` не содержит `.next`/`coverage`/`.turbo`) → принято «для MVP ок»; `default_pack()` на Alpha/Beta (tracked в Принятые решения).
+- **P2-5 `zstd_level` из `config.advanced.zstd_level`** → закроется при введении `[advanced]` в config (сейчас честный default 3, задокументировано). Tracked.
+- **P2-6 content-deny на каждый файл** → **проверено**: `scan_file_content` реально режет (skip >1 MiB, binary-sniff, `file.take(max_read_bytes 1 MiB)` — content.rs:259/263/291); остаточная стоимость — per-file stat/read overhead, приемлемо для MVP; оптимизация (eligible extensions / size cap) позже. Tracked.
+- **P2-7 широкий public API surface в `lib.rs`** → pre-1.0 сужение; пересекается с фазой 9.1 «pub use audit». Tracked.
+- **P2-8 `Error::Other { message }` строкой** (`DenInsideProject`/`InvalidOutputName`) → кодовые варианты при CLY UX-фазе; сейчас `Other` задокументирован в rustdoc. Tracked.
+
+### M4.3-followup — P1 hardening (CLOSED)
+
+- **Дата:** 2026-08-12
+- **Ветка:** `m4.3-followup-p1`
+- **Статус:** done
+- **Dev:** dev-m4.3p1 · **Test:** test-m4.3p1 (параллельно, без rework)
+
+#### Сделано
+- **P1-2 ФИКС (archive/pack.rs):** убран `WalkDir`+`filter_entry` с мутацией `skipped_dir_names` в замыкании; вместо него — явный DFS на собственном стеке (`PlanDir` фреймы + `fs::read_dir`), классификация через `DirEntry::file_type()` (не следует symlink), счётчик prune-директорий ведётся в главном цикле (не в фильтре) — разблокирует будущий параллельный walk. Поведение эквивалентно WalkDir: root не архивируется/не прунится, `max_depth` (0 → пустой архив; descend только при `depth < max_depth`; policy-prune считается и на границе), symlink не follow/не архивируются, only regular files, deny/logic/tar/zstd без изменений. **Детерминизм:** каждая директория сортируется по lossy-имени ascending → порядок записей архива не зависит от OS readdir. Ошибки → `Error::Io { path, source }`. `WalkDir` больше не используется в pack.rs (удалён импорт).
+- **P1-3 ФИКС (den/place.rs + app/pack.rs):** `place_pack` стал тонким враппером (`ensure_den` → `place_pack_ensured`); новый `pub(crate) place_pack_ensured` — no-gate вариант для callers, уже запускавших `ensure_den`. Facade `pack` в Commit-пути вызывает `place_pack_ensured` (свой `ensure_den` в начале Commit остался) — двойной version-gate/IO устранён. Публичная сигнатура `place_pack` не менялась.
+- **P1-1 ФИКС (README):** корневой README Status переписан (M1–M4 core: sniff/dig/pack, CLI sniff+dig, не реализовано stash/rinse/raid, next M4.4) и `crates/raccpack-cli/README.md` (список subcommands, `racc pack` — M4.4).
+
+#### Файлы
+- created: `crates/raccpack-core/tests/pack_regressions.rs` (Test)
+- changed: `crates/raccpack-core/src/archive/pack.rs` (DFS walker), `src/den/place.rs` (+`place_pack_ensured`), `src/den/mod.rs` (pub(crate) re-export), `src/app/pack.rs` (call ensured variant + rustdoc), `README.md`, `crates/raccpack-cli/README.md`
+
+#### Тесты
+- unit (Dev): pack.rs +3 (pruned dir count, ascending order, symlink-dir не follow, unix) + place.rs +1 (ensured не бутстрапит `.den-version`; после `ensure_den` — размещает).
+- integration `tests/pack_regressions.rs` (Test, 8): детерминированный порядок (жёстко фиксирует полную последовательность `[a.txt, m.txt, subdir/a.txt, subdir/b.txt, z.txt]`; падал на pre-fix коде), pruned-dirs counted + не в архиве, pruned-dir в середине не ломает братьев, max_depth 0/2 границы, symlink-дир `#[cfg(unix)]`, `place_pack` публичный враппер бутстрапит свежий den, `output_name: Some("custom")` → `packs/yyyy/mm/custom.tar.zst`.
+- Проверки (Orchestrator): `cargo test --workspace` → 419 (372 core + 47 cli, 0 failed); `cargo test -p raccpack-core --test pack_regressions --test pack --test pack_facade --test den_layout` → pass; `cargo clippy --workspace --all-targets -- -D warnings` → pass; `cargo fmt --all -- --check` → pass; `cargo doc -p raccpack-core --no-deps` → только pre-existing warning `markers/mod.rs:53`; grep prod unwrap/expect/WalkDir в 4 touched-файлах → чисто (только `#[cfg(test)]`).
+
+#### Критерий готовности (P1-замечания закрыты)
+- [x] README актуален (root + cli crate)
+- [x] Счётчик prune-директорий ведётся в главном цикле (нет side-effect в filter_entry)
+- [x] Двойной `ensure_den` устранён, public API не менялся
+- [x] Поведение pack_tree/place_pack эквивалентно (18 pack + 13 den_layout + 14 pack_facade без правок — зелёные)
+- [x] `cargo test -p raccpack-core` green
+
+#### Риски / follow-up
+- Сортировка листинга добавляет небольшую аллокацию на директорию — детерминизм важнее.
+- P1-4 (`default_pack()`), P2-5/6/7/8 — в приёмных решениях / tracked (см. M4.3 review notes выше).
+- M4.4 (CLI `racc pack` + E2E) может стартовать от этого состояния.
+
 ### Docs — Writerside → VitePress wiki (CLOSED)
 
 - **Дата:** 2026-08-11
@@ -859,3 +902,5 @@
 | 2026-08-11 | Docs-этап (изолированный, не M-этап): **wiki upgrade до «идеального» состояния** — Writerside-admonitions + бренд-картинка в сайдбаре + landing-главная. 1) Admonitions: старый absolute-подход заменён на Writerside-стиль — inline mask-иконка в `.custom-block-title::before` (info/tip/warning/danger) и `summary::before` (details), левая акцентная полоса `border-left: 4px solid var(--acc)`, `border-radius:8px`, фон `color-mix` 8% (light) / 16% (dark), заголовок в `--acc-text` (тёмный в light, светлый в dark). 2) Sidebar: логотип+название убраны на десктопе (`.VPNavBarTitle {display:none}` в `@media≥960px`; на мобилке оставлен для навигации), вместо них `RaccPack.webp` (1254², копия из корня → `wiki/public/RaccPack.webp`) — `sidebar-brand-img` 180px, `object-fit:cover`, скругление 14px, через слот `sidebar-nav-before` (theme/index.ts `extends` + `Layout`; компонент `SidebarBrand.vue` с `withBase`). Меню начинается сразу под картинкой. 3) Home: `wiki/index.md` → `layout: home` (hero name/text/tagline/image `/RaccPack.webp`, actions «Пайплайн команд»→/concepts, «Быстрый старт»→/quick-start, «Wiki»→/introduction; 6 features: Rust/age/tar.zst/CLI·TUI·Desktop/Безопасность/Den; тело: «Зачем это нужно», пайплайн)
 демо-callouts убраны. Полировка: градиентный `.VPHero .name`, тень/скругление `.image-src`, glow `.image-bg`, hover-подъём `.VPFeature`. 4) Config: `appearance: 'dark'` (тёмный по умолчанию, переключатель остаётся). Верификация (Dev + Test параллельно, Orchestrator FINAL): `pnpm run wiki:build` → success ×3; в dist — `sidebar-brand` img `/raccpack/RaccPack.webp`, hero+actions+6 features на index.html, писательские правила + отсутствие `padding-left:3.2rem`/absolute-иконок; git diff только 6 ожидаемых файлов. Решение: `.VPNavBarTitle` скрыт только ≥960px (mobile brand сохранён). |
 | 2026-08-12 | M4.3: `PlacePackRequest` расширен `output_name: Option<String>` (custom name = только filename, всё равно под `packs/{yyyy}/{mm}`, `.tar.zst` добавляется; валидация `validate_output_name` единая `pub(crate)`, `reject_escaping` после подстановки). Уникальность артефакта — в facade `resolve_artifact_name`: существующий target → suffix `__{short_id}` (к ts у auto-name, к имени у custom), одна попытка, затем `Error::Other`. `zstd_level: None` → self-hosted default 3 (config `[advanced]` на MVP нет, отклонение задокументировано в rustdoc). Runtime-guard «staging внутри project» — компонентный `Path::starts_with` (без canonicalize, консистентно с path-решениями репо). Progress pack: 0/30/80/100 (phase_complete на 100). |
+| 2026-08-12 | M4.3-followup P1: walker pack переписан на **explicit DFS** (свой стек + `read_dir`, `DirEntry::file_type()` не follows symlinks) без `filter_entry`-сайд-эффекта; счётчик prune — в главном цикле (снят блокер для будущего parallel walk); записи архива сортируются по имени (детерминизм). `place_pack_ensured` (`pub(crate)`, no-gate) отделён от публичного `place_pack` (врапер `ensure_den` → ensured) — facade без двойного `ensure_den`. `WalkDir` в pack.rs больше не используется. |
+| 2026-08-12 | Принято (MVP, tracked на Alpha/Beta): **P1-4** `SkipPolicy::default_pack()` с расширенным списком (`.next`, `coverage`, `.turbo`, …) — для pack-фазы позже; **P2-5** `zstd_level` из `[advanced]` при введении секции; **P2-6** cost content-deny смягчён существующими limits (1 MiB / binary-skip / `take`) — оптимизация (extensions/size-cap) позже; **P2-7** сужение public API в `lib.rs` — совмещено с фазой 9.1 pub-use audit; **P2-8** типизация `Error::Other` (DenInsideProject/InvalidOutputName) — при CLI UX-фазе. |

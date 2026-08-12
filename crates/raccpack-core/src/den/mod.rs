@@ -40,4 +40,4 @@ pub use names::{pack_relative_path, project_slug, short_id, utc_timestamp_now};
 pub use place::{place_pack, PlacePackRequest, PlacePackResult};
 
 pub(crate) use layout::create_dir_all;
-pub(crate) use place::validate_output_name;
+pub(crate) use place::{place_pack_ensured, validate_output_name};
