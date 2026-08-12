@@ -24,6 +24,7 @@ const rus = {
       text: 'Справочник',
       items: [
         { text: 'Основные понятия', link: '/concepts' },
+        { text: 'Что поддерживается', link: '/supported' },
         { text: 'Архитектура', link: '/architecture' },
         { text: 'Facade API', link: '/facade-api' },
       ],
@@ -56,6 +57,7 @@ const rus = {
       text: 'Справочник',
       items: [
         { text: 'Основные понятия', link: '/concepts' },
+        { text: 'Что поддерживается', link: '/supported' },
         { text: 'Архитектура', link: '/architecture' },
         { text: 'Facade API', link: '/facade-api' },
       ],
@@ -68,12 +70,17 @@ const rus = {
 const eng = {
   nav: [
     { text: 'Introduction', link: '/en/introduction' },
+    { text: 'Supported', link: '/en/supported' },
     { text: 'Русская версия', link: '/' },
   ],
   sidebar: [
     {
       text: 'First steps',
       items: [{ text: 'Introduction', link: '/en/introduction' }],
+    },
+    {
+      text: 'Reference',
+      items: [{ text: 'Supported', link: '/en/supported' }],
     },
   ],
 } satisfies DefaultTheme.Config

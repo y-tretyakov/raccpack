@@ -33,6 +33,18 @@ CLI (`racc`): `sniff`, `dig` and `pack` subcommands implemented (text + `--json`
 
 The M4.4 milestone closed the **MVP 0.1.0** exit criteria: workspace + core + CLI, `sniff` projects + stack, `dig` secrets masked, `pack` tar.zst into the den layout. Next milestone: **Alpha — A1 `stash` (age encryption), A2 `rinse`, A3 `raid`, A4 git + DX** (→ 0.3.0).
 
+## Supported (MVP 0.1.0)
+
+What is implemented on current `dev` (exact tables the full supported catalog lives in the wiki):
+
+- **Project markers (14):** `Cargo.toml`, `package.json`, `go.mod`, `pyproject.toml`, `setup.py`, `requirements.txt`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `Gemfile`, `composer.json`, `CMakeLists.txt`, `Makefile`, `.git`.
+- **Framework hints (shallow, top-level only):** Next.js, Nuxt, Angular, Vite, Deno (Node); Django (Python); Scala/sbt (JVM); Rails (Ruby).
+- **Secret filename patterns (28):** env files (`.env` family), SSH/private keys (`id_rsa`, `*.pem`, `*.key`, `*.ppk`), keystores (`.p12`, `.pfx`, `.jks`), credentials, registry configs (`kubeconfig`, `.npmrc`, `.pypirc`, `config.json`), `secrets.*`, `-sa.json`, `wallet.dat`.
+- **Content markers (12):** AWS access/secret, GitHub (`ghp_`, `gho_`), Slack, Stripe (live/test), PEM headers, connection strings, JWT-like, generic `api_key`/`secret` assignments.
+- **Skip dirs (18):** `node_modules`, `target`, VCS (`.git`/`.svn`/`.hg`), Python caches, virtualenvs, build outputs, IDE dirs, `.raccpack`, `*.egg-info`.
+
+Full catalog (risk levels, deny thresholds, ContentScanLimits, pack deny rules): **[Что поддерживается](wiki/supported.md)**.
+
 ## Workspace structure
 
 ```
