@@ -3,8 +3,10 @@
 //! [`pack`] validates the project root, prepares a staging file inside the den,
 //! runs [`crate::archive::pack_tree`] with name-deny always on and optional
 //! content-deny, and moves the finished archive into the `packs/{yyyy}/{mm}`
-//! layout via [`crate::den::place_pack`]. In `RunMode::DryRun` nothing is
-//! written under the den and only the expected artifact path is reported.
+//! layout via [`crate::den::place_pack`] — the facade runs `ensure_den` once
+//! itself and then calls the internal ensured variant, avoiding a redundant
+//! second `ensure_den` inside the placement step. In `RunMode::DryRun` nothing
+//! is written under the den and only the expected artifact path is reported.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -13,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::archive::{pack_tree, ContentDenyOptions, PackTreeOptions};
 use crate::den::{
-    create_dir_all, ensure_den, pack_relative_path, place_pack, project_slug, short_id,
+    create_dir_all, ensure_den, pack_relative_path, place_pack_ensured, project_slug, short_id,
     staging_pack_path, utc_timestamp_now, validate_output_name, PlacePackRequest,
 };
 use crate::domain::{Error, Result, SensitiveRisk};
@@ -181,7 +183,7 @@ pub fn pack(
 
     progress.emit(pack_event(80, "Moving to den…", false));
 
-    let placed = place_pack(&PlacePackRequest {
+    let placed = place_pack_ensured(&PlacePackRequest {
         den_root: den,
         project_name: slug,
         source_archive: staging.clone(),

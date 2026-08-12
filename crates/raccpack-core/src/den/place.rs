@@ -4,7 +4,8 @@
 //! from `crate::archive::pack_tree`) into
 //! `packs/{yyyy}/{mm}/{slug}__{ts}.tar.zst` (or `{name}.tar.zst` when
 //! [`PlacePackRequest::output_name`] is set), applying the den skeleton from
-//! [`crate::den::ensure_den`] first.
+//! [`crate::den::ensure_den`] first. [`place_pack_ensured`] is the internal
+//! no-gate variant for callers that already ran `ensure_den`.
 //!
 //! INVARIANTS:
 //!
@@ -56,7 +57,9 @@ pub struct PlacePackResult {
 
 /// Move/rename `source_archive` into the den packs layout atomically.
 ///
-/// 1. [`ensure_den`] on `req.den_root` (version gate + skeleton).
+/// 1. [`ensure_den`] on `req.den_root` (version gate + skeleton) — adds
+///    redundant work when the facade has already run it (see
+///    `place_pack_ensured` for the no-gate variant).
 /// 2. Derive the slug and timestamp, then the relative
 ///    `packs/{yyyy}/{mm}/{slug}__{ts}.tar.zst` path. When
 ///    [`PlacePackRequest::output_name`] is set the artifact filename becomes
@@ -75,7 +78,15 @@ pub struct PlacePackResult {
 ///   `\`, `\0`).
 pub fn place_pack(req: &PlacePackRequest) -> Result<PlacePackResult> {
     ensure_den(&req.den_root)?;
+    place_pack_ensured(req)
+}
 
+/// Place `source_archive` assuming the den is already initialized.
+///
+/// Caller guarantees [`ensure_den`] already ran on `req.den_root`, so the
+/// version gate and skeleton creation are skipped. Fails with the same
+/// [`Error::Io`] / [`Error::Other`] variants as [`place_pack`].
+pub(crate) fn place_pack_ensured(req: &PlacePackRequest) -> Result<PlacePackResult> {
     let slug = project_slug(&req.project_name);
     let ts = req.timestamp.clone().unwrap_or_else(utc_timestamp_now);
     let rel = match &req.output_name {
@@ -264,5 +275,39 @@ mod tests {
         })
         .unwrap_err();
         assert!(err.to_string().contains("would escape den root"));
+    }
+
+    #[test]
+    fn place_ensured_skips_validation_and_does_not_bootstrap_den() {
+        let den = TempDir::new().unwrap();
+
+        // Uninitialized den: nobody ran `ensure_den`, so the ensured variant
+        // must not create `.den-version`.
+        let staging = tempfile::TempDir::new().unwrap();
+        let archive = staging.path().join("pack.tar.zst");
+        std::fs::write(&archive, b"data").unwrap();
+        let req = PlacePackRequest {
+            den_root: den.path().to_path_buf(),
+            project_name: "proj".to_string(),
+            source_archive: archive.clone(),
+            timestamp: Some("20260804T155230Z".to_string()),
+            output_name: None,
+        };
+        let _ = place_pack_ensured(&req);
+        assert!(
+            !den.path().join(".den-version").exists(),
+            "place_pack_ensured must not create the den skeleton"
+        );
+
+        // After an explicit ensure_den the ensured variant places successfully.
+        ensure_den(den.path()).unwrap();
+        let archive2 = staging.path().join("pack2.tar.zst");
+        std::fs::write(&archive2, b"data").unwrap();
+        let placed = place_pack_ensured(&PlacePackRequest {
+            source_archive: archive2,
+            ..req
+        })
+        .unwrap();
+        assert!(placed.absolute_path.is_file());
     }
 }

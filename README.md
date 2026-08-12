@@ -21,7 +21,15 @@ CLI / TUI / Desktop tool for scanning projects, finding secrets, cleaning build 
 
 ## Status
 
-**M1 done** — milestone M1 (workspace scaffold + core foundation: domain DTOs, config, SkipPolicy + safe walk) is closed. Next milestone: **M2 — sniff** (project discovery by markers). Business logic for scan / secrets / pack / den is not implemented yet; `racc` is a stub that prints the version.
+Core is in the **pack milestone (M4)**. Implemented so far:
+
+- **sniff** — project discovery by markers, language/framework detection, size, versioned XDG cache.
+- **dig** — secret scan (filename risk model + content markers with size/binary limits), masked values, repeated-secret aggregation.
+- **pack** — `tar.zst` archives with name/content deny + SkipPolicy, den layout (`.den-version`, `packs/…`, `staging/…`) with atomic placement, facade `pack` with DryRun/Commit.
+
+CLI (`racc`): `sniff` and `dig` subcommands implemented (text + `--json`). Not implemented yet: **stash** (age encryption), **rinse** (build-trash cleanup), **raid** (orchestration).
+
+Next milestone: **M4.4 — CLI `racc pack` + manual E2E MVP**.
 
 ## Workspace structure
 

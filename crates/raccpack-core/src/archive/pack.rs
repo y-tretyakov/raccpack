@@ -5,20 +5,23 @@
 //! deny rules for files. The archive root is the *contents* of `source`
 //! (entries like `src/main.rs`, not `myproject/src/main.rs`).
 //!
+//! The tree is walked with an explicit depth-first traversal (`fs::read_dir`,
+//! symlinks never followed). Each directory's entries are sorted by name, so
+//! archive entry order is deterministic regardless of the OS readdir order.
+//!
 //! INVARIANT: symlinks are never followed and never archived. `output` is
 //! written directly (created/overwritten); atomicity (temp + rename) is the
 //! caller's / facade's responsibility (M4.2/M4.3). `output` must NOT be inside
 //! `source` — the archive could otherwise include itself while growing; the
 //! caller guarantees a staging path outside the tree.
 
-use std::fs::File;
+use std::ffi::OsString;
+use std::fs::{self, File};
 use std::path::{Component, Path, PathBuf};
-
-use walkdir::WalkDir;
 
 use crate::domain::{Error, Result};
 use crate::scan::skip::SkipPolicy;
-use crate::scan::walk::{ensure_scan_root, map_walk_error};
+use crate::scan::walk::ensure_scan_root;
 
 use super::deny::{content_deny_hit, should_deny_file_in_pack, ContentDenyOptions};
 
@@ -106,49 +109,64 @@ pub fn pack_tree(source: &Path, output: &Path, opts: &PackTreeOptions) -> Result
     let mut skipped_secret_files = 0usize;
     let mut file_count = 0usize;
 
-    let walker = WalkDir::new(source)
-        .follow_links(false)
-        .max_depth(opts.max_depth)
-        .into_iter()
-        .filter_entry(|entry| {
-            if entry.depth() > 0
-                && entry.file_type().is_dir()
-                && opts.policy.should_skip_dir(entry.path())
-            {
-                skipped_dir_names += 1;
-                return false;
-            }
-            true
-        });
+    // Explicit DFS with an own stack: each frame lists one directory's entries
+    // sorted by lossy name (ascending), so the archive bytes are identical
+    // regardless of the OS readdir order. Directories are visited in pre-order
+    // (descend immediately when encountered), which keeps entries ascending.
+    // Classification uses `DirEntry::file_type()` (does not follow symlinks),
+    // so symlinked dirs/files are never descended into and never archived.
+    let mut stack = vec![PlanDir {
+        path: source.to_path_buf(),
+        depth: 0,
+        entries: read_sorted_entries(source)?,
+        cursor: 0,
+    }];
+    while let Some(mut plan) = stack.pop() {
+        if plan.cursor >= plan.entries.len() {
+            continue;
+        }
+        let (name, file_type) = plan.entries[plan.cursor].clone();
+        plan.cursor += 1;
+        let parent_path = plan.path.clone();
+        let parent_depth = plan.depth;
+        stack.push(plan);
 
-    for item in walker {
-        let entry = item.map_err(|err| map_walk_error(err, source))?;
-        if entry.depth() == 0 {
-            continue;
-        }
-        let file_type = entry.file_type();
+        let path = parent_path.join(&name);
+        let depth = parent_depth + 1;
+
         if file_type.is_dir() {
+            if opts.policy.should_skip_dir(&path) {
+                skipped_dir_names += 1;
+            } else if depth < opts.max_depth {
+                let entries = read_sorted_entries(&path)?;
+                stack.push(PlanDir {
+                    path,
+                    depth,
+                    entries,
+                    cursor: 0,
+                });
+            }
             continue;
         }
-        if file_type.is_symlink() {
+        if file_type.is_symlink() || !file_type.is_file() {
             continue;
         }
-        if !file_type.is_file() {
+        if depth > opts.max_depth {
             continue;
         }
-        if opts.deny_name_secrets && should_deny_file_in_pack(entry.path()) {
+        if opts.deny_name_secrets && should_deny_file_in_pack(&path) {
             skipped_secret_files += 1;
             continue;
         }
-        if content_deny_hit(entry.path(), &opts.content_deny)? {
+        if content_deny_hit(&path, &opts.content_deny)? {
             skipped_secret_files += 1;
             continue;
         }
-        let name = relative_posix_name(source, entry.path())?;
+        let name = relative_posix_name(source, &path)?;
         builder
-            .append_path_with_name(entry.path(), name)
+            .append_path_with_name(&path, name)
             .map_err(|source_err| Error::Io {
-                path: entry.path().to_path_buf(),
+                path: path.clone(),
                 source: source_err,
             })?;
         file_count += 1;
@@ -183,6 +201,43 @@ pub fn pack_tree(source: &Path, output: &Path, opts: &PackTreeOptions) -> Result
     })
 }
 
+/// One directory frame of the depth-first walk.
+///
+/// `depth` is the directory's own depth (0 = `source`); its children are
+/// processed at `depth + 1`. `entries` is the sorted readdir listing.
+struct PlanDir {
+    path: PathBuf,
+    depth: usize,
+    entries: Vec<(OsString, fs::FileType)>,
+    cursor: usize,
+}
+
+/// List `dir`'s entries as `(name, type)` pairs sorted by lossy name ascending.
+///
+/// Types come from [`std::fs::DirEntry::file_type`], which does NOT follow
+/// symlinks. Read-dir and per-entry `file_type` failures map to [`Error::Io`].
+fn read_sorted_entries(dir: &Path) -> Result<Vec<(OsString, fs::FileType)>> {
+    let mut entries: Vec<(OsString, fs::FileType)> = fs::read_dir(dir)
+        .map_err(|source| Error::Io {
+            path: dir.to_path_buf(),
+            source,
+        })?
+        .map(|item| {
+            let entry = item.map_err(|source| Error::Io {
+                path: dir.to_path_buf(),
+                source,
+            })?;
+            let file_type = entry.file_type().map_err(|source| Error::Io {
+                path: entry.path(),
+                source,
+            })?;
+            Ok((entry.file_name(), file_type))
+        })
+        .collect::<Result<_>>()?;
+    entries.sort_by(|a, b| a.0.to_string_lossy().cmp(&b.0.to_string_lossy()));
+    Ok(entries)
+}
+
 /// Build the POSIX relative archive name for `path` under `source`.
 ///
 /// Components are rejoined with `/`. Any path that would contain `ParentDir`,
@@ -210,6 +265,24 @@ fn relative_posix_name(source: &Path, path: &Path) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn unpack_names(path: &Path) -> Vec<String> {
+        let file = File::open(path).unwrap();
+        let decoder = zstd::stream::read::Decoder::new(file).unwrap();
+        let mut archive = tar::Archive::new(decoder);
+        archive
+            .entries()
+            .unwrap()
+            .map(|entry| {
+                entry
+                    .unwrap()
+                    .path()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect()
+    }
 
     #[test]
     fn pack_options_defaults() {
@@ -274,5 +347,81 @@ mod tests {
             .collect();
         names.sort();
         assert_eq!(names, vec!["notes.txt", "src/main.rs"]);
+    }
+
+    #[test]
+    fn policy_pruned_dir_is_counted_and_omitted() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let source = dir.path().join("proj");
+        std::fs::create_dir_all(source.join("target/debug")).unwrap();
+        std::fs::write(source.join("target/debug/x"), b"bytes\n").unwrap();
+        std::fs::create_dir_all(source.join("src")).unwrap();
+        std::fs::write(source.join("src/main.rs"), b"fn main() {}\n").unwrap();
+
+        let output = dir.path().join("out.tar.zst");
+        let result = pack_tree(&source, &output, &PackTreeOptions::default()).unwrap();
+
+        assert_eq!(result.skipped_dir_names, 1);
+        let names = unpack_names(&output);
+        assert_eq!(
+            names,
+            vec!["src/main.rs"],
+            "skipped dir subtree must be absent"
+        );
+    }
+
+    #[test]
+    fn archive_entries_are_deterministically_sorted() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let source = dir.path().join("proj");
+        std::fs::create_dir_all(&source).unwrap();
+        std::fs::create_dir_all(source.join("src")).unwrap();
+        // Created in reverse-sorted order so an unwrapped readdir would return
+        // them unsorted; the walker must still emit ascending names.
+        std::fs::write(source.join("z.txt"), b"z\n").unwrap();
+        std::fs::write(source.join("m.txt"), b"m\n").unwrap();
+        std::fs::write(source.join("a.txt"), b"a\n").unwrap();
+        std::fs::write(source.join("src/main.rs"), b"fn main() {}\n").unwrap();
+
+        let output = dir.path().join("out.tar.zst");
+        let result = pack_tree(&source, &output, &PackTreeOptions::default()).unwrap();
+
+        assert_eq!(result.file_count, 4);
+        let names = unpack_names(&output);
+        let mut sorted = names.clone();
+        sorted.sort();
+        assert_eq!(
+            names, sorted,
+            "archive entry order must be ascending: {names:?}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_dir_is_neither_descended_nor_archived() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::TempDir::new().unwrap();
+        let source = dir.path().join("proj");
+        let outside = dir.path().join("outside");
+        std::fs::create_dir_all(source.join("real")).unwrap();
+        std::fs::write(source.join("real/in.txt"), b"ok\n").unwrap();
+        std::fs::write(source.join("root.txt"), b"r\n").unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(outside.join("leak.txt"), b"SECRET\n").unwrap();
+        symlink(&outside, source.join("link")).unwrap();
+
+        let output = dir.path().join("out.tar.zst");
+        let result = pack_tree(&source, &output, &PackTreeOptions::default()).unwrap();
+
+        let names = unpack_names(&output);
+        assert!(
+            !names
+                .iter()
+                .any(|n| n.starts_with("link") || n == "leak.txt"),
+            "symlinked dir must not be followed or archived: {names:?}"
+        );
+        assert_eq!(result.skipped_dir_names, 0, "a symlink is not a pruned dir");
+        assert_eq!(result.file_count, 2);
     }
 }
