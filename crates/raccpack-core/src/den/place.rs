@@ -2,7 +2,8 @@
 //!
 //! [`place_pack`] moves `source_archive` (a completed tempfile/staging file
 //! from `crate::archive::pack_tree`) into
-//! `packs/{yyyy}/{mm}/{slug}__{ts}.tar.zst`, applying the den skeleton from
+//! `packs/{yyyy}/{mm}/{slug}__{ts}.tar.zst` (or `{name}.tar.zst` when
+//! [`PlacePackRequest::output_name`] is set), applying the den skeleton from
 //! [`crate::den::ensure_den`] first.
 //!
 //! INVARIANTS:
@@ -37,6 +38,9 @@ pub struct PlacePackRequest {
     pub source_archive: PathBuf,
     /// Optional explicit UTC timestamp; `None` generates one now.
     pub timestamp: Option<String>,
+    /// Optional custom artifact filename (without `.tar.zst`); `None` →
+    /// `{slug}__{ts}.tar.zst`.
+    pub output_name: Option<String>,
 }
 
 /// Outcome of a successful [`place_pack`].
@@ -54,7 +58,9 @@ pub struct PlacePackResult {
 ///
 /// 1. [`ensure_den`] on `req.den_root` (version gate + skeleton).
 /// 2. Derive the slug and timestamp, then the relative
-///    `packs/{yyyy}/{mm}/{slug}__{ts}.tar.zst` path.
+///    `packs/{yyyy}/{mm}/{slug}__{ts}.tar.zst` path. When
+///    [`PlacePackRequest::output_name`] is set the artifact filename becomes
+///    `{output_name}.tar.zst` (still under `packs/{yyyy}/{mm}`).
 /// 3. Reject any relative path that would escape `den_root`.
 /// 4. `rename` into place; on cross-device, copy + remove the source.
 /// 5. Best-effort `chmod 0o600` (Unix) and return absolute/relative paths and
@@ -64,13 +70,22 @@ pub struct PlacePackResult {
 ///
 /// - [`Error::DenVersion`] via [`ensure_den`] for an incompatible den.
 /// - [`Error::Io`] for any filesystem failure (rename, copy, metadata).
-/// - [`Error::Other`] when the derived relative path would escape `den_root`.
+/// - [`Error::Other`] when the derived relative path would escape `den_root`,
+///   or when `output_name` is invalid (empty, `.`/`..`, or containing `/`,
+///   `\`, `\0`).
 pub fn place_pack(req: &PlacePackRequest) -> Result<PlacePackResult> {
     ensure_den(&req.den_root)?;
 
     let slug = project_slug(&req.project_name);
     let ts = req.timestamp.clone().unwrap_or_else(utc_timestamp_now);
-    let rel = pack_relative_path(&slug, &ts);
+    let rel = match &req.output_name {
+        Some(name) => {
+            validate_output_name(name)?;
+            let rel = pack_relative_path(&slug, &ts);
+            rel.with_file_name(format!("{name}.tar.zst"))
+        }
+        None => pack_relative_path(&slug, &ts),
+    };
     reject_escaping(&rel)?;
 
     let abs = req.den_root.join(&rel);
@@ -113,6 +128,20 @@ fn reject_escaping(rel: &Path) -> Result<()> {
     } else {
         Ok(())
     }
+}
+
+/// Validate a custom artifact filename (without `.tar.zst`).
+///
+/// Rejects empty names, `.` and `..`, and names containing `/`, `\` or a NUL
+/// byte. Shared by [`place_pack`] and the facade `pack` use-case so both apply
+/// the identical rule.
+pub(crate) fn validate_output_name(name: &str) -> Result<()> {
+    if name.is_empty() || name == "." || name == ".." || name.contains(['/', '\\', '\0']) {
+        return Err(Error::Other {
+            message: format!("invalid pack output name: {name:?}"),
+        });
+    }
+    Ok(())
 }
 
 /// Rename `source` to `destination`, falling back to copy + remove on
@@ -163,6 +192,7 @@ mod tests {
             project_name: "My App".to_string(),
             source_archive: archive.clone(),
             timestamp: Some("20260804T155230Z".to_string()),
+            output_name: None,
         })
         .unwrap();
 
@@ -186,6 +216,7 @@ mod tests {
             project_name: "proj".to_string(),
             source_archive: archive,
             timestamp: None,
+            output_name: None,
         })
         .unwrap();
 
@@ -208,6 +239,7 @@ mod tests {
             project_name: "proj".to_string(),
             source_archive: archive,
             timestamp: Some("20260804T155230Z".to_string()),
+            output_name: None,
         })
         .unwrap();
 
@@ -228,6 +260,7 @@ mod tests {
             project_name: "proj".to_string(),
             source_archive: archive,
             timestamp: Some("../../evil".to_string()),
+            output_name: None,
         })
         .unwrap_err();
         assert!(err.to_string().contains("would escape den root"));

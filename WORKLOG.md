@@ -20,6 +20,8 @@
 [x] M3.3 Facade dig (masked output, без raw в report)
 [x] M3.4 CLI dig (racc dig + exit policy FailOnCritical)
 [x] M4.1 Pack tar+zstd + name deny + SkipPolicy
+[x] M4.2 Den layout (ensure_den, naming, place_pack)
+[x] M4.3 Facade pack + DryRun/Commit
 ```
 
 ## Этапы
@@ -753,6 +755,45 @@
 - **B. chmod `0700`/`0600` best-effort — принято.** На Windows no-op (только `#[cfg(unix)]`); для v1 ок, документировано.
 - **C. Дубль civil-date с `cache/sniff_cache.rs` — принято, не блокер.** `den/names.rs` и `cache/sniff_cache.rs` содержат две копии civil-date-конверсии; вынести в общий `util` (например `util/time.rs`) можно позже отдельным этапом, не сейчас.
 
+### M4.3 — Facade `pack` + DryRun/Commit (CLOSED)
+
+- **Дата:** 2026-08-12
+- **Ветка:** `m4.3-facade-pack`
+- **Статус:** done
+- **Dev:** dev-m4.3 · **Test:** test-m4.3 (параллельно, без rework)
+
+#### Сделано
+- `app/pack.rs` (created): публичный use-case `pack(ctx, opts, progress)` по facade §7 + спеку m4.3. `PackOptions` (manual `Default`: `project` пустой — caller, `deny_content_secrets: true`, `output_name: None`, `zstd_level: None`), `PackResult` (serde, fields по спеке). Progress `OperationKind::Pack`, phase `"pack"`, commit → 0/30/80/100 (phase_complete только на 100 «Done»), dry-run → 0/100.
+- **DryRun:** `ensure_scan_root` → валидация `output_name` → expected path `den/packs/{yyyy}/{mm}/{slug}__{ts}.tar.zst` (или `{name}.tar.zst`) → emit 0/100, возврат `dry_run: true`, size/file_count/skipped = 0. Ничего не пишет: без `ensure_den`, без staging, без suffix.
+- **Commit:** `ensure_den` → `resolve_artifact_name` (уникальность: target существует → suffix `__{short_id}` к ts (auto) или к custom-имени; вторая коллизия → `Error::Other`) → staging `den/staging/{short_id}/pack.tar.zst` (+runtime-guard `staging.starts_with(&project)` → `Error::Other` «staging path lies inside the project tree») → `pack_tree` с `deny_name_secrets: true` + `content_deny{enabled: opts.deny_content_secrets, min_risk: Critical}` + `zstd_level: unwrap_or(3)` → best-effort cleanup staging при ошибке (M4.1 follow-up A) → `place_pack{timestamp: Some(ts), output_name}` → cleanup пустой staging-dir → `PackResult{dry_run: false}`.
+- `den/place.rs` (changed, additive): `PlacePackRequest.output_name: Option<String>` — custom filename `{name}.tar.zst` still под `packs/{yyyy}/{mm}`; `validate_output_name` (`pub(crate)`, общий для place_pack и facade: не пустое, не `.`/`..`, без `/\\\0`); `reject_escaping` применяется ПОСЛЕ подстановки имени. Все существующие литеральные конструкции `PlacePackRequest` (4 unit в place.rs + 4 integration в tests/den_layout.rs) дополнены `output_name: None`.
+- `den/mod.rs`: `pub(crate)` re-exports `create_dir_all` и `validate_output_name` (модуль den приватный для app; вне публичного API). `app/mod.rs` + `lib.rs`: аддитивные re-exports `pack/PackOptions/PackResult`.
+- Отклонение (задокументировано в rustdoc `PackOptions::zstd_level`): facade-doc говорит `None → config.advanced.zstd_level`, но `[advanced]` в конфиге нет на MVP → self-hosted default 3.
+
+#### Файлы
+- created: `crates/raccpack-core/src/app/pack.rs`, `crates/raccpack-core/tests/pack_facade.rs`
+- changed: `crates/raccpack-core/src/den/place.rs`, `src/den/mod.rs`, `src/app/mod.rs`, `src/lib.rs`, `crates/raccpack-core/tests/den_layout.rs` (только `output_name: None` фиксы литералов), `WORKLOG.md`
+
+#### Тесты
+- unit `app/pack.rs` (8): default deny_content_secrets=true, pack_event shape, output_name validation (6 bad / 4 good), artifact_rel auto/custom, resolve suffix auto-name (ts `contains("Z__")`), resolve suffix custom-name, keep-name-when-free.
+- integration `tests/pack_facade.rs` (14, Test-субагент): все 7 кейсов §5 (DryRun не пишет den; Commit читаемый архив `src/main.rs`+`notes.txt`; `.env` excluded `skipped_secret_files≥1`; content-deny AKIA явно+по default; progress [0,30,80,100]/[0,100]; PathNotFound + NotADirectory; den bootstrap `.den-version`/`README.txt`/`packs/`) + экстры (serde roundtrip; custom `output_name` → `my-artifact.tar.zst` под `packs/yyyy/mm/`; repeat-pack no-clobber count≥2; staging hygiene; den-in-project → Error::Other).
+- `cargo build --workspace` → pass; `cargo test --workspace` → pass (407: 360 core + 47 cli, 0 failed); `cargo test -p raccpack-core --test pack_facade` → 14 pass; `cargo clippy --workspace --all-targets -- -D warnings` → pass; `cargo fmt --all -- --check` → pass; `cargo doc -p raccpack-core --no-deps` → только pre-existing warning `markers/mod.rs:53`, новых нет; grep unwrap/expect в production `app/pack.rs`+`den/place.rs` → чисто (только `#[cfg(test)]`); anyhow/Box<dyn → нет.
+
+#### Критерий готовности (DoD из m4.3 §7)
+- [x] `pack` signature matches facade
+- [x] DryRun vs Commit behaviour correct (тесты 1/2/5/6/7)
+- [x] Integrates pack_tree + ensure_den + place_pack (code review + e2e)
+- [x] deny name (и content при enabled) applied (`.env`/AKIA тесты)
+- [x] Тесты §5 зелёные (7 обязательных покрыты в pack_facade)
+- [x] `cargo test -p raccpack-core` green (360)
+
+#### Риски / follow-up
+- `zstd_level: None` → default 3 локально; проброс из `config.advanced.zstd_level` — при введении `[advanced]`.
+- **Breaking (pre-1.0, для CHANGES):** `PlacePackRequest` получил обязательное поле `output_name: Option<String>` — ломает структурные литералы внешних callers (их нет). `validate_output_name` при ошибке попадает в `Error::Other` без Display raw-имени (только `{:?}` — имя артефакта, не секрет).
+- Уникальность suffix применяется один раз, затем `Error::Other` (астрономическая коллизия) — зафиксировано в rustdoc `pack`.
+- Runtime-guard staging-under-project основан на компонентном `Path::starts_with` (без canonicalize), как и остальные path-решения репозитория; вырожденные пути `/a/b` vs `/a/../a/b` не детектятся — осознанно (как M2.3 C).
+- M4.4 (CLI `racc pack` + ручной E2E) — следующий этап; вход: `pack`/`PackOptions`/`PackResult` из этого этапа.
+
 ### Docs — Writerside → VitePress wiki (CLOSED)
 
 - **Дата:** 2026-08-11
@@ -817,3 +858,4 @@
 | 2026-08-11 | Docs-этап (изолированный, не M-этап): кастомные SVG-иконки для **custom-block** (INFO/TIP/WARNING/DANGER/DETAILS) + цвета блоков в стиле Writerside (спека `raccpack-vitepress-custom-admonition-icons.md`). Реализация: `wiki/.vitepress/theme/custom.css` (mask-image data-URI иконки 5 типов, `color-mix` фон, сохранён `:root`-бренд), `markdown.container` с русскими labels (СОВЕТ/ПРЕДУПРЕЖДЕНИЕ/ОПАСНОСТЬ/ИНФО/Дополнительно) в `wiki/.vitepress/config.ts`; `theme/index.ts` уже импортировал `./custom.css` (без правок). Демо-блоки добавлены в `wiki/index.md` (примеры использования из спеки). Верификация: `pnpm run wiki:build` → success; в собранном `style.*.css` присутствуют правила иконок для всех 5 типов; в `dist/index.html` labels `ИНФО/СОВЕТ/ПРЕДУПРЕЖДЕНИЕ/ОПАСНОСТЬ` + details-блок; git diff только по 4 файлам. Известный нюанс: stale `wiki/.vitepress/cache/` после смены node_modules вызывает `Cannot find package 'vue'` — лечится очисткой кэша (gitignored), не источник кода. |
 | 2026-08-11 | Docs-этап (изолированный, не M-этап): **wiki upgrade до «идеального» состояния** — Writerside-admonitions + бренд-картинка в сайдбаре + landing-главная. 1) Admonitions: старый absolute-подход заменён на Writerside-стиль — inline mask-иконка в `.custom-block-title::before` (info/tip/warning/danger) и `summary::before` (details), левая акцентная полоса `border-left: 4px solid var(--acc)`, `border-radius:8px`, фон `color-mix` 8% (light) / 16% (dark), заголовок в `--acc-text` (тёмный в light, светлый в dark). 2) Sidebar: логотип+название убраны на десктопе (`.VPNavBarTitle {display:none}` в `@media≥960px`; на мобилке оставлен для навигации), вместо них `RaccPack.webp` (1254², копия из корня → `wiki/public/RaccPack.webp`) — `sidebar-brand-img` 180px, `object-fit:cover`, скругление 14px, через слот `sidebar-nav-before` (theme/index.ts `extends` + `Layout`; компонент `SidebarBrand.vue` с `withBase`). Меню начинается сразу под картинкой. 3) Home: `wiki/index.md` → `layout: home` (hero name/text/tagline/image `/RaccPack.webp`, actions «Пайплайн команд»→/concepts, «Быстрый старт»→/quick-start, «Wiki»→/introduction; 6 features: Rust/age/tar.zst/CLI·TUI·Desktop/Безопасность/Den; тело: «Зачем это нужно», пайплайн)
 демо-callouts убраны. Полировка: градиентный `.VPHero .name`, тень/скругление `.image-src`, glow `.image-bg`, hover-подъём `.VPFeature`. 4) Config: `appearance: 'dark'` (тёмный по умолчанию, переключатель остаётся). Верификация (Dev + Test параллельно, Orchestrator FINAL): `pnpm run wiki:build` → success ×3; в dist — `sidebar-brand` img `/raccpack/RaccPack.webp`, hero+actions+6 features на index.html, писательские правила + отсутствие `padding-left:3.2rem`/absolute-иконок; git diff только 6 ожидаемых файлов. Решение: `.VPNavBarTitle` скрыт только ≥960px (mobile brand сохранён). |
+| 2026-08-12 | M4.3: `PlacePackRequest` расширен `output_name: Option<String>` (custom name = только filename, всё равно под `packs/{yyyy}/{mm}`, `.tar.zst` добавляется; валидация `validate_output_name` единая `pub(crate)`, `reject_escaping` после подстановки). Уникальность артефакта — в facade `resolve_artifact_name`: существующий target → suffix `__{short_id}` (к ts у auto-name, к имени у custom), одна попытка, затем `Error::Other`. `zstd_level: None` → self-hosted default 3 (config `[advanced]` на MVP нет, отклонение задокументировано в rustdoc). Runtime-guard «staging внутри project» — компонентный `Path::starts_with` (без canonicalize, консистентно с path-решениями репо). Progress pack: 0/30/80/100 (phase_complete на 100). |

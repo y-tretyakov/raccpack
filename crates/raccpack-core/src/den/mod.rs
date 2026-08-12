@@ -38,3 +38,6 @@ mod place;
 pub use layout::{ensure_den, staging_pack_path, DenPaths, DEN_VERSION};
 pub use names::{pack_relative_path, project_slug, short_id, utc_timestamp_now};
 pub use place::{place_pack, PlacePackRequest, PlacePackResult};
+
+pub(crate) use layout::create_dir_all;
+pub(crate) use place::validate_output_name;
