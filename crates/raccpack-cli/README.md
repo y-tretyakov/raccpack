@@ -6,5 +6,6 @@ Implemented subcommands:
 
 - `racc sniff --root PATH` — project discovery (text or `--json`).
 - `racc dig --project PATH` — secret findings with `--fail-on` exit policy.
+- `racc pack --project PATH --yes` — archive a project into the den as `tar.zst` (dry-run by default, commit with `--yes`).
 
-`racc pack` lands in milestone M4.4; `stash` / `rinse` / `raid` come later.
+`stash` / `rinse` / `raid` come later (Alpha).

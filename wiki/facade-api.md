@@ -194,7 +194,7 @@ pub fn pack(ctx: &AppContext, opts: &PackOptions,
             progress: &mut dyn ProgressSink) -> Result<PackResult>;
 ```
 
-Ядро упаковки (`pack_tree`) уже реализовано (tar+zstd, deny по имени, skip-политика). CLI-команда ожидается в MVP (M4.4).
+Ядро упаковки (`pack_tree`) уже реализовано (tar+zstd, deny по имени, skip-политика), как и facade `pack` с режимами DryRun/Commit. CLI-команда `racc pack` доступна начиная с MVP 0.1.
 
 **Статус: ядро реализовано, CLI планируется.**
 

@@ -40,7 +40,7 @@ raccpack/
   Cargo.toml                  # workspace manifest (resolver 2)
   crates/
     raccpack-core/            # library: domain + use-cases, no UI/CLI deps
-    raccpack-cli/             # binary: `racc` (sniff/dig; pack in M4.4), links raccpack-core
+    raccpack-cli/             # binary: `racc` (sniff/dig/pack), links raccpack-core
   LICENSE-MIT                 # MIT license
   LICENSE-APACHE              # Apache-2.0 license
 ```

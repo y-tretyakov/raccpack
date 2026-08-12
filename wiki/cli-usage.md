@@ -1,6 +1,6 @@
 ---
 title: Использование CLI
-description: Справочник команд racc — глобальные флаги, sniff, dig, вывод JSON и использование в CI.
+description: Справочник команд racc — глобальные флаги, sniff, dig, pack, вывод JSON и использование в CI.
 ---
 
 # Использование CLI
@@ -118,13 +118,77 @@ racc dig --fail-on high
 - `critical` — код `2` при находках уровня `Critical`;
 - `high` — код `2` при находках уровня `High` и выше.
 
+### `racc pack` — упаковать проект в den
+
+Упаковывает каталог проекта в архив `tar.zst` и кладёт его в den по раскладке `packs/{yyyy}/{mm}/`. Секреты при этом исключаются: deny по именам включён всегда, deny по содержимому — по умолчанию (флаг `--no-content-deny` отключает только его).
+
+```
+racc pack --project PATH [--den PATH] [--yes] [--dry-run]
+         [--no-content-deny] [--zstd-level N] [--output-name NAME]
+```
+
+| Флаг | Описание |
+|------|----------|
+| `--project PATH` | Каталог проекта для упаковки (обязательный) |
+| `--den PATH` | Каталог den (по умолчанию из конфигурации `paths.den_dir`) |
+| `--yes` | **Commit**: записать архив в den |
+| `--dry-run` | Явный dry-run; имеет приоритет над `--yes`, ничего не пишет |
+| `--no-content-deny` | Не сканировать содержимое файлов (deny по именам остаётся) |
+| `--zstd-level N` | Уровень сжатия zstd (по умолчанию — уровень ядра) |
+| `--output-name NAME` | Имя файла артефакта без `.tar.zst` (вместо `slug__timestamp`) |
+
+::: warning
+По умолчанию `pack` работает в **dry-run** и ничего не пишет. Команда `--yes` — явное подтверждение записи в den.
+:::
+
+Примеры:
+
+```bash
+# Dry-run: показать, что будет упаковано (ничего не пишется)
+racc pack --project ~/DEV/PROJS/app-api
+
+# Commit: создать архив в den
+racc pack --project ~/DEV/PROJS/app-api --yes
+
+# Своё имя артефакта вместо slug__timestamp
+racc pack --project ~/DEV/PROJS/app-api --yes --output-name snapshot
+
+# Машиночитаемый результат для скриптов
+racc pack --project ~/DEV/PROJS/app-api --yes --json
+```
+
+Пример вывода dry-run:
+
+```text
+Pack (dry-run)
+  Source: /home/user/DEV/PROJS/app-api
+  Would write: /home/user/.raccpack/den/packs/2026/08/app-api__20260804T181500Z.tar.zst
+  Content deny: on
+  (no files written)
+```
+
+Пример вывода commit:
+
+```text
+Pack complete
+  Source: /home/user/DEV/PROJS/app-api
+  Output: /home/user/.raccpack/den/packs/2026/08/app-api__20260804T181500Z.tar.zst
+  Size: 4.2 MiB
+  Files: 312
+  Skipped secret files: 3
+```
+
+::: info
+`pack` не использует код выхода `2` — это прерогатива политики секретов `dig`. Здесь только `0` (успех) и `1` (ошибка).
+:::
+
 ### Что пока ещё в разработке
 
 Следующие команды планируются в ближайших версиях (см. [Дорожную карту](/roadmap)):
 
 | Команда | Назначение | Статус |
 |---------|------------|--------|
-| `racc pack` | Упаковать проект в `tar.zst` | В разработке (ядро готово, CLI ожидается в MVP M4.4) |
+| `racc pack` | Упаковать проект в `tar.zst` | Готово (см. выше) |
 | `racc stash` | Вынести секреты в age-архив | Планируется (Alpha) |
 | `racc rinse` | Очистить мусор сборки | Планируется (Alpha) |
 | `racc raid` | Полный цикл одним действием | Планируется (Alpha) |
