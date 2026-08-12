@@ -707,6 +707,8 @@
 - **C. Medium names (`config.json`) не deny — принято.** Порог deny = High осознанно (спека §4.1), Medium не попадает в pack-deny.
 - **D. Модульность `archive` — принято.** `pack.rs` + `deny.rs` ок; age/7z backends позже отдельными файлами (`archive/backends/age.rs` и т.п.), как в `raccpack-modularity.md`.
 
+> **Superseded (2026-08-12, PR #37):** описанный здесь `WalkDir`+`filter_entry` walker заменён на explicit DFS (счётчик prune в главном цикле, детерминированный порядок записей) в ходе M4.3-followup P1.
+
 ### M4.2 — Den layout (ensure_den, naming, place_pack) (CLOSED)
 
 - **Дата:** 2026-08-09
