@@ -1,299 +1,266 @@
 ---
 title: Что поддерживается
-description: Полный каталог того, что raccpack поддерживает на MVP 0.1.0 — маркеры проектов, фреймворки, секреты, skip-политика и deny при упаковке.
+description: Языки, фреймворки, секреты, пропускаемые каталоги и правила упаковки — полный каталог возможностей raccpack на MVP 0.1.0.
 ---
 
 # Что поддерживается
 
-::: info
-Этот список снят с кода `raccpack-core` на момент **MVP 0.1.0** (ветка `dev`).
-Добавление нового языка или секрета = изменение кода **и** обновление этой страницы в том же PR.
-:::
-
-## 1. Обнаружение проектов (sniff)
-
-### 1.1 Маркеры по экосистемам
-
-Проект определяется по **маркерам** — характерным файлам/каталогам в корне директории.
-Реестр собран в [`scan/markers/`](https://github.com/y-tretyakov/raccpack/tree/dev/crates/raccpack-core/src/scan/markers) в стабильном порядке групп: rust → node → go → python → jvm → ruby → php → cpp → make → git.
-
-| Экосистема | Маркер | Kind | language_hint |
-|------------|--------|------|----------------|
-| Rust | `Cargo.toml` | file | Rust |
-| Node.js / JS / TS | `package.json` | file | JavaScript |
-| Go | `go.mod` | file | Go |
-| Python | `pyproject.toml` | file | Python |
-| Python | `setup.py` | file | Python |
-| Python | `requirements.txt` | file | Python |
-| JVM (Java) | `pom.xml` | file | Java |
-| JVM (Java) | `build.gradle` | file | Java |
-| JVM (Kotlin) | `build.gradle.kts` | file | Kotlin |
-| Ruby | `Gemfile` | file | Ruby |
-| PHP | `composer.json` | file | PHP |
-| C/C++ | `CMakeLists.txt` | file | C++ |
-| Make | `Makefile` | file | — |
-| Git | `.git` | dir | — |
-
-**Всего 14 маркеров.** Маркер `Makefile` несёт `None` как `language_hint` (язык не определяется); маркер `.git` — директория, без языкового сигнала.
-
-::: tip
-Реестр экосистемно-модульный: один язык = один файл (`rust.rs`, `node.rs`, …) + одна строка в реестре `scan/markers/mod.rs`. `candidates.rs` ничего не знает о языках.
-:::
-
-### 1.2 Как выбирается язык
-
-Язык резолвится из `language_hint` найденных маркеров по таблице приоритетов из [`detect/types.rs` `LANGUAGE_PRIORITY_GROUPS`](https://github.com/y-tretyakov/raccpack/tree/dev/crates/raccpack-core/src/detect/types.rs) (выше — приоритетнее):
-
-```
-Cargo.toml > go.mod > (pom.xml, build.gradle, build.gradle.kts)
-  > package.json > pyproject.toml > setup.py > requirements.txt
-  > Gemfile > composer.json > CMakeLists.txt > Makefile
-```
-
-- Маркеры **внутри одной группы** имеют равный приоритет; при равенстве побеждает первый хит в порядке `hits`.
-- `.git` в таблице **отсутствует** — он не несёт языкового сигнала.
-- Хит из таблицы с `None`-подсказкой (например `Makefile`) даёт `None`, даже если рядом есть другой хит с подсказкой.
-- Если ни один хит не попал в таблицу — берётся подсказка первого хита (покрывает пользовательские `extra_markers`), при её отсутствии — `None`.
-
-### 1.3 Фреймворки (shallow detect)
-
-Фреймворки определяются **поверхностно** — по именам файлов в **top-level** листинге каталога проекта (`read_dir` одного уровня, без рекурсии и без чтения lock-файлов). Ровно один пик вглубь делает только Ruby-детектор (один уровень `config/`, чтобы отличить Rails).
-
-| Экосистема | Признак (имя файла) | Значение в `stack.frameworks` |
-|------------|----------------------|-------------------------------|
-| Node.js | `next.config.{js,mjs,ts}` | `Next.js` |
-| Node.js | `nuxt.config.*` | `Nuxt` |
-| Node.js | `angular.json` | `Angular` |
-| Node.js | `vite.config.*` | `Vite` |
-| Node.js | `deno.json` | `Deno` |
-| Python | `manage.py` | `Django` |
-| JVM | `build.sbt` | `Scala/sbt` |
-| Ruby | `Gemfile` **и** `config/application.rb` | `Rails` |
-
-- Go, PHP, C/C++, Make, Rust и Git — **правил фреймворков в MVP нет**.
-- Ruby: `Rails` срабатывает только при наличии `Gemfile` (иначе детектор возвращает пустой стек) и настоящего каталога `config/` (симлинк не «прочитывается», за пределы корня проект не выходит).
-- Не выполняются последующие проверки, если каталог `config` — симлинк.
-- Результаты детерминированы: имена в listing сортируются до сравнения.
+Страница описывает, **что умеет raccpack прямо сейчас** (MVP 0.1.0): как он находит проекты, какие секреты ищет, какие папки пропускает и что исключает из архива.
 
 ::: info
-Глубокого парсинга `package.json`, `Cargo.toml` (workspace, зависимости для определения фреймворков, вроде Axum) на MVP **нет** — см. [раздел 5](#5-что-пока-не-поддерживается-честно).
+Список соответствует встроенным правилам ядра. Когда в код добавляют новый язык или тип секрета, эту страницу обновляют в том же изменении.
 :::
 
-### 1.4 Git
+## Обнаружение проектов
 
-`.git` распознаётся как маркер **DirName** ([`scan/markers/git.rs`](https://github.com/y-tretyakov/raccpack/tree/dev/crates/raccpack-core/src/scan/markers/git.rs)). Он даёт:
+Команда `racc sniff` обходит папку с проектами и ищет **маркеры** — характерные файлы или каталоги в корне проекта.
 
-- `is_git_repo = true` у проекта ([`candidates.rs`](https://github.com/y-tretyakov/raccpack/tree/dev/crates/raccpack-core/src/scan/candidates.rs));
-- `stack.markers` пополняется именем `.git`;
-- **язык и фреймворки не меняются** (`.git` не несёт языкового сигнала).
+### Какие проекты находятся
 
-::: tip
-`.git` находится в списке пропускаемых каталогов, но это не мешает: маркер распознаётся по содержимому **родительской** директории, а не через обход самого `.git`.
-:::
+| Экосистема | Маркер | Что это значит |
+|------------|--------|----------------|
+| Rust | `Cargo.toml` | проект на Rust |
+| Node.js / JavaScript / TypeScript | `package.json` | проект на JS/TS |
+| Go | `go.mod` | модуль Go |
+| Python | `pyproject.toml` | современный Python-проект |
+| Python | `setup.py` | классический Python-проект |
+| Python | `requirements.txt` | зависимости pip |
+| Java | `pom.xml` | Maven |
+| Java | `build.gradle` | Gradle (Java) |
+| Kotlin | `build.gradle.kts` | Gradle (Kotlin DSL) |
+| Ruby | `Gemfile` | проект на Ruby |
+| PHP | `composer.json` | проект на PHP |
+| C/C++ | `CMakeLists.txt` | CMake |
+| Make | `Makefile` | есть Makefile (язык не выводится) |
+| Git | `.git` | git-репозиторий (не язык) |
 
-## 2. Секреты (dig)
+Всего **14 маркеров**. Каталог `.git` помечает репозиторий, но **не задаёт язык**.
 
-### 2.1 Уровни риска
+### Если маркеров несколько
 
-[`SensitiveRisk`](https://github.com/y-tretyakov/raccpack/tree/dev/crates/raccpack-core/src/domain/risk.rs), упорядочены `Critical > High > Medium > Low`, в JSON — PascalCase:
+Иногда в одной папке лежат, например, и `package.json`, и `Cargo.toml`. Тогда язык выбирается по **приоритету** (выше — важнее):
 
-| Уровень | Sense |
-|---------|-------|
-| `Low` | Информационный / низкая уверенность |
-| `Medium` | Стоит проверить |
-| `High` | Вероятно, секрет (умолчание для stash/deny) |
-| `Critical` | Почти наверняка ключ / credential |
+1. `Cargo.toml` (Rust)
+2. `go.mod` (Go)
+3. `pom.xml` / `build.gradle` / `build.gradle.kts` (JVM)
+4. `package.json` (JavaScript)
+5. `pyproject.toml` → `setup.py` → `requirements.txt` (Python)
+6. `Gemfile` (Ruby)
+7. `composer.json` (PHP)
+8. `CMakeLists.txt` (C++)
+9. `Makefile` (язык не назначается)
 
-### 2.2 По имени файла
+`.git` в этом списке нет: наличие репозитория не влияет на выбор языка.
 
-Полная таблица [`DEFAULT_FILENAME_PATTERNS`](https://github.com/y-tretyakov/raccpack/tree/dev/crates/raccpack-core/src/secrets/filename.rs) — **28 строк**, все id уникальны. Сопоставление по `file_name()` без чтения содержимого, без regex/glob; kind-ы: `Exact` / `Prefix` / `Suffix` / `Contains` (все case-sensitive).
+### Фреймворки
 
-**Окружение (env):**
+Фреймворк определяется **только по именам файлов в корне** проекта (без разбора `package.json` или `Cargo.toml` и без обхода вложенных пакетов). Исключение — Rails: проверяется ещё `config/application.rb`.
 
-| id | pattern | kind | risk | label |
-|----|---------|------|------|-------|
-| `env_file` | `.env` | Exact | High | Environment file |
-| `env_local` | `.env.local` | Exact | High | Environment file (local) |
-| `env_prod` | `.env.production` | Exact | Critical | Environment file (production) |
-| `env_prefix` | `.env.` | Prefix | High | Environment file (prefixed) |
+| Если в корне есть… | В отчёте будет |
+|--------------------|----------------|
+| `next.config.js` / `.mjs` / `.ts` | Next.js |
+| файл вида `nuxt.config.*` | Nuxt |
+| `angular.json` | Angular |
+| файл вида `vite.config.*` | Vite |
+| `deno.json` | Deno |
+| `manage.py` | Django |
+| `build.sbt` | Scala/sbt |
+| `Gemfile` **и** `config/application.rb` | Rails |
 
-**SSH / приватные ключи:**
+Для Go, PHP, C/C++, Make, Rust и «чистого» Git отдельных правил фреймворков **пока нет** (например, Axum по зависимостям Cargo ещё не определяется).
 
-| id | pattern | kind | risk | label |
-|----|---------|------|------|-------|
-| `id_rsa` | `id_rsa` | Exact | Critical | SSH private key (RSA) |
-| `id_ed25519` | `id_ed25519` | Exact | Critical | SSH private key (Ed25519) |
-| `id_ecdsa` | `id_ecdsa` | Exact | Critical | SSH private key (ECDSA) |
-| `private_key_pem` | `.pem` | Suffix | High | Private key (PEM) |
-| `private_key_key` | `.key` | Suffix | High | Private key |
-| `ppk` | `.ppk` | Suffix | High | PuTTY private key |
+### Git
 
-**Keystore / хранилища ключей:**
+Если в корне проекта есть каталог `.git`, в отчёте будет признак **git-репозитория**. Сам каталог `.git` при обходе не заходит внутрь (он в списке пропускаемых), но наличие папки учитывается.
 
-| id | pattern | kind | risk | label |
-|----|---------|------|------|-------|
-| `p12` | `.p12` | Suffix | High | PKCS#12 keystore |
-| `pfx` | `.pfx` | Suffix | High | PKCS#12 certificate store |
-| `keystore` | `.jks` | Suffix | High | Java keystore (JKS) |
+---
 
-**Credentials / сервис-аккаунты:**
+## Секреты
 
-| id | pattern | kind | risk | label |
-|----|---------|------|------|-------|
-| `aws_credentials` | `credentials` | Exact | High | AWS credentials |
-| `aws_credentials_path` | `credentials` | Exact | High | AWS credentials |
-| `service_account` | `service-account` | Contains | High | Service account |
-| `google_sa` | `-sa.json` | Suffix | High | Google service account |
-| `git_credentials` | `.git-credentials` | Exact | Critical | Git credentials |
-| `netrc` | `.netrc` | Exact | High | netrc credentials |
-| `htpasswd` | `.htpasswd` | Exact | High | htpasswd credentials |
+Команда `racc dig` ищет чувствительные файлы **по имени** и, по желанию, **по содержимому**. В отчётах и JSON **никогда нет сырых значений** — только маскированное превью, хеш и длина.
 
-::: info
-Строки `aws_credentials` и `aws_credentials_path` — **одинаковый** паттерн `credentials` (Exact, High), два разных id по историческим причинам. Оба попадают в таблицу и сохраняются в отчётах.
-:::
+### Уровни риска
 
-**Конфиги реестров / Kubernetes:**
+| Уровень | Смысл |
+|---------|--------|
+| **Low** | Слабый сигнал, скорее информативно |
+| **Medium** | Стоит взглянуть |
+| **High** | Похоже на секрет (типичный порог для исключения из архива по имени) |
+| **Critical** | Почти наверняка ключ или credential |
 
-| id | pattern | kind | risk | label |
-|----|---------|------|------|-------|
-| `kubeconfig` | `kubeconfig` | Exact | High | Kubernetes kubeconfig |
-| `docker_config` | `config.json` | Exact | Medium | Docker config |
-| `npmrc` | `.npmrc` | Exact | High | npm registry config |
-| `pypirc` | `.pypirc` | Exact | High | PyPI registry config |
+Чем выше уровень, тем серьёзнее находка. При нескольких совпадениях на один файл берётся **максимальный** риск.
 
-**Файлы секретов / кошелёк:**
+### По имени файла
 
-| id | pattern | kind | risk | label |
-|----|---------|------|------|-------|
-| `secrets_json` | `secrets.json` | Exact | High | Secrets file (JSON) |
-| `secrets_yaml` | `secrets.yaml` | Exact | High | Secrets file (YAML) |
-| `secrets_yml` | `secrets.yml` | Exact | High | Secrets file (YAML) |
-| `wallet` | `wallet.dat` | Contains | Critical | Wallet data |
+Сверяется только имя файла (без чтения содержимого). Регистр букв важен.
 
-См. также [Основные понятия → по имени файла](/concepts#по-имени-файла).
+**Файлы окружения**
 
-### 2.3 По содержимому
+| Имя / шаблон | Риск | Пояснение |
+|--------------|------|-----------|
+| `.env` | High | файл окружения |
+| `.env.local` | High | локальное окружение |
+| `.env.production` | Critical | production-окружение |
+| любое имя, начинающееся с `.env.` | High | другие варианты `.env.*` |
 
-Полная таблица [`DEFAULT_CONTENT_MARKERS`](https://github.com/y-tretyakov/raccpack/tree/dev/crates/raccpack-core/src/secrets/content.rs) — **12 строк**. Все помечены `text_only: true`. `Prefix` — токен начинается с префикса (расширяется ASCII alnum/`-`/`_`); `Regex` — компилируется один раз при старте.
+**SSH и ключи**
 
-| id | kind | Что ищет | risk | label |
-|----|------|----------|------|-------|
-| `aws_access_key` | Prefix | токен `AKIA…` | Critical | AWS access key |
-| `aws_secret_assign` | Regex | присваивание `aws_secret_access_key = …` | Critical | AWS secret access key assignment |
-| `generic_api_key_assign` | Regex | присваивание `api_key` / `apikey = …` (≥16 символов значения) | High | API key assignment |
-| `generic_secret_assign` | Regex | присваивание `secret` / `password` / `passwd` / `token = …` (≥8 символов) | High | Secret assignment |
-| `private_key_header` | Regex | заголовок `-----BEGIN … PRIVATE KEY-----` (RSA / EC / DSA / OPENSSH / ENCRYPTED) | Critical | Private key (PEM header) |
-| `github_pat` | Prefix | токен `ghp_…` | Critical | GitHub personal access token |
-| `github_oauth` | Prefix | токен `gho_…` | Critical | GitHub OAuth token |
-| `slack_token` | Prefix | токен `xoxb-…` | High | Slack token |
-| `stripe_live` | Prefix | ключ `sk_live_…` | Critical | Stripe live key |
-| `stripe_test` | Prefix | ключ `sk_test_…` | Medium | Stripe test key |
-| `connection_string` | Regex | строка подключения `postgres://user:pass@…`, `mysql://…`, `mongodb://…` (присутствие `:` и `@`) | Critical | Database connection string |
-| `jwt_like` | Regex | JWT-подобный токен `eyJ…eyJ….…` | Medium | JWT-like token |
+| Имя / шаблон | Риск | Пояснение |
+|--------------|------|-----------|
+| `id_rsa` | Critical | SSH RSA |
+| `id_ed25519` | Critical | SSH Ed25519 |
+| `id_ecdsa` | Critical | SSH ECDSA |
+| `*.pem` | High | PEM-ключ |
+| `*.key` | High | ключевой файл |
+| `*.ppk` | High | ключ PuTTY |
 
-См. также [Основные понятия → по содержимому](/concepts#по-содержимому).
+**Хранилища сертификатов**
 
-### 2.4 Лимиты content-scan
+| Имя / шаблон | Риск | Пояснение |
+|--------------|------|-----------|
+| `*.p12` | High | PKCS#12 |
+| `*.pfx` | High | PKCS#12 |
+| `*.jks` | High | Java KeyStore |
 
-[`ContentScanLimits`](https://github.com/y-tretyakov/raccpack/tree/dev/crates/raccpack-core/src/secrets/content.rs) (значения по умолчанию):
+**Учётные данные и сервис-аккаунты**
 
-| Параметр | По умолчанию |
-|----------|--------------|
-| `max_file_bytes` | **1 MiB** (1_048_576) — файлы больше пропускаются |
-| `max_read_bytes` | = `max_file_bytes` (максимум читается на файл) |
-| `skip_binary` | `true` — пропуск по нулевому байту в первых **8 KiB** |
+| Имя / шаблон | Риск | Пояснение |
+|--------------|------|-----------|
+| `credentials` | High | часто AWS credentials |
+| имя **содержит** `service-account` | High | сервис-аккаунт |
+| `*-sa.json` | High | Google service account |
+| `.git-credentials` | Critical | учётные данные Git |
+| `.netrc` | High | netrc |
+| `.htpasswd` | High | htpasswd |
 
-Поведение `scan_file_content`:
+**Реестры и Kubernetes**
 
-- Пустой файл / файл больше `max_file_bytes` → пропуск (не ошибка).
-- Бинарный пропуск: первый min(8 KiB, len) читается и проверяется на `0x00`; найден — файл пропускается целиком (поэтому `text_only` маркеры никогда не срабатывают на бинарниках).
-- Сканирование **построчное**, номера строк **1-байтовые** (начинаются с 1), `Read::take(max_read_bytes)` + lossy UTF-8.
-- Результаты детерминированы: строки по возрастанию, маркеры — в порядке таблицы.
+| Имя / шаблон | Риск | Пояснение |
+|--------------|------|-----------|
+| `kubeconfig` | High | конфиг Kubernetes |
+| `config.json` | Medium | часто Docker config |
+| `.npmrc` | High | npm |
+| `.pypirc` | High | PyPI |
 
-::: warning
-Raw-значения секретов никогда не попадают в JSON и отчёты. Каждое значение маскируется (`mask_secret`): `scan_file_content` возвращает `MaskedValue` — **маскированное превью `AAAA…99`, blake3-хеш и длину**, но не сам секрет.
-:::
+**Файлы секретов и кошельки**
 
-### 2.5 Merge filename + content
+| Имя / шаблон | Риск | Пояснение |
+|--------------|------|-----------|
+| `secrets.json` | High | JSON с секретами |
+| `secrets.yaml` / `secrets.yml` | High | YAML с секретами |
+| имя **содержит** `wallet.dat` | Critical | данные кошелька |
 
-[`scan_secrets`](https://github.com/y-tretyakov/raccpack/tree/dev/crates/raccpack-core/src/secrets/scan.rs) за один обход объединяет оба источника по пути:
+Всего **28** встроенных правил по имени.
 
-- риск = fold `upgrade_risk` (только **максимум**, никогда не понижается) по всем сохранённым источникам;
-- `sources` = filename-совпадения (порядок таблицы), затем content-хиты (порядок строк/маркеров); `labels` согласованы;
-- `content_match` = маскированное значение самого рискованного content-хита;
-- один путь может быть найден и по имени, и по содержимому — будут оба источника;
+### По содержимому
 
-### 2.6 CLI
+Файл читается построчно (с ограничениями ниже). Ищутся типичные формы ключей и присваиваний:
 
-```
-racc dig [--project PATH] [--no-content] [--repeated]
-         [--fail-on ignore|critical|high] [--max-depth N]
-```
+| Что ищется | Риск | Примеры |
+|------------|------|---------|
+| AWS access key | Critical | токены вида `AKIA…` |
+| Присваивание AWS secret key | Critical | `aws_secret_access_key = …` |
+| Присваивание API-ключа | High | `api_key` / `apikey` = длинное значение |
+| Присваивание secret / password / token | High | значение от 8 символов |
+| Заголовок приватного ключа PEM | Critical | `-----BEGIN … PRIVATE KEY-----` |
+| GitHub personal access token | Critical | `ghp_…` |
+| GitHub OAuth token | Critical | `gho_…` |
+| Slack-токен | High | `xoxb-…` |
+| Stripe live key | Critical | `sk_live_…` |
+| Stripe test key | Medium | `sk_test_…` |
+| Строка подключения к БД | Critical | `postgres://…`, `mysql://…`, `mongodb://…` с логином/паролем |
+| JWT-подобный токен | Medium | три части, разделённые точками |
 
-- `--no-content` — только по именам файлов (содержимое не читается);
-- `--repeated` — агрегация повторяющихся значений по blake3-хешу (только те, что в ≥2 файлах);
-- `--fail-on` — политика выхода: `ignore` (никогда), `critical` (по умолчанию), `high`;
-- **exit code `2` — только у `dig`** (найдены секреты выше порога политики); `sniff`/`pack` используют `0`/`1`.
+Всего **12** встроенных правил по содержимому.
 
-## 3. Пропуск каталогов (SkipPolicy)
+Флаг `--no-content` отключает чтение содержимого: остаются только совпадения по имени.
 
-[`DEFAULT_DIR_NAMES`](https://github.com/y-tretyakov/raccpack/tree/dev/crates/raccpack-core/src/scan/skip.rs) — **18** имён; `*.egg-info` — суффиксное совпадение, остальные — точное.
+### Ограничения при чтении содержимого
 
-| Категория | Имена |
-|-----------|-------|
+Чтобы не тормозить и не разбирать мусор:
+
+- файлы **больше 1 МиБ** пропускаются;
+- **бинарные** файлы (нулевой байт в начале) пропускаются;
+- пустые файлы не дают находок;
+- в отчёт попадают только **маскированные** значения, не оригинал.
+
+### Повторы и код выхода
+
+- `--repeated` — найти одно и то же секретное значение в **двух и более** файлах (по хешу).
+- `--fail-on critical` (по умолчанию) — код выхода **2**, если есть Critical;
+- `--fail-on high` — код **2** уже при High и выше;
+- `--fail-on ignore` — из‑за находок не падать (остаются 0 / 1).
+
+Код **2** используется **только у `dig`**. У `sniff` и `pack` — только 0 (успех) и 1 (ошибка).
+
+---
+
+## Какие каталоги пропускаются
+
+При обходе проектов и при упаковке **не заходят** в служебные и «мусорные» каталоги:
+
+| Группа | Каталоги |
+|--------|----------|
 | Зависимости | `node_modules` |
-| Build trash | `target`, `dist`, `build` |
-| VCS | `.git`, `.svn`, `.hg` |
-| Python | `__pycache__`, `*.egg-info` |
+| Сборка | `target`, `dist`, `build` |
+| Система контроля версий | `.git`, `.svn`, `.hg` |
+| Python | `__pycache__`, каталоги `*.egg-info` |
 | Виртуальные окружения | `.venv`, `venv`, `.tox` |
 | Кэши | `.mypy_cache`, `.pytest_cache`, `.cache` |
 | IDE | `.idea`, `.vscode` |
-| Den | `.raccpack` |
+| Хранилище raccpack | `.raccpack` |
 
-Прочее:
+Всего **18** имён по умолчанию.
 
-- `skip_hidden_dirs` — **opt-in** через `SkipPolicy::with_skip_hidden_dirs(true)`; по умолчанию выключен (`default_scan()`). При включении пропускаются любые имена, начинающиеся с `.`.
-- Порядок reasons детерминирован: DefaultDirName → CustomPattern → Hidden.
-- **Корневая директория сама никогда не пропускается по имени**, но если корень — скрытый каталог (начинается с `.`) и включён `skip_hidden_dirs`, фильтр применяется и к корню: **обход выдаёт пустой результат** (это подтверждено тестом `walk_skips_hidden_dirs_when_enabled` — он обходит не-hidden субкаталог как корень).
+Опционально можно включить пропуск **всех** скрытых каталогов (имена с точки). По умолчанию это **выключено**. Если включить и указать скрытый каталог как корень сканирования, обход получится пустым.
 
-## 4. Упаковка (pack) и deny
+---
 
-Проверено по [`archive/deny.rs`](https://github.com/y-tretyakov/raccpack/tree/dev/crates/raccpack-core/src/archive/deny.rs) и фасаду `app/pack.rs`:
+## Упаковка (`pack`)
 
-- **Name deny — всегда**: файл исключается из архива, если его имя даёт риск **≥ High** (`should_deny_file_in_pack`, порог фиксирован). Medium (`config.json`) и ниже — не исключаются.
-- **Content deny — включено по умолчанию** (фасад `PackOptions::deny_content_secrets: true`), порог **Critical**; `--no-content-deny` отключает **только** content denial. Не читаемые файлы fail-closed (в архив не попадают).
-- **Symlink** — не следуются и не архивируются (INVARIANT, `follow_links(false)` + явная классификация `file_type()`).
-- **SkipPolicy** применяется при обходе (все 18 имён + опциональная скрытая политика).
-- **Архив = содержимое project root**, а не обёртка с именем папки (`src/main.rs`, не `proj/src/main.rs`).
-- **Формат**: tar + zstd (`tar.zst`, уровень по умолчанию 3); путь в den — `packs/{yyyy}/{mm}/{slug}__{ts}.tar.zst`; имя `{name}.tar.zst` при `--output-name`.
-- Пустые директории и `output` внутри `source` не поддерживаются; записи сортируются по именам (детерминированный архив).
+`racc pack` собирает проект в архив **tar.zst** и кладёт его в den (`packs/год/месяц/…`).
 
-## 5. Что пока не поддерживается (честно)
+### Что не попадает в архив
 
-На MVP 0.1.0 **нет**:
+| Правило | Поведение |
+|---------|-----------|
+| По **имени** | файлы с риском **High и выше** всегда исключаются (например `.env`, ключи SSH) |
+| По **содержимому** | по умолчанию **включено**: файлы с Critical-находками внутри тоже исключаются |
+| Отключить content-deny | флаг `--no-content-deny` (deny по имени остаётся) |
+| Симлинки | не следуются и в архив не записываются |
+| Служебные каталоги | те же 18 имён, что и при сканировании |
 
-- `stash` (age-шифрование секретов), `rinse` (очистка мусора), `raid` (полный цикл) — планируется в Alpha;
-- **кастомные marker/secret наборы из конфига** — в `RaccConfig` только `[paths]` и `[scanner]`; `extra_markers` в коде (`CandidateOptions`) есть, но из конфига/CLI **не выставляется**;
-- глубокий парсинг `package.json` / `Cargo.toml` (workspace, зависимости → фреймворки). В частности, **Axum** для Rust отложен (нужен разбор `Cargo.toml`) — см. комментарий в `detect/rust.rs`;
-- content-маркер **`telegram_bot`** из спеки — **осознанно отложен**: шумный и требует ограничения длины значения; вернётся с юнит-тестами, когда matcher поддержит лимиты длины;
-- **Windows-специфика путей** (тесты/поведение заточены под POSIX; архивные имена собираются POSIX-стилем через `/`);
-- сторонние rule-pack-плагины;
-- энтропийные heuristics (`DigOptions.use_heuristics` **принят в API, но не используется**, просто игнорируется).
+Файлы вроде `config.json` (Medium) **по имени** в архив могут попасть — порог исключения по имени начинается с High.
 
-## 6. Как расширять (для контрибьюторов)
+### Как устроен архив
 
-Модульность обязательна (см. dev-документы `raccpack-markers-detect-modularity.md` и `raccpack-modularity.md` в корне репозитория):
+- внутри — **содержимое** папки проекта (`src/…`, `Cargo.toml`), а не лишняя обёртка с именем каталога;
+- формат: `tar` + сжатие `zstd`;
+- путь по умолчанию: `packs/ГГГГ/ММ/имя-проекта__время.tar.zst`;
+- своё имя файла: `--output-name …` (без суффикса `.tar.zst`);
+- без `--yes` команда работает в **dry-run** и ничего не пишет; запись — только с `--yes`.
 
-- **Новый язык** → `scan/markers/<eco>.rs` (набор `MarkerDef`) + `detect/<eco>.rs` (детектор фреймворков) + **одна строка** в реестре `scan/markers/mod.rs` и `detect/mod.rs`. Комментарии в коде называют Axum-детектор и telegram-маркер как цель будущих PR.
-- **Новый filename-secret** → одна строка в `secrets/filename.rs` (+ тесты: таблица `table_has_expected_row_count` и уникальность id обновляются).
-- **Новый content-маркер** → одна строка в `secrets/content.rs` (+ тест порядка `table_has_expected_rows_in_order`).
+---
 
-::: warning
-Обновите **эту страницу в том же PR**, что и код: числа в 1.1 (14 маркеров), 2.2 (28), 2.3 (12), 3 (18) и таблицы фреймворков должны точно отражать код.
-:::
+## Чего пока нет
+
+На MVP 0.1.0 **ещё нет**:
+
+- `racc stash` — вынос секретов в age-архивы;
+- `racc rinse` — очистка мусора сборки;
+- `racc raid` — полный цикл одной командой;
+- своих наборов маркеров и секретов в конфиге (только встроенные правила);
+- определения фреймворков по зависимостям (например Axum из `Cargo.toml`);
+- части редких content-правил из будущих версий (например шумные токены вроде Telegram bot без жёстких ограничений длины);
+- отдельной оптимизации под Windows-пути (сейчас поведение ориентировано на Unix-подобные системы).
+
+Это запланировано на следующие этапы — см. [дорожную карту](/roadmap).
+
+---
 
 ## Дальнейшее чтение
 
-- [Основные понятия](/concepts) — риски, маскирование, den.
-- [Facade API](/facade-api) — публичный контракт ядра.
-- [Дорожная карта](/roadmap) — что появится в Alpha и дальше.
+- [Основные понятия](/concepts) — den, риски, маскирование
+- [Использование CLI](/cli-usage) — флаги `sniff` / `dig` / `pack`
+- [Facade API](/facade-api) — контракт для интеграций
+- [Дорожная карта](/roadmap) — что будет в Alpha и дальше
