@@ -6,9 +6,11 @@ mod cli;
 mod commands;
 mod error;
 mod output;
+mod output_pack;
 
 use crate::cli::{Cli, Commands};
 use crate::commands::run_dig;
+use crate::commands::run_pack;
 use crate::commands::run_sniff;
 use crate::error::CliError;
 
@@ -31,5 +33,9 @@ fn run(cli: Cli) -> Result<ExitCode, CliError> {
             Ok(ExitCode::SUCCESS)
         }
         Commands::Dig(args) => run_dig(global, args),
+        Commands::Pack(args) => {
+            run_pack(global, args)?;
+            Ok(ExitCode::SUCCESS)
+        }
     }
 }

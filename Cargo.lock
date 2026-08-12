@@ -505,7 +505,9 @@ dependencies = [
  "predicates",
  "raccpack-core",
  "serde_json",
+ "tar",
  "tempfile",
+ "zstd",
 ]
 
 [[package]]
