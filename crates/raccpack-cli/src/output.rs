@@ -89,7 +89,7 @@ fn stack_str(stack: &Stack) -> String {
 }
 
 /// Format a byte count with binary units (KiB/MiB/GiB/TiB), one decimal place.
-fn human_size(bytes: u64) -> String {
+pub(crate) fn human_size(bytes: u64) -> String {
     const KIB: u64 = 1 << 10;
     const MIB: u64 = 1 << 20;
     const GIB: u64 = 1 << 30;

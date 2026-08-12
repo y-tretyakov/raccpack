@@ -27,9 +27,11 @@ Core is in the **pack milestone (M4)**. Implemented so far:
 - **dig** — secret scan (filename risk model + content markers with size/binary limits), masked values, repeated-secret aggregation.
 - **pack** — `tar.zst` archives with name/content deny + SkipPolicy, den layout (`.den-version`, `packs/…`, `staging/…`) with atomic placement, facade `pack` with DryRun/Commit.
 
-CLI (`racc`): `sniff` and `dig` subcommands implemented (text + `--json`). Not implemented yet: **stash** (age encryption), **rinse** (build-trash cleanup), **raid** (orchestration).
+CLI (`racc`): `sniff`, `dig` and `pack` subcommands implemented (text + `--json`; `pack` dry-run default, commit with `--yes`). Not implemented yet: **stash** (age encryption), **rinse** (build-trash cleanup), **raid** (orchestration).
 
-Next milestone: **M4.4 — CLI `racc pack` + manual E2E MVP**.
+## Status at MVP 0.1.0
+
+The M4.4 milestone closed the **MVP 0.1.0** exit criteria: workspace + core + CLI, `sniff` projects + stack, `dig` secrets masked, `pack` tar.zst into the den layout. Next milestone: **Alpha — A1 `stash` (age encryption), A2 `rinse`, A3 `raid`, A4 git + DX** (→ 0.3.0).
 
 ## Workspace structure
 

@@ -46,6 +46,8 @@ pub enum Commands {
     Sniff(SniffArgs),
     /// Find and classify sensitive files
     Dig(DigArgs),
+    /// Archive a project tree into the den
+    Pack(PackArgs),
 }
 
 /// Options specific to `racc sniff`.
@@ -82,6 +84,34 @@ pub struct DigArgs {
     /// Override max depth
     #[arg(long, value_name = "N")]
     pub max_depth: Option<usize>,
+}
+
+/// Options specific to `racc pack`.
+#[derive(Debug, Args, Default)]
+pub struct PackArgs {
+    /// Project directory to pack (required)
+    #[arg(long, value_name = "PATH")]
+    pub project: PathBuf,
+
+    /// Commit mode: write the archive into the den
+    #[arg(long)]
+    pub yes: bool,
+
+    /// Force dry-run even when --yes is also given
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Disable content-based secret deny (name deny stays on)
+    #[arg(long)]
+    pub no_content_deny: bool,
+
+    /// Zstd compression level (crate default when absent)
+    #[arg(long, value_name = "N")]
+    pub zstd_level: Option<u32>,
+
+    /// Override the artifact file name (without .tar.zst)
+    #[arg(long, value_name = "NAME")]
+    pub output_name: Option<String>,
 }
 
 /// Exit policy selected via `--fail-on`.
@@ -234,5 +264,78 @@ mod tests {
             FailOnPolicy::High.to_exit_policy(),
             SecretExitPolicy::FailOnHighOrAbove
         );
+    }
+
+    #[test]
+    fn pack_args_default_to_false_and_none() {
+        let args = PackArgs::default();
+        assert!(args.project.as_os_str().is_empty());
+        assert!(!args.yes);
+        assert!(!args.dry_run);
+        assert!(!args.no_content_deny);
+        assert!(args.zstd_level.is_none());
+        assert!(args.output_name.is_none());
+    }
+
+    #[test]
+    fn clap_parse_pack_with_all_flags() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "pack",
+            "--project",
+            "/tmp/app",
+            "--den",
+            "/tmp/den",
+            "--yes",
+            "--no-content-deny",
+            "--zstd-level",
+            "19",
+            "--output-name",
+            "snapshot",
+        ])
+        .expect("parse should succeed");
+        match cli.command {
+            Commands::Pack(args) => {
+                assert_eq!(args.project, PathBuf::from("/tmp/app"));
+                assert!(args.yes);
+                assert!(!args.dry_run);
+                assert!(args.no_content_deny);
+                assert_eq!(args.zstd_level, Some(19));
+                assert_eq!(args.output_name.as_deref(), Some("snapshot"));
+            }
+            _ => panic!("expected pack command"),
+        }
+    }
+
+    #[test]
+    fn clap_parse_pack_dry_run_and_global_den() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "--den",
+            "/tmp/den",
+            "pack",
+            "--project",
+            "/tmp/app",
+            "--dry-run",
+        ])
+        .expect("parse should succeed");
+        assert_eq!(cli.global.den, Some(PathBuf::from("/tmp/den")));
+        match cli.command {
+            Commands::Pack(args) => {
+                assert!(args.dry_run);
+                assert!(!args.yes);
+                assert!(
+                    args.zstd_level.is_none(),
+                    "zstd_level stays None by default"
+                );
+            }
+            _ => panic!("expected pack command"),
+        }
+    }
+
+    #[test]
+    fn clap_rejects_pack_without_project() {
+        let result = Cli::try_parse_from(["racc", "pack", "--dry-run"]);
+        assert!(result.is_err(), "missing --project must be rejected");
     }
 }

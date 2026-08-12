@@ -22,6 +22,7 @@
 [x] M4.1 Pack tar+zstd + name deny + SkipPolicy
 [x] M4.2 Den layout (ensure_den, naming, place_pack)
 [x] M4.3 Facade pack + DryRun/Commit
+[x] M4.4 CLI pack + E2E MVP
 ```
 
 ## Этапы
@@ -838,6 +839,42 @@
 - Сортировка листинга добавляет небольшую аллокацию на директорию — детерминизм важнее.
 - P1-4 (`default_pack()`), P2-5/6/7/8 — в приёмных решениях / tracked (см. M4.3 review notes выше).
 - M4.4 (CLI `racc pack` + E2E) может стартовать от этого состояния.
+
+### M4.4 — CLI `racc pack` + ручной E2E MVP (CLOSED)
+
+- **Дата:** 2026-08-13
+- **Ветка:** `m4.4-cli-pack-e2e`
+- **Статус:** done
+- **Dev:** dev-m4.4 · **Test:** test-m4.4 (параллельно, без rework)
+
+#### Сделано
+- `Commands::Pack(PackArgs)` в `cli.rs`: `--project <PATH>` (required), `--yes`, `--dry-run`, `--no-content-deny`, `--zstd-level <u32>`, `--output-name <NAME>`; `--den`/`--root`/`--json` — глобальные (опционально). Без `clap::conflicts_with`: режим решается по спеке §4 — `mode = if yes && !dry_run { Commit } else { DryRun }` (dry-run приоритетнее; архива не пишется).
+- `commands/pack.rs`: `run_pack` — load_config → overrides (reuse из sniff.rs) → относительный `--project` резолвится против `--root` → `AppContext` собран **вручную** из pub-полей (`paths.scan_root = project`, `den_dir = config.den_dir()?`), т.к. `AppContext::from_config` требует `scan_root`, а pack его не использует → `PackOptions { project, output_name, deny_content_secrets: !no_content_deny, zstd_level }` → `pack(&ctx, &opts, &mut NullProgress)` → `print_pack`. Exit 0 на успех, 1 на ошибку (спека §4: pack не использует code 2).
+- `output_pack.rs` (новый модуль, чтобы `output.rs` не распухать): `print_pack`/`format_pack` — JSON (`to_string_pretty(PackResult)`) или human по спеке §5: dry-run блок `Pack (dry-run)` / `Source:` / `Would write:` / `Content deny: on/off` / `(no files written)`; commit блок `Pack complete` / `Source:` / `Output:` / `Size: 4.2 MiB` / `Files: N` / `Skipped secret files: K`. `human_size` в `output.rs` перевидимо в `pub(crate)` для переиспользования.
+- `main.rs`/`commands/mod.rs`: dispatch + registry (`pub use run_pack`).
+- Dev-deps CLI: `tar = "0.4"` + `zstd = "0.13"` (тесты распаковывают `.tar.zst`).
+
+#### Файлы
+- created: `crates/raccpack-cli/src/commands/pack.rs`, `crates/raccpack-cli/src/output_pack.rs`, `crates/raccpack-cli/tests/cli_pack.rs`
+- changed: `crates/raccpack-cli/src/cli.rs` (Pack + PackArgs + 4 unit-теста), `src/main.rs`, `src/commands/mod.rs`, `src/output.rs` (human_size pub(crate)), `Cargo.toml` (dev-deps tar/zstd), `Cargo.lock`
+
+#### Тесты
+- unit (Dev): `cli.rs` +3 (defaults, parse-all-flags, dry-run+global-den, без `--project` → err), `output_pack.rs` +5 (dry-run human, deny-off, commit human, no-raw, JSON shape), `commands/pack.rs` +3 (resolve_project_path).
+- integration `tests/cli_pack.rs` (Test, 12): help→flags, missing `--project` rejected, dry-run не трогает den, `--dry-run` побеждает `--yes`, commit создаёт архив и исключает `.env` (распаковка tar+zstd, `.den-version`=="1"), `--json` commit (dry_run false, size>0, skipped>=1), `--json` dry-run (все 0), missing project dir → exit 1, `--output-name` → `packs/yyyy/mm/snapshot.tar.zst`, `--zstd-level 19` архив читаем, invalid output-name → exit 1, E2E §7 чеклист (den skeleton + `.tar.zst` + нет `.env`).
+- Проверки (Orchestrator): `cargo test --workspace` → **443** (0 failed); `cargo clippy --workspace --all-targets -- -D warnings` → pass; `cargo fmt --all -- --check` → pass; grep prod unwrap/expect/panic!/anyhow в `src/crates/raccpack-cli` → только `#[cfg(test)]` (полный след).
+
+#### Критерий готовности (DoD из m4.4 §9)
+- [x] `racc pack` dry-run + commit работают
+- [x] JSON output (PackResult serde)
+- [x] E2E checklist §7 пройден (автотестом `pack_e2e_mvp_checklist`)
+- [x] `cargo test --workspace` green
+
+#### Риски / follow-up
+- **MVP 0.1.0 exit criteria (спека §10) достигнуты** (workspace/sniff/dig/pack `tar.zst` в den; stash/rinse/raid нет → Alpha):
+  `cargo run -p raccpack-cli -- pack --project … --den … --yes` — сборка реальной папки в den.
+- P2-5 `zstd_level` из `[advanced]` остаётся tracked (P2-5); `--zstd-level` пока CLI-флаг.
+- Тест missing `--project` (спека §6 п.4: exit 1) против clap-required (exit 2) — тест зафиксирован как `.failure()`, код можно ужесточить при желании (см. inline-ноту в тесте).
+- Следующая веха: **Alpha → 0.3.0** (A1 stash age → A2 rinse → A3 raid → A4 git+DX).
 
 ### Docs — Writerside → VitePress wiki (CLOSED)
 
