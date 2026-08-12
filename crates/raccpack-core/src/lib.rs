@@ -11,9 +11,9 @@ pub mod scan;
 pub mod secrets;
 
 pub use app::{
-    dig, exit_code_for_secrets, sniff, AppContext, DigOptions, DigResult, NullProgress,
-    OperationKind, ProgressEvent, ProgressSink, RepeatedSecret, RunMode, SecretExitPolicy,
-    SensitiveFile, SniffOptions, SniffResult, WorkspacePaths,
+    dig, exit_code_for_secrets, pack, sniff, AppContext, DigOptions, DigResult, NullProgress,
+    OperationKind, PackOptions, PackResult, ProgressEvent, ProgressSink, RepeatedSecret, RunMode,
+    SecretExitPolicy, SensitiveFile, SniffOptions, SniffResult, WorkspacePaths,
 };
 pub use archive::{
     pack_tree, should_deny_file_in_pack, ContentDenyOptions, PackTreeOptions, PackTreeResult,

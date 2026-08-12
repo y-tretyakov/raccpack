@@ -230,6 +230,7 @@ fn den_place_pack_moves_tempfile_into_layout() {
         project_name: "My App!".to_string(),
         source_archive: source.clone(),
         timestamp: Some("20260804T155230Z".to_string()),
+        output_name: None,
     };
     let result = place_pack(&req).expect("place_pack must succeed");
 
@@ -277,6 +278,7 @@ fn den_place_pack_missing_source_fails() {
         project_name: "proj".to_string(),
         source_archive: missing,
         timestamp: Some("20260804T155230Z".to_string()),
+        output_name: None,
     };
     let result = place_pack(&req);
     assert!(result.is_err(), "missing source archive must fail");
@@ -303,6 +305,7 @@ fn den_place_pack_concurrent_no_clobber() {
                     project_name: "proj".to_string(),
                     source_archive: src,
                     timestamp: Some("20260804T155000Z".to_string()),
+                    output_name: None,
                 };
                 let res = place_pack(&req).expect("thread 1 place_pack");
                 (res.absolute_path, res.relative_path)
@@ -317,6 +320,7 @@ fn den_place_pack_concurrent_no_clobber() {
                     project_name: "proj".to_string(),
                     source_archive: src,
                     timestamp: Some("20260804T155001Z".to_string()),
+                    output_name: None,
                 };
                 let res = place_pack(&req).expect("thread 2 place_pack");
                 (res.absolute_path, res.relative_path)
