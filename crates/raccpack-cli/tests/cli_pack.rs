@@ -277,7 +277,7 @@ fn pack_commit_creates_archive_and_excludes_env() {
     );
     let archive = &archives[0];
     let rel = archive
-        .strip_prefix(&den.join("packs"))
+        .strip_prefix(den.join("packs"))
         .expect("archive under packs/");
     let parts: Vec<String> = rel
         .components()
@@ -526,7 +526,7 @@ fn pack_e2e_mvp_checklist() {
     // .tar.zst exists under packs/yyyy/mm/.
     let archives = collect_archives(&den.join("packs"));
     assert!(
-        archives.len() >= 1,
+        !archives.is_empty(),
         "pack --yes must create a .tar.zst: {archives:?}"
     );
 
