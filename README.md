@@ -86,12 +86,19 @@ at your option.
 - Deploy is handled by the `.github/workflows/wiki.yml` workflow.
 - The wiki is RU-first (root locale) with an English skeleton under `wiki/en/`.
 
-**Development docs** live in [`docs/`](docs/) — these are dev specs, not part of the published wiki. Main knowledge documents at the repo root:
+**Development docs** live in [`docs/`](docs/) — these are dev specs, not part of the published wiki. Main knowledge documents:
 
-- `raccpack-agent-prompt.md` — main spec (phases 0–11, stage criteria)
-- `raccpack-architecture-vision.md` — layers, trust boundaries, DTO contracts
-- `raccpack-facade-and-den.md` — facade use-cases and den layout
-- `raccpack-roadmap-v1.md` — MVP → 1.0.0 milestones
+| Path | Role |
+|------|------|
+| `AGENTS.md` | Agent orchestrator memo (Alpha backlog, hard rules) |
+| `raccpack-agent-workflow.md` | Orchestrator / Dev / Test / Docs workflow |
+| `raccpack-roadmap-v1.md` | MVP → 1.0.0 roadmap |
+| `raccpack-architecture-vision.md` | Layers, trust boundaries, DTOs |
+| `raccpack-facade-and-den.md` | Facade use-cases and den layout |
+| `raccpack-modularity.md` | Secrets / archive backend modularity |
+| `WORKLOG.md` | Current stage journal (Alpha+) |
+| `docs/archive/WORKLOG_MVP.md` | Closed MVP 0.1.0 journal |
+| `docs/alpha/` | Alpha stage specs (linked per stage) |
 
 ## Git workflow
 
