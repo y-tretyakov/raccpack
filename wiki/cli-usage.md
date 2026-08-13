@@ -1,0 +1,250 @@
+---
+title: Использование CLI
+description: Справочник команд racc — глобальные флаги, sniff, dig, pack, вывод JSON и использование в CI.
+---
+
+# Использование CLI
+
+`racc` — командная строка raccpack. Подходит для повседневной работы, скриптов и CI.
+
+## Глобальные флаги
+
+Флаги можно указывать до или после подкоманды.
+
+| Флаг | Описание |
+|------|----------|
+| `--config PATH` | Путь к файлу конфигурации (переопределяет `RACCPACK_CONFIG`) |
+| `--root PATH` | Переопределить `scan_root` на этот запуск |
+| `--den PATH` | Переопределить `den_dir` на этот запуск |
+| `--json` | Машиночитаемый вывод в JSON вместо человекочитаемой таблицы |
+
+::: info
+`--root` и `--den` не изменяют конфигурацию на диске — только на текущий запуск.
+:::
+
+## Команды
+
+### `racc sniff` — найти проекты
+
+Сканирует `scan_root` и выводит таблицу проектов: имя, стек, размер, признак git-репозитория, путь.
+
+```
+racc sniff [--force-refresh] [--max-depth N]
+```
+
+| Флаг | Описание |
+|------|----------|
+| `--force-refresh` | Игнорировать кэш и пересканировать с нуля |
+| `--max-depth N` | Максимальная глубина обхода (переопределяет `scanner.max_depth`) |
+
+Примеры:
+
+```bash
+# Полный обзор папки с проектами
+racc sniff
+
+# Принудительное пересканирование
+racc sniff --force-refresh
+
+# Не глубже 3 уровней
+racc sniff --max-depth 3
+
+# Машиночитаемый результат для скриптов
+racc sniff --json
+```
+
+Пример JSON-вывода (`--json`):
+
+```json
+{
+  "report": {
+    "root": "/home/user/DEV/PROJS",
+    "projects": [
+      {
+        "path": "/home/user/DEV/PROJS/app-api",
+        "name": "app-api",
+        "stack": { "language": "Rust", "frameworks": ["Axum"], "markers": ["Cargo.toml"] },
+        "size_bytes": 432523264,
+        "is_git_repo": true
+      }
+    ],
+    "total_size_bytes": 432523264,
+    "schema_version": 1
+  },
+  "from_cache": false,
+  "duration_ms": 210
+}
+```
+
+### `racc dig` — найти секреты
+
+Сканирует `scan_root` (или один проект) на чувствительные файлы и возвращает отчёт с уровнями риска.
+
+```
+racc dig [--project PATH] [--no-content] [--repeated]
+         [--fail-on ignore|critical|high] [--max-depth N]
+```
+
+| Флаг | Описание |
+|------|----------|
+| `--project PATH` | Ограничить поиск одним проектом |
+| `--no-content` | Только по именам файлов, без чтения содержимого |
+| `--repeated` | Искать повторяющиеся значения секретов между файлами |
+| `--fail-on POLICY` | Политика выхода: `ignore`, `critical` (по умолчанию), `high` |
+| `--max-depth N` | Максимальная глубина обхода |
+
+Примеры:
+
+```bash
+# Проверить все проекты
+racc dig
+
+# Проверить один проект
+racc dig --project ~/DEV/PROJS/app-api
+
+# Только по именам файлов (быстрее, без чтения содержимого)
+racc dig --no-content
+
+# Искать повторяющиеся секреты
+racc dig --repeated
+
+# Проваливать запуск уже при High-находках
+racc dig --fail-on high
+```
+
+**Политика выхода.** По умолчанию `dig` завершается с кодом `2`, если найдены секреты уровня `Critical` (и выше — то есть только Critical). Значения:
+
+- `ignore` — не завершаться с ошибкой из-за находок (только `0`/`1`);
+- `critical` — код `2` при находках уровня `Critical`;
+- `high` — код `2` при находках уровня `High` и выше.
+
+> Полный список поддерживаемых паттернов секретов (по имени и по содержимому): [Что поддерживается](/supported)
+
+### `racc pack` — упаковать проект в den
+
+Упаковывает каталог проекта в архив `tar.zst` и кладёт его в den по раскладке `packs/{yyyy}/{mm}/`. Секреты при этом исключаются: deny по именам включён всегда, deny по содержимому — по умолчанию (флаг `--no-content-deny` отключает только его).
+
+```
+racc pack --project PATH [--den PATH] [--yes] [--dry-run]
+         [--no-content-deny] [--zstd-level N] [--output-name NAME]
+```
+
+| Флаг | Описание |
+|------|----------|
+| `--project PATH` | Каталог проекта для упаковки (обязательный) |
+| `--den PATH` | Каталог den (по умолчанию из конфигурации `paths.den_dir`) |
+| `--yes` | **Commit**: записать архив в den |
+| `--dry-run` | Явный dry-run; имеет приоритет над `--yes`, ничего не пишет |
+| `--no-content-deny` | Не сканировать содержимое файлов (deny по именам остаётся) |
+| `--zstd-level N` | Уровень сжатия zstd (по умолчанию — уровень ядра) |
+| `--output-name NAME` | Имя файла артефакта без `.tar.zst` (вместо `slug__timestamp`) |
+
+::: warning
+По умолчанию `pack` работает в **dry-run** и ничего не пишет. Команда `--yes` — явное подтверждение записи в den.
+:::
+
+Примеры:
+
+```bash
+# Dry-run: показать, что будет упаковано (ничего не пишется)
+racc pack --project ~/DEV/PROJS/app-api
+
+# Commit: создать архив в den
+racc pack --project ~/DEV/PROJS/app-api --yes
+
+# Своё имя артефакта вместо slug__timestamp
+racc pack --project ~/DEV/PROJS/app-api --yes --output-name snapshot
+
+# Машиночитаемый результат для скриптов
+racc pack --project ~/DEV/PROJS/app-api --yes --json
+```
+
+Пример вывода dry-run:
+
+```text
+Pack (dry-run)
+  Source: /home/user/DEV/PROJS/app-api
+  Would write: /home/user/.raccpack/den/packs/2026/08/app-api__20260804T181500Z.tar.zst
+  Content deny: on
+  (no files written)
+```
+
+Пример вывода commit:
+
+```text
+Pack complete
+  Source: /home/user/DEV/PROJS/app-api
+  Output: /home/user/.raccpack/den/packs/2026/08/app-api__20260804T181500Z.tar.zst
+  Size: 4.2 MiB
+  Files: 312
+  Skipped secret files: 3
+```
+
+::: info
+`pack` не использует код выхода `2` — это прерогатива политики секретов `dig`. Здесь только `0` (успех) и `1` (ошибка).
+:::
+
+> Подробнее о deny-правилах при упаковке (имена/содержимое, пороги): [Что поддерживается](/supported)
+
+### Что пока ещё в разработке
+
+Следующие команды планируются в ближайших версиях (см. [Дорожную карту](/roadmap)):
+
+| Команда | Назначение | Статус |
+|---------|------------|--------|
+| `racc stash` | Вынести секреты в age-архив | Планируется (Alpha) |
+| `racc rinse` | Очистить мусор сборки | Планируется (Alpha) |
+| `racc raid` | Полный цикл одним действием | Планируется (Alpha) |
+| `racc den …` | Управление den (список, очистка staging) | Планируется (Beta) |
+| `racc init` | Сгенерировать стартовую конфигурацию | Планируется |
+
+## Выходные данные
+
+### Человекочитаемый вывод
+
+По умолчанию `racc` печатает аккуратные таблицы. Пример `dig`:
+
+```text
+Dig root: /home/user/DEV/PROJS
+Files scanned: 1204  |  Findings: 4  |  Repeated: 1  |  180 ms
+
+RISK      LABEL                    PATH
+Critical  AWS Access Key           /home/user/DEV/PROJS/app-api/app/config/aws.env
+Critical  Private key PEM          /home/user/DEV/PROJS/app-api/certs/server.key
+High      Env file                 /home/user/DEV/PROJS/app-api/app/.env
+```
+
+Находки сортируются по риску (убывание), затем по пути. Блок «Repeated secrets» печатается только при включённом `--repeated` и наличии повторений.
+
+### JSON
+
+Флаг `--json` печатает полный serde-результат команды. Это стабильный контракт для скриптов и CI. Отчёты содержат поле `schema_version` — для проверок совместимости.
+
+::: warning
+В JSON-выводе никогда не содержится сырых значений секретов — только маскированные превью и хеши.
+:::
+
+## Использование в CI
+
+Типовой паттерн — проверять, что в проектах нет критичных секретов:
+
+```bash
+racc dig --project . --fail-on critical --json
+```
+
+Код выхода `2` сигнализирует о находках. Пример скрипта:
+
+```bash
+racc dig --root "$ROOT" --fail-on critical --json > dig.json
+code=$?
+if [ "$code" -eq 2 ]; then
+  echo "Найдены CRITICAL секреты" >&2
+  exit 2
+fi
+exit "$code"
+```
+
+## Дальнейшее чтение
+
+- [Конфигурация](/configuration) — пути, глубина и переменные окружения.
+- [Основные понятия](/concepts) — риски, маскирование, den.

@@ -1,19 +1,104 @@
 # raccpack
 
+<p align="center">
+  <img src="RaccPack.webp" alt="raccpack" width="435"/>
+</p>
+
+<p align="center">
+  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.75-orange?style=flat-square&logo=rust" alt="Rust"/></a>
+  <a href="https://doc.rust-lang.org/cargo/"><img src="https://img.shields.io/badge/Cargo-workspace-blue?style=flat-square&logo=cargo" alt="Cargo"/></a>
+  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.1.0-blue?style=flat-square" alt="version"/></a>
+  <a href="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml"><img src="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml/badge.svg?style=flat-square" alt="CI"/></a>
+  <a href="https://github.com/y-tretyakov/raccpack"><img src="https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-success?style=flat-square" alt="Windows | Linux | macOS"/></a>
+  <a href="https://tauri.app"><img src="https://img.shields.io/badge/Tauri-Desktop-purple?style=flat-square&logo=tauri" alt="Tauri"/></a>
+  <a href="https://clap.rs"><img src="https://img.shields.io/badge/CLI-clap-ee4b2b?style=flat-square" alt="CLI"/></a>
+  <a href="https://ratatui.rs"><img src="https://img.shields.io/badge/TUI-ratatui-4f8?style=flat-square" alt="TUI"/></a>
+  <a href="https://github.com/FiloSottile/age"><img src="https://img.shields.io/badge/secrets-age--encrypted-0a0a0a?style=flat-square" alt="age"/></a>
+  <a href="LICENSE-MIT"><img src="https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue?style=flat-square" alt="License"/></a>
+</p>
+
 CLI / TUI / Desktop tool for scanning projects, finding secrets, cleaning build trash, and packing each project into a "den" — a store of age-encrypted secrets and `tar.zst` archives.
 
 ## Status
 
-**pre-MVP / greenfield** — repository scaffold only, no code yet. Implementation starts with milestone **M1** on stage branch `m1-workspace-core`.
+Core is in the **pack milestone (M4)**. Implemented so far:
+
+- **sniff** — project discovery by markers, language/framework detection, size, versioned XDG cache.
+- **dig** — secret scan (filename risk model + content markers with size/binary limits), masked values, repeated-secret aggregation.
+- **pack** — `tar.zst` archives with name/content deny + SkipPolicy, den layout (`.den-version`, `packs/…`, `staging/…`) with atomic placement, facade `pack` with DryRun/Commit.
+
+CLI (`racc`): `sniff`, `dig` and `pack` subcommands implemented (text + `--json`; `pack` dry-run default, commit with `--yes`). Not implemented yet: **stash** (age encryption), **rinse** (build-trash cleanup), **raid** (orchestration).
+
+## Status at MVP 0.1.0
+
+The M4.4 milestone closed the **MVP 0.1.0** exit criteria: workspace + core + CLI, `sniff` projects + stack, `dig` secrets masked, `pack` tar.zst into the den layout. Next milestone: **Alpha — A1 `stash` (age encryption), A2 `rinse`, A3 `raid`, A4 git + DX** (→ 0.3.0).
+
+## Supported (MVP 0.1.0)
+
+What is implemented on current `dev` (exact tables the full supported catalog lives in the wiki):
+
+- **Project markers (14):** `Cargo.toml`, `package.json`, `go.mod`, `pyproject.toml`, `setup.py`, `requirements.txt`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `Gemfile`, `composer.json`, `CMakeLists.txt`, `Makefile`, `.git`.
+- **Framework hints (shallow, top-level only):** Next.js, Nuxt, Angular, Vite, Deno (Node); Django (Python); Scala/sbt (JVM); Rails (Ruby).
+- **Secret filename patterns (28):** env files (`.env` family), SSH/private keys (`id_rsa`, `*.pem`, `*.key`, `*.ppk`), keystores (`.p12`, `.pfx`, `.jks`), credentials, registry configs (`kubeconfig`, `.npmrc`, `.pypirc`, `config.json`), `secrets.*`, `-sa.json`, `wallet.dat`.
+- **Content markers (12):** AWS access/secret, GitHub (`ghp_`, `gho_`), Slack, Stripe (live/test), PEM headers, connection strings, JWT-like, generic `api_key`/`secret` assignments.
+- **Skip dirs (18):** `node_modules`, `target`, VCS (`.git`/`.svn`/`.hg`), Python caches, virtualenvs, build outputs, IDE dirs, `.raccpack`, `*.egg-info`.
+
+Full catalog (risk levels, deny thresholds, ContentScanLimits, pack deny rules): **[Что поддерживается](wiki/supported.md)**.
+
+## Workspace structure
+
+```
+raccpack/
+  Cargo.toml                  # workspace manifest (resolver 2)
+  crates/
+    raccpack-core/            # library: domain + use-cases, no UI/CLI deps
+    raccpack-cli/             # binary: `racc` (sniff/dig/pack), links raccpack-core
+  LICENSE-MIT                 # MIT license
+  LICENSE-APACHE              # Apache-2.0 license
+```
+
+The workspace is dual-licensed **MIT OR Apache-2.0**. `Cargo.lock` is committed (binary workspace policy) so builds are reproducible.
+
+## Build
+
+```bash
+cargo build
+cargo test
+cargo run -p raccpack-cli
+```
+
+## License
+
+This project is licensed under either of:
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+at your option.
 
 ## Docs
 
-Architecture vision and roadmap live in [`docs/`](docs/). Main knowledge documents at the repo root:
+**User wiki** lives in [`wiki/`](wiki/) and is built with [VitePress](https://vitepress.dev). The site is published to GitHub Pages at <https://y-tretyakov.github.io/raccpack/>.
 
-- `raccpack-agent-prompt.md` — main spec (phases 0–11, stage criteria)
-- `raccpack-architecture-vision.md` — layers, trust boundaries, DTO contracts
-- `raccpack-facade-and-den.md` — facade use-cases and den layout
-- `raccpack-roadmap-v1.md` — MVP → 1.0.0 milestones
+- Serve locally: `pnpm install && pnpm run wiki:dev`
+- Build: `pnpm run wiki:build` (output in `wiki/.vitepress/dist/`)
+- Preview a build: `pnpm run wiki:preview`
+- Deploy is handled by the `.github/workflows/wiki.yml` workflow.
+- The wiki is RU-first (root locale) with an English skeleton under `wiki/en/`.
+
+**Development docs** live in [`docs/`](docs/) — these are dev specs, not part of the published wiki. Main knowledge documents:
+
+| Path | Role |
+|------|------|
+| `AGENTS.md` | Agent orchestrator memo (Alpha backlog, hard rules) |
+| `raccpack-agent-workflow.md` | Orchestrator / Dev / Test / Docs workflow |
+| `raccpack-roadmap-v1.md` | MVP → 1.0.0 roadmap |
+| `raccpack-architecture-vision.md` | Layers, trust boundaries, DTOs |
+| `raccpack-facade-and-den.md` | Facade use-cases and den layout |
+| `raccpack-modularity.md` | Secrets / archive backend modularity |
+| `WORKLOG.md` | Current stage journal (Alpha+) |
+| `docs/archive/WORKLOG_MVP.md` | Closed MVP 0.1.0 journal |
+| `docs/alpha/` | Alpha stage specs (linked per stage) |
 
 ## Git workflow
 
@@ -38,3 +123,7 @@ Rules:
 6. Hotfix/blocker after a milestone release: branch from `main` (or the tag), PR into `main`, then backport into `dev`.
 
 Merge method: **squash** (fixed for stage branches and for `dev → main`). Stage branches are deleted on merge.
+
+**Branch protection (status):** enforced via GitHub rulesets (repo is public). Both rulesets restrict merge method to **squash**.
+- `main`: PR required + 1 approval, no force push, no deletions (bypass: maintainers/admins).
+- `dev`: PR required, no force push, no deletions (bypass: maintainers/admins).

@@ -1,73 +1,122 @@
-# AGENTS.md — рабочая памятка агента для raccpack-core
+# AGENTS.md — рабочая памятка агента для raccpack
 
-Краткая карта знаний по проекту. Полные ТЗ — в документах ниже; этот файл — быстрая навигация и жёсткие правила.
+Краткая карта знаний. Этот файл — быстрая навигация и жёсткие правила.
+Полные ТЗ этапов Alpha — в `docs/alpha/` (по явной ссылке перед этапом).
 
 ## Что это за проект
 
-`raccpack` — инструмент: сканирует папку с проектами, находит секреты (по имени файла, content-markers, heuristics), выносит их в зашифрованные age-архивы, чистит мусор сборки и пакует каждый проект в `tar.zst` в «den» (хранилище). Ядро — библиотека `raccpack-core` (Rust), без UI. Клиенты: CLI (clap), TUI (ratatui), Desktop (Tauri + React). Сейчас задача — реализовать `raccpack-core` с нуля по фазам 0–11 из `raccpack-agent-prompt.md`.
+`raccpack` — CLI / TUI / Desktop инструмент: сканирует папку с проектами, находит
+секреты, выносит их в age-архивы, чистит мусор сборки, пакует каждый проект в
+`tar.zst` в «den». Ядро — `raccpack-core` (Rust). Клиенты: CLI (`racc`), TUI
+(ratatui), Desktop (Tauri + React).
+
+**Текущая веха:** Alpha → `v0.3.0` (stash / rinse / raid / git+DX).
+**Закрыто:** MVP `0.1.0` — sniff, dig, pack + den layout (см. `docs/archive/WORKLOG_MVP.md`).
 
 ## Роль агента — Orchestrator (ОБЯЗАТЕЛЬНО)
 
-`raccpack-agent-workflow.md` — **обязателен к выполнению**. Ты — **главный агент (Orchestrator)**, а не исполнитель:
+`raccpack-agent-workflow.md` — **обязателен к выполнению**. Ты — **главный агент
+(Orchestrator)**, а не исполнитель:
 
-- **Не выполняешь сам**: исследование/инвентаризацию, написание кода, тестов, документации.
-- **Делаешь только**: детальный план работ → делегирование задач субагентам (Dev / Test / Docs) → **строгая приёмка** по чеклисту критерия готовности этапа либо rework-билет с конкретными замечаниями → ведение `WORKLOG.md`.
-- На каждый этап: **Dev** (реализация) + **Test** (тесты) параллельно; **Docs** — только после зелёного FINAL.
-- Не делегируй несколько этапов одной задачей, не принимай «на глаз» и не принимай этап с красными тестами.
-- Анти-паттерны (запрещено): писать продакшн-код самому «чтобы быстрее»; «сделай фазы 1–3 целиком»; Docs до FINAL; «тесты потом».
+- **Не** пишешь сам: исследование, production-код, тесты, пользовательскую docs.
+- **Делаешь только:** план этапа → делегирование Dev / Test (параллельно) →
+  **строгая приёмка** по чеклисту критерия готовности или rework-билет →
+  ведение `WORKLOG.md`.
+- Docs-субагент — **только после** зелёного FINAL этапа / вехи.
+- Не делегируй несколько этапов одной задачей. Не принимай этап с красными тестами.
 
-## Карта документов (знания)
+Анти-паттерны (запрещено): писать продакшн-код «чтобы быстрее»; «сделай A1–A3
+целиком»; Docs до FINAL; «тесты потом».
+
+## Карта документов
 
 | Файл | Что даёт | Когда читать |
 |------|----------|--------------|
-| `raccpack-agent-prompt.md` | **Главный ТЗ**: роли, жёсткие правила, фазы 0–11 с этапами, критерии готовности, формат отчёта | всегда, это source of truth задач |
-| `raccpack-agent-workflow.md` | **ОБЯЗАТЕЛЕН к выполнению**: как организована работа — Orchestrator (планирует/делегирует/принимает), Dev / Test / Docs субагенты, шаблоны поручений, rework-билеты, анти-паттерны | перед делегированием/приёмкой |
-| `raccpack-architecture-vision.md` | Слои: core / facade / UI; потоки данных; границы доверия; контракты DTO | для решений по архитектуре |
-| `raccpack-facade-and-den.md` | Конкретные сигнатуры facade (`sniff/dig/stash/rinse/pack/raid`), типы (`AppContext`, `ProgressSink`, `*Options`, `*Result`), структура den, manifest JSON | при работе с use-cases и отчётами |
-| `raccpack-roadmap-v1.md` | Версии MVP→1.0.0, фазы M/A/B/R/S, жёсткие зависимости вех | контекст приоритетов |
-| `docs/mvp/m{1..4}/*` | Детальные спекуляции этапов MVP (по файлу на этап) | **только по явной ссылке от человека** (правило «docs/ не читать без ссылки») |
-| `WORKLOG.md` | Журнал статусов этапов (создаётся в фазе 0.1) | после каждого этапа обновлять |
+| `raccpack-agent-workflow.md` | Orchestrator / Dev / Test / Docs, шаблоны, rework, анти-паттерны | перед делегированием и приёмкой |
+| `raccpack-roadmap-v1.md` | MVP→1.0.0, фазы M/A/B/R/S, жёсткие зависимости вех | приоритеты, границы вехи |
+| `raccpack-architecture-vision.md` | Слои core / facade / UI; потоки; границы доверия; DTO | архитектурные решения |
+| `raccpack-facade-and-den.md` | Сигнатуры facade, den layout, manifest JSON | use-cases, pack/stash/raid |
+| `raccpack-modularity.md` | Secrets matchers + archive backends: один вид = один `*.rs` + registry | dig/stash, backends |
+| `raccpack-markers-detect-modularity.md` | Markers/detect по экосистемам | scan/detect |
+| `docs/alpha/*` | Детальные спеки этапов Alpha | **только по явной ссылке** перед этапом |
+| `docs/archive/WORKLOG_MVP.md` | Журнал закрытого MVP (M1–M4 + docs) | справка, не править |
+| `docs/archive/mvp/` | Спеки закрытых этапов M1–M4 | справка |
+| `WORKLOG.md` | Текущий журнал (Alpha и далее) | после каждого этапа обновлять |
+| `wiki/` | Пользовательская документация (VitePress, RU-first) | UX-тексты; **не** dev-спеки |
 
 ## Жёсткие правила (не нарушать)
 
 - **Один этап = одна узкая задача.** Не смешивай рефакторинг + тесты + документацию.
-- `docs/` не читать, кроме документа, на который человек дал ссылку перед этапом.
-- Код **компилируется в рамках этапа** (или `TODO` только для промежуточного каркаса).
-- Не менять семантику first-match таблиц `PATTERNS`/`CONTENT_MARKERS` без тестов-инвариантов.
-- **Без `unwrap()` в production-коде.**
-- **Без `anyhow::Error` / `Box<dyn Error>` в public API**; только `Error`/`ConfigError` (строгие типы).
-- Секреты (raw values, passphrase) **не** в `Display` ошибок, логах, отчётах по умолчанию. Masked по умолчанию; reveal только по явному opt-in.
+- `docs/alpha/` и `docs/archive/` не читать целиком «на всякий случай» — только
+  документ, на который человек дал ссылку перед этапом.
+- Код **компилируется в рамках этапа** (или явный `TODO` только для промежуточного каркаса).
+- Не менять семантику first-match таблиц `PATTERNS` / `CONTENT_MARKERS` без тестов-инвариантов.
+- **Без `unwrap()` / `expect()` в production-коде** (исключение: static OnceLock init
+  при старте, уже принятое в MVP).
+- **Без `anyhow::Error` / `Box<dyn Error>` в public API**; только `Error` / `ConfigError`.
+- Секреты (raw values, passphrase) **не** в `Display` ошибок, логах, отчётах по умолчанию.
+  Masked по умолчанию; reveal только по явному opt-in.
 - Стиль: rustfmt-совместимо, как окружающий код. Без лишних комментариев.
-- Публичный API меняешь → обнови re-exports в `lib.rs` + отметь breaking change в отчёте.
-- `WalkDir` в production → с `follow_links(false)`.
-- SensitiveRisk меняется только через severity API.
-- После каждого этапа — отчёт по шаблону (см. ниже). Критерий не выполнен → следующий этап не начинать.
+- Публичный API меняешь → обнови re-exports в `lib.rs` + отметь breaking в отчёте.
+- `WalkDir` в production → с `follow_links(false)`. Pack walker — explicit DFS (см. M4.3).
+- SensitiveRisk меняется только через severity API (`at_least` / `upgrade_risk`).
+- После каждого этапа — отчёт по шаблону. Критерий не выполнен → следующий этап не начинать.
 
-## Стартовые условия
+## Правила модульности Rust (ОБЯЗАТЕЛЬНО в поручении Dev)
 
-Код удалён — пишем **с нуля**. Наследуемого «уже сделано» нет; этапы 1–11 реализуются заново, каждый с компиляцией и тестами по своему критерию. Инварианты PATTERNS / CONTENT_MARKERS фиксируются тестами по мере появления кода.
+Включать в задачу Dev при любом изменении Rust-кода (полная версия — в
+`raccpack-modularity.md` и исторически в agent-prompt):
 
-## Фазы и этапы (порядок обязателен)
+```text
+Rust modularity rules for this repo:
+
+- No giant `.rs` files. Aim 150–300 lines of logic; soft max ~400. Split earlier if multiple concerns.
+- One concept per file (one secret matcher, one encryption backend, one policy, etc.).
+- Use module directories + thin `mod.rs` (API + re-exports + registry only).
+- Extensibility via registry: implementations in separate files; register in one place.
+- Types in `types.rs` (or domain modules); algorithms in engine/service modules.
+- Do not put all secrets, all archive backends, or full pipeline logic in a single file.
+- Adding a feature = new file + one registry line, not growing a monolith.
+- Keep business logic in `raccpack-core`; UI crates only call the facade.
+
+Follow `raccpack-modularity.md`, `raccpack-markers-detect-modularity.md`, and the
+existing `src/` tree. If a file can’t be summarized in one sentence, split it.
+```
+
+## Текущее состояние (после MVP 0.1.0)
+
+- Workspace: `crates/raccpack-core` + `crates/raccpack-cli` (`racc`).
+- Реализовано: **sniff**, **dig**, **pack** (tar.zst + den layout, DryRun/Commit).
+- CLI: `racc sniff|dig|pack` (text + `--json`).
+- Не реализовано: **stash** (age), **rinse**, **raid**, полноценный GitClient в dig.
+- Wiki: VitePress в `wiki/`, RU-first, Pages на `dev`.
+- Архив MVP: `docs/archive/WORKLOG_MVP.md`, `docs/archive/mvp/`.
+
+## Alpha backlog (порядок)
 
 ```
-0.1 Inventory → 0.2 Baseline
-→ 1.1 Group enum → 1.2 EnabledGroups (enumset/bitflags) → 1.3 config groups
-→ 2.1 fingerprint (blake3/siphash, НЕ DefaultHasher/fnv) → 2.2 masked_value (без длинного prefix)
-→ 3.1 единый deny/allow helper по именам → 3.2 опциональный content-scan при pack
-→ 4.1 trait GitClient + ProcessGitClient → 4.2 MockGitClient
-→ 5.1 thread pool из advanced.parallel_jobs
-→ 6.1 цепочка migrate_vN_to_V → 6.2 расширить validate()
-→ 7.1 WalkEvent/WalkVisitor design → 7.2 WalkSession минимальный → 7.3 cache через session → 7.4 sensitive через session → (7.5 scanner, опционально)
-→ 8.1 тесты порядка whitelist-имён → 8.2 тесты shadowing content-markers
-→ 9.1 аудит pub use → 9.2 missing_docs
-→ 10.1 zeroize passphrase
-→ 11.1 cargo test → 11.2 fmt+clippy → 11.3 CHANGES + MIGRATION
+A1.1 age + zeroize passphrase
+A1.2 stash manifest (без raw) + remove sources в Commit
+A1.3 facade stash + den/secrets/…
+A1.4 CLI racc stash
+→ A2.1 cleanup strategies + config
+A2.2 facade rinse
+A2.3 CLI racc rinse
+→ A3.1 facade raid (fail-fast)
+A3.2 ProgressSink + CLI progress
+A3.3 manifest JSON в den/manifests/
+A3.4 CLI racc raid --yes; E2E alpha
+→ A4.1 GitClient + status в dig
+A4.2 config migrate chain + racc init
+A4.3 tracing без секретов; --verbose
+A4.4 integration tests + CI cargo test
 ```
 
-Не перескакивать фазу 0. Не начинать фазу 7, пока 1–3 не стабильны.
-Можно параллелить (из workflow): 1.x ∥ 2.x · 2.x ∥ 3.x · 4.x ∥ 5.1 · 7.x ∥ 8.x. Если оба этапа правят один файл — строго последовательно.
+Не начинать A3, пока A1 (stash) и A2 (rinse) не стабильны по контракту.
+Параллель допустима только если этапы не правят один и тот же файл
+(см. `raccpack-agent-workflow.md`).
 
-## Формат отчёта этапа (обязательный)
+## Формат отчёта этапа
 
 ```markdown
 ## Этап X.Y — <название>
@@ -80,52 +129,45 @@
 ### Риски / follow-up
 - ...
 ### Критерий готовности
-- [x]/[ ] <текст из промпта>
+- [x]/[ ] <текст из спеки>
 ```
 
 ## Архитектура (кратко)
 
-- **core** — вся бизнес-логика: config, scan, detect, secrets, clean, archive, git (за `GitClient`), cache, report, policy/skip. Не знает про ratatui/tauri/react.
-- **facade** (use-cases): `sniff` → `dig` → `stash`(age) → `rinse` → `pack` → `raid`(оркестрация). Вход: `AppContext{config, paths, mode, exit_policy}`; прогресс через `ProgressSink`; dry-run через `RunMode`.
-- **Данные**: report DTO serde-дружелюбные, masked secrets; ошибки — один `Error` + `ConfigError` с `suggestion()`. UI не парсит тексты ошибок.
-- **Границы доверия**: raw secret только в core и только на время encrypt; CLI/TUI могут просить reveal; React — только DTO; den — age-файлы, perms `0700`/`0600`.
-- **Den layout**: `manifests/{yyyy}/{mm}/…json`, `secrets/…/*.age`, `packs/…/*.tar.zst`, `staging/{short_id}`, `.den-version`. Имя: `{project_slug}__{utc_timestamp}[__{short_id}]`. Manifest paths — relative to den root.
-- **Exit codes CLI**: 0 ok, 1 ошибка, 2 найдены CRITICAL (политика). `--json` печатает serde-результат.
+- **core** — config, scan, detect, secrets, clean, archive, git (за `GitClient`),
+  cache, report, policy/skip. Не знает про ratatui/tauri/react.
+- **facade**: `sniff` → `dig` → `stash`(age) → `rinse` → `pack` → `raid`.
+  Вход: `AppContext`; прогресс: `ProgressSink`; dry-run: `RunMode`.
+- **Данные**: report DTO serde-friendly, masked secrets; ошибки — `Error` +
+  `ConfigError` с `suggestion()`.
+- **Den**: `manifests/`, `secrets/`, `packs/`, `staging/`, `.den-version`.
+  Имена: `{slug}__{utc_timestamp}[__{short_id}]`. Paths в manifest — relative to den.
+- **Exit codes CLI**: 0 ok, 1 ошибка, 2 CRITICAL (политика). `--json` → serde result.
 
-## Воркфлоу (роли)
+## Git workflow
 
-- **Orchestrator** (главный агент, ты): читает ТЗ, строит план этапов, на каждый этап делегирует **Dev** и **Test** параллельно по шаблонам из `raccpack-agent-workflow.md`, строго принимает по чеклисту критерия готовности или возвращает rework-билет с конкретными замечаниями (лимит 3 попытки), ведёт `WORKLOG.md`, после зелёного FINAL делегирует **Docs**. **Не** пишет продакшн-код/тесты/документацию сам.
-- **Dev** → реализация этапа (отчёт по формату «Этап X.Y»). **Test** → тесты того же этапа **параллельно**, по спецификации ТЗ.
-- **Docs** → `CHANGES.md` / `MIGRATION.md` и остальное **только после** зелёного FINAL checklist.
-- Приёмка строгая: критерий из промпта, нет запрещённых паттернов, только согласованные файлы, отчёт заполнен, breaking-пометка при смене public API.
-- Анти-паттерны (запрещено): закрывать этап с «тесты потом», делегировать «сделай фазы 1–3 целиком», Docs до зелёного FINAL, принимать этап с красными тестами.
-- FINAL checklist (делает Orchestrator сам): сборка зелёная, запреты не нарушены, sensitive-тесты зелёные, WORKLOG полный.
+- `main` — только релизы вех (PR + review, squash, no force push).
+- `dev` — основная рабочая ветка.
+- Stage-ветки от `dev`: `{phase}-{short-slug}` (`a1-stash-age`, `a2-rinse`, …).
+- После **каждого** закрытого этапа: PR stage → `dev` (squash) → удалить stage.
+- Merge `dev → main` + tag + GitHub Release **только** на вехах:
+  MVP `v0.1.0`, Alpha `v0.3.0`, Beta `v0.5.0`, RC `v0.9.0`, Stable `v1.0.0`.
+- Детали — в `README.md` (раздел Git workflow).
 
 ## Команды проверки
 
 ```bash
-cargo test -p raccpack-core    # или cargo test — если crate есть; иначе зафиксировать в WORKLOG
-cargo fmt
-cargo clippy -- -D warnings
+cargo test -p raccpack-core
+cargo test --workspace
+cargo fmt --check
+cargo clippy -p raccpack-core --all-targets -- -D warnings
+pnpm run wiki:build   # если трогали wiki/
 ```
 
-Текущее состояние: в этой папке пока **нет дерева crate** (только документы: 5 корневых md + спекуляции `docs/mvp/`) — код удалён, пишем с чистого листа. Фаза 0.1 должна зафиксировать пустой baseline и определить, где разворачивать crate (`raccpack-core`).
+## Wiki (пользовательская docs)
 
-## Git workflow (обязательный)
-
-- `main` — защищённая, только релизы вех (PR + review 1, без force push, без deletions).
-- `dev` — основная рабочая ветка, вся разработка мержится сюда (PR required, без force push, без удаления ветки).
-- Stage/feature-ветки — короткоживущие, **от `dev`**. Имя по roadmap: `{phase}-{short-slug}` в kebab-case (`m1-workspace-core`, `m2-sniff`, `m3-dig`, `m4-pack-den`, `a1-stash-age`, `a2-rinse`, `a3-raid`).
-- Завершение этапа: PR **в `dev`** → merge (squash) → **удалить** stage-ветку.
-- Merge `dev → main` + `git tag` + GitHub Release — **только** на вехах: MVP `v0.1.0`, Alpha `v0.3.0`, Beta `v0.5.0`, RC `v0.9.0`, Stable `v1.0.0`. Между вехами в `main` ничего не мержить.
-- Hotfix/blocker после релиза: ветка от `main`/tag → PR в `main` → backport в `dev`.
-- Merge method фиксирован: **squash**; stage-ветки удаляются при merge.
-- Детали — в `README.md` (раздел Git workflow).
-
-## Полезные ссылки на API (из спекуляций)
-
-- `SensitiveGroup` enum (1.1) из `KNOWN_SENSITIVE_GROUPS`; `from_str`/`as_str` 1:1.
-- `EnabledGroups`: `all()`, `from_config(&SensitiveConfig)`, `is_enabled(Group)`/`is_enabled_str(&str)`.
-- `GitClient` trait: `available`, `find_repo_root`, `classify_file`→`GitFileStatus`, `analyze`→`Option<GitState>`.
-- `WalkEvent`/`WalkVisitor`/`WalkControl` в `walk_session.rs` (7.x); `WalkSession::run(root, policy, max_depth, visitor)`.
-- Zeroize: passphrase как `SecretString`/`Zeroizing<String>` на время encrypt/decrypt.
+- Источник: `wiki/` (VitePress). Primary locale — русский (root), EN — skeleton.
+- Тон: спокойный, практичный, без маркетингового шума; callouts через
+  `::: info|tip|warning|danger|details`.
+- Не переносить dev-спеки (`docs/`, корневые architecture MD) в wiki.
+- После изменений UX-текстов — `pnpm run wiki:build` без ошибок.

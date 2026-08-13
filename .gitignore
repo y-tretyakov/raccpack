@@ -2,8 +2,7 @@
 /target/
 **/*.rs.bk
 
-# Cargo lockfile — library crate policy; workspace decision comes later
-Cargo.lock
+# Cargo lockfile — binary workspace policy: Cargo.lock is committed
 
 # Environment, tokens, secrets
 .env
@@ -18,6 +17,8 @@ Cargo.lock
 **/den/
 /manifests/
 /staging/
+# ...but the core source module named `den` is source code, not a store
+!crates/raccpack-core/src/den/
 
 # IDE / editor
 .idea/
@@ -29,3 +30,16 @@ Cargo.lock
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Node.js / pnpm (VitePress wiki)
+node_modules/
+wiki/.vitepress/dist/
+wiki/.vitepress/cache/
+
+# Local agent tooling (skills, locks, scratch) — never commit
+.agents/
+skills-lock.json
+.claude/
+.cursor/
+.codex/
+**/.DS_Store

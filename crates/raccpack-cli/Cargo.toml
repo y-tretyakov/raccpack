@@ -1,0 +1,24 @@
+[package]
+name = "raccpack-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "CLI for raccpack"
+rust-version.workspace = true
+
+[[bin]]
+name = "racc"
+path = "src/main.rs"
+
+[dependencies]
+raccpack-core = { path = "../raccpack-core" }
+clap = { version = "4", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+assert_cmd = "2.1.2"
+predicates = "3.1.4"
+serde_json = "1.0.151"
+tar = "0.4"
+tempfile = "3.27.0"
+zstd = "0.13"
