@@ -35,3 +35,11 @@ Thumbs.db
 node_modules/
 wiki/.vitepress/dist/
 wiki/.vitepress/cache/
+
+# Local agent tooling (skills, locks, scratch) — never commit
+.agents/
+skills-lock.json
+.claude/
+.cursor/
+.codex/
+**/.DS_Store
