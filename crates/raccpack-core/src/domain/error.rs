@@ -37,6 +37,12 @@ pub enum Error {
     /// Nothing to archive (empty selection).
     #[error("nothing to stash: {message}")]
     StashEmpty { message: String },
+    /// A path escapes the stash target root.
+    #[error("path outside stash target: {path}")]
+    PathOutsideTarget { path: PathBuf },
+    /// A path exists but is not a regular file (directory, symlink, device…).
+    #[error("not a file: {path}")]
+    NotAFile { path: PathBuf },
     /// Catch-all for errors without a dedicated variant.
     #[error("{message}")]
     Other { message: String },
@@ -57,6 +63,10 @@ impl Error {
             Error::StashEmpty { .. } => Some(
                 "No sensitive files matched the min-risk threshold; lower --min-risk or check `racc dig` output.",
             ),
+            Error::PathOutsideTarget { .. } => {
+                Some("Provide paths strictly inside the project root.")
+            }
+            Error::NotAFile { .. } => Some("Provide regular file paths."),
             _ => None,
         }
     }
@@ -131,6 +141,34 @@ mod tests {
             }
             .suggestion(),
             Some("No sensitive files matched the min-risk threshold; lower --min-risk or check `racc dig` output.")
+        );
+        assert_eq!(
+            Error::PathOutsideTarget {
+                path: PathBuf::from("/tmp/x")
+            }
+            .suggestion(),
+            Some("Provide paths strictly inside the project root.")
+        );
+        assert_eq!(
+            Error::NotAFile {
+                path: PathBuf::from("/tmp/x")
+            }
+            .suggestion(),
+            Some("Provide regular file paths.")
+        );
+        assert_eq!(
+            Error::PathOutsideTarget {
+                path: PathBuf::from("/tmp/x")
+            }
+            .to_string(),
+            "path outside stash target: /tmp/x"
+        );
+        assert_eq!(
+            Error::NotAFile {
+                path: PathBuf::from("/tmp/x")
+            }
+            .to_string(),
+            "not a file: /tmp/x"
         );
         assert_eq!(
             Error::Config {
