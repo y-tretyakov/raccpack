@@ -100,6 +100,21 @@ mod tests {
             Some("Provide a directory path, not a file.")
         );
         assert_eq!(
+            Error::DenVersion {
+                found: "9".into(),
+                expected: "1"
+            }
+            .suggestion(),
+            Some("Point den_dir at a compatible den, or migrate it with a future `racc den migrate` command.")
+        );
+        assert_eq!(
+            Error::Encrypt {
+                message: "x".into()
+            }
+            .suggestion(),
+            Some("Check that the passphrase is non-empty and the output path is writable.")
+        );
+        assert_eq!(
             Error::Config {
                 message: "bad".into()
             }
