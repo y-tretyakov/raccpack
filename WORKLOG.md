@@ -89,6 +89,7 @@
 
 | Дата | Решение |
 |------|---------|
+| 2026-08-14 | **Процесс:** после каждого закрытого этапа Orchestrator сам мёржит свой PR в `dev` (squash), закрывает PR и удаляет рабочую ветку — не ждёт команды человека (записано в `.agents/docs/AGENTS.md`). |
 | 2026-08-13 | Релиз-подготовка MVP: agent tooling (`.agents/`, `skills-lock.json`) убран из репо; WORKLOG MVP → `docs/archive/WORKLOG_MVP.md`; спеки M1–M4 → `docs/archive/mvp/`; one-shot промпты Writerside/VitePress icons удалены. Новый `WORKLOG.md` только для Alpha+. |
 | 2026-08-13 | Документы агента: `AGENTS.md` переписан под Alpha; knowledge base (architecture / facade / modularity / roadmap / workflow) остаётся в корне. |
 
