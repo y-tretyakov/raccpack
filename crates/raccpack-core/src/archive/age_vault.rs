@@ -341,4 +341,61 @@ mod tests {
             &bytes[..bytes.len().min(32)]
         );
     }
+
+    #[test]
+    fn decrypt_rejects_empty_passphrase() {
+        let dir = TempDir::new().unwrap();
+        let output = dir.path().join("empty-decrypt.age");
+        encrypt_bytes_to_file(b"data", &output, &passphrase(TEST_PASSPHRASE)).unwrap();
+
+        let result = decrypt_file_from_age(&output, &Zeroizing::new(String::new()));
+        assert!(result.is_err(), "decrypt with empty passphrase must fail");
+    }
+
+    #[test]
+    fn decrypt_error_display_does_not_contain_passphrase() {
+        let dir = TempDir::new().unwrap();
+        let output = dir.path().join("leak-decrypt.age");
+        encrypt_bytes_to_file(b"data", &output, &passphrase(TEST_PASSPHRASE)).unwrap();
+
+        let wrong = "WRONG-PASSPHRASE-xyz";
+        let err = decrypt_file_from_age(&output, &passphrase(wrong)).unwrap_err();
+        let display = format!("{err}");
+        assert!(
+            !display.contains(wrong),
+            "Encrypt-branch error Display leaked passphrase: {display}"
+        );
+    }
+
+    #[test]
+    fn encrypt_file_to_age_missing_source_errors_and_creates_no_output() {
+        let dir = TempDir::new().unwrap();
+        let source = dir.path().join("does-not-exist.txt");
+        let output = dir.path().join("missing.age");
+
+        let result = encrypt_file_to_age(&source, &output, &passphrase(TEST_PASSPHRASE));
+        assert!(result.is_err());
+        assert!(!output.exists(), "no archive may be left on missing source");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn temp_file_is_removed_on_midwrite_failure() {
+        let dir = TempDir::new().unwrap();
+        // A directory opens successfully on Unix but reading it fails with
+        // EISDIR mid-stream, after the age header was already written to tmp.
+        let source = dir.path().join("sourcedir");
+        fs::create_dir(&source).unwrap();
+        let output = dir.path().join("midwrite.age");
+
+        let result = encrypt_file_to_age(&source, &output, &passphrase(TEST_PASSPHRASE));
+        assert!(result.is_err(), "reading a directory as source must fail");
+
+        let tmp = tmp_sibling_path(&output);
+        assert!(
+            !tmp.exists(),
+            "temp file must be removed on mid-write failure: {}",
+            tmp.display()
+        );
+    }
 }

@@ -28,43 +28,55 @@
 
 ## Этапы
 
-### 2026-08-14 13:37 — A1.1 age + zeroize passphrase
+### A1.1 — age + zeroize passphrase (CLOSED)
 
-**Задача:** crypto-примитив stash: age (scrypt passphrase) encrypt/decrypt, zeroize материала ключа. Без facade / den / CLI.
+- **Дата:** 2026-08-14
+- **Ветка:** `a1-stash-age`
+- **Статус:** done
+- **Dev:** dev-a1.1 · **Test:** test-a1.1 (параллельно, без rework)
 
-**Сделано (Orchestrator: Dev + Test субагенты параллельно, приёмка по §6 спеки):**
+#### Сделано
 - `archive/age_vault.rs` (created): `encrypt_bytes_to_file`, `encrypt_file_to_age` (→ bytes_read), `decrypt_file_from_age` (test-only, `#[cfg(any(test, feature = "age-decrypt"))]`), atomic write (`<output>.tmp` + rename, temp удаляется при ошибке), empty passphrase → `Error::Encrypt`.
-- `domain/error.rs`: новый вариант `Error::Encrypt { message }` — passphrase никогда в Display.
-- `archive/mod.rs` + `lib.rs`: `pub mod age_vault` + re-exports encrypt-функций (decrypt на уровне lib НЕ ре-экспортирован).
+- `domain/error.rs`: вариант `Error::Encrypt { message }` — passphrase никогда в Display.
+- `archive/mod.rs`: `pub mod age_vault` + re-exports encrypt-функций. На уровне lib-корня re-exports НЕ делались (узкий public API; decrypt не торчит из crate root).
 - `Cargo.toml`: `age = "0.12"`, `zeroize = { version = "1", features = ["derive"] }`, `[features] age-decrypt = []`.
 
-**Файлы:**
-- `crates/raccpack-core/src/archive/age_vault.rs` (created)
-- `crates/raccpack-core/Cargo.toml`, `src/domain/error.rs`, `src/archive/mod.rs`, `src/lib.rs`, `Cargo.lock` (changed)
+#### Файлы
+- created: `crates/raccpack-core/src/archive/age_vault.rs`
+- changed: `crates/raccpack-core/Cargo.toml`, `src/domain/error.rs`, `src/archive/mod.rs`, `Cargo.lock` (в #51; сужение lib.rs + доп. тесты + suggestion — в follow-up-коммите)
 
-**Тесты:**
-- `cargo test -p raccpack-core age_vault` → 7/7 pass (roundtrip, wrong passphrase, empty passphrase, file roundtrip + bytes_read, no-leak в Display, overwrite, binary magic header).
-- `cargo test --workspace` → все зелёные (включая регрессию CLI/core).
+#### Тесты
+- `cargo test -p raccpack-core age_vault` → pass (roundtrip, wrong passphrase, empty passphrase encrypt/decrypt, file roundtrip + bytes_read, no-leak в Display на Io- и Encrypt-ветках, overwrite, binary magic header, missing source, tmp-очистка на mid-write fail).
+- `cargo test --workspace` → все зелёные (регрессии нет).
 - `cargo clippy --workspace --all-targets -- -D warnings` → чисто.
 - `cargo fmt -p raccpack-core -- --check` → чисто.
 
-**Зафиксировано (решения):**
+#### Зафиксировано
 - age version: **0.12.1** (0.10.0 yanked; MSRV 1.74 ≤ workspace 1.75).
 - Формат: **binary** (без ASCII armor); фича `armor` не включалась (отклонение от snippet в спеке — модуль не используется).
 - Passphrase: caller `Zeroizing<String>` → внутренняя копия `secrecy::SecretString`; обе zeroize на drop. Промежуточный `String` от `to_owned()` — не zeroized (кратковременный; тот же паттерн, что в примерах самого age-крейта).
 - Атомарная запись внутри vault (tmp + rename), overwrite ок.
 
-**Риски / follow-up:**
-- A1.2/A1.3: те же age-примитивы лягут в encrypt шаг stash.
-- decrypt не ре-экспортирован из lib root — только под `age-decrypt` feature / test.
-
-**Критерий готовности §6:**
+#### Критерий готовности (DoD из a1.1 §6)
 - [x] encrypt_file_to_age / encrypt_bytes_to_file работают
 - [x] Passphrase через Zeroizing/SecretString; empty rejected
 - [x] Ошибки без утечки passphrase
 - [x] Decrypt для тестов roundtrip
 - [x] Модуль изолирован в archive/age_vault.rs
 - [x] Тесты §5 зелёные
+
+#### Риски / follow-up
+- A1.2/A1.3: те же age-примитивы лягут в encrypt шаг stash.
+- decrypt не ре-экспортирован из lib root — только под `age-decrypt` feature / test.
+- Маппинг ошибок: `age::encrypt` → `Error::Encrypt`; `wrap_output`/`finish`/`copy` → `Error::Io` (в age 0.12 это io::Result). Для CLI stash (A1.4) имеет смысл различать «encrypt failed» vs «io failed» — решить при facade/CLI.
+
+#### Follow-up review замечания (человек, 2026-08-14; PR #51) — НЕ блокеры
+- **A. Error mapping** — принято к A1.2: `age::EncryptError` → `Error::Encrypt`, чистый IO → `Error::Io`; для 0.12 wrap_output/finish возвращают io::Result, поэтому семантика уточняется при facade stash.
+- **B. Два стиля encrypt** (`age::encrypt`+Recipient для bytes, `Encryptor::with_user_passphrase` для file) — валидно, roundtrip зелёный; возможная унификация — позже, не блокер.
+- **C. Тесты** — дополнены: empty passphrase на decrypt, no-leak на Encrypt-ветке (wrong passphrase decrypt), missing source у `encrypt_file_to_age` (+ не оставлять output), tmp-очистка на mid-write fail.
+- **D. `Error::Encrypt` suggestion** — добавлен hint («check passphrase / output writable»).
+- **E. Zeroize** — принято: `Zeroizing<String>` → `SecretString`; двойной zeroize на drop ок.
+- **F. Минимальная длина passphrase** — сознательно только non-empty; CLI warn про слабые пароли — A1.4/CLI.
 
 ## Этапы
 
