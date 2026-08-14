@@ -38,7 +38,7 @@
 #### Сделано
 - `archive/age_vault.rs` (created): `encrypt_bytes_to_file`, `encrypt_file_to_age` (→ bytes_read), `decrypt_file_from_age` (test-only, `#[cfg(any(test, feature = "age-decrypt"))]`), atomic write (`<output>.tmp` + rename, temp удаляется при ошибке), empty passphrase → `Error::Encrypt`.
 - `domain/error.rs`: вариант `Error::Encrypt { message }` — passphrase никогда в Display.
-- `archive/mod.rs`: `pub mod age_vault` + re-exports encrypt-функций. На уровне lib-корня re-exports НЕ делались (узкий public API; decrypt не торчит из crate root).
+- `archive/mod.rs`: `pub mod age_vault` + re-exports encrypt-функций. В #51 re-exports были и на lib-корне; **убраны в #53** (сужение public API по ревью — остаётся только `archive::age_vault::…`; decrypt не торчит из crate root).
 - `Cargo.toml`: `age = "0.12"`, `zeroize = { version = "1", features = ["derive"] }`, `[features] age-decrypt = []`.
 
 #### Файлы
@@ -69,6 +69,7 @@
 - A1.2/A1.3: те же age-примитивы лягут в encrypt шаг stash.
 - decrypt не ре-экспортирован из lib root — только под `age-decrypt` feature / test.
 - Маппинг ошибок: `age::encrypt` → `Error::Encrypt`; `wrap_output`/`finish`/`copy` → `Error::Io` (в age 0.12 это io::Result). Для CLI stash (A1.4) имеет смысл различать «encrypt failed» vs «io failed» — решить при facade/CLI.
+- Тест tmp-очистки на mid-write fail — только `#[cfg(unix)]` (EISDIR-трюк через директорию как source); Windows-ветка не покрыта (для Linux-MVP ок, cross-platform — позже).
 
 #### Follow-up review замечания (человек, 2026-08-14; PR #51) — НЕ блокеры
 - **A. Error mapping** — принято к A1.2: `age::EncryptError` → `Error::Encrypt`, чистый IO → `Error::Io`; для 0.12 wrap_output/finish возвращают io::Result, поэтому семантика уточняется при facade stash.
