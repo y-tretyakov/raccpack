@@ -125,6 +125,22 @@
 - ustar-имена длиннее 255 байт/100+155 → tar-ошибка (Error::Io); лимит принят для MVP, не обрабатывается отдельно.
 - `is_path_under_root` для несуществующего пути → `Error::Io` (не PathNotFound); в `stash_select` exists-check идёт раньше — семантика корректна.
 
+### A1.2-fix — follow-up по ревью (CLOSED)
+
+- **Дата:** 2026-08-14
+- **Ветка:** `a1.2-review-fixes` (PR #57 → dev, squash, merged)
+- **Статус:** done
+- **Сделано:**
+  - **P1#1 / TOCTOU:** `write_stash_age` берёт размер заголовка tar из `metadata().len()` открытого файла, а не из selection-time `size_bytes`; manifest и `bytes_archived` отражают фактический размер (тест `header_size_tracks_actual_file_len`).
+  - **P1#3:** готовый `.age` best-effort `chmod 0600` на Unix (`set_secrets_file_mode`, зеркало `den::layout`; тест `age_output_mode_is_0600`).
+  - **P1#4:** `only_files` отказывает не-regular путям через `symlink_metadata` → `Error::NotAFile` (тест `only_files_symlink_is_rejected`).
+  - **P1#5:** containment и `relative_path` считаются от **canonicalized** путей против canonical target; `./.env` → `.env` (тест `only_files_curdir_relative_path_is_clean`).
+  - **P2#6:** типизированные `Error::PathOutsideTarget` / `Error::NotAFile` (thiserror + `suggestion()`).
+  - **P2#7:** tar entry `set_mode(0o600)` (было 0o644).
+- **Отложено (зафиксировано для следующих этапов):** P1#2 — весь tar в RAM → stream tar→age writer (Alpha OK); P2#9 — pub surface `stash_*` через `secrets::` → аудит к 1.0.
+- **Тесты:** `cargo test --workspace` green; stash: 22 unit (с `--features age-decrypt`) + 12 integration (roundtrip decrypt+untar) pass; fmt/clippy `-D warnings` clean.
+- `is_path_under_root` остаётся pub helper (использует A1.3); порядок проверок в select теперь: exists → `symlink_metadata`/is_file → canonical containment → dedup.
+
 ## Этапы
 
 ### 2026-08-14 13:20 — docs: трекинг agent knowledge docs (dev + main)
