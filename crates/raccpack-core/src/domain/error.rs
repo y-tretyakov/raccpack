@@ -48,6 +48,9 @@ impl Error {
             Error::DenVersion { .. } => {
                 Some("Point den_dir at a compatible den, or migrate it with a future `racc den migrate` command.")
             }
+            Error::Encrypt { .. } => {
+                Some("Check that the passphrase is non-empty and the output path is writable.")
+            }
             _ => None,
         }
     }
