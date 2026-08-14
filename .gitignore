@@ -47,8 +47,6 @@ skills-lock.json
 # Local agent/dev docs — exist only on disk, never in the repo
 AGENTS.md
 raccpack-agent-workflow.md
-raccpack-architecture-vision.md
 raccpack-facade-and-den.md
 raccpack-markers-detect-modularity.md
 raccpack-modularity.md
-raccpack-roadmap-v1.md
