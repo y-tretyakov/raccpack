@@ -12,10 +12,16 @@
 //! `output` must NOT be inside `source` — the caller guarantees a staging path
 //! outside the tree.
 //!
+//! [`age_vault`] holds the age (scrypt passphrase) encrypt backend used for
+//! secret vaults; it writes binary age files atomically and zeroizes passphrase
+//! material.
+//!
 //! [`SkipPolicy`]: crate::scan::SkipPolicy
 
+pub mod age_vault;
 pub mod deny;
 pub mod pack;
 
+pub use age_vault::{encrypt_bytes_to_file, encrypt_file_to_age};
 pub use deny::{content_deny_hit, should_deny_file_in_pack, ContentDenyOptions};
 pub use pack::{pack_tree, PackTreeOptions, PackTreeResult};

@@ -16,7 +16,8 @@ pub use app::{
     SecretExitPolicy, SensitiveFile, SniffOptions, SniffResult, WorkspacePaths,
 };
 pub use archive::{
-    pack_tree, should_deny_file_in_pack, ContentDenyOptions, PackTreeOptions, PackTreeResult,
+    encrypt_bytes_to_file, encrypt_file_to_age, pack_tree, should_deny_file_in_pack,
+    ContentDenyOptions, PackTreeOptions, PackTreeResult,
 };
 pub use cache::{store_sniff_cache, try_load_sniff_cache};
 pub use config::{ConfigError, PathsConfig, RaccConfig, ScannerConfig};

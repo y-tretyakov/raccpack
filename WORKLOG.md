@@ -9,7 +9,7 @@
 ## Backlog (Alpha → 0.3.0)
 
 ```
-[ ] A1.1 age + zeroize passphrase
+[x] A1.1 age + zeroize passphrase
 [ ] A1.2 stash manifest (без raw) + remove sources в Commit
 [ ] A1.3 facade stash + den/secrets/…
 [ ] A1.4 CLI racc stash
@@ -28,7 +28,43 @@
 
 ## Этапы
 
-_(пусто — первый этап Alpha ещё не стартовал)_
+### 2026-08-14 13:37 — A1.1 age + zeroize passphrase
+
+**Задача:** crypto-примитив stash: age (scrypt passphrase) encrypt/decrypt, zeroize материала ключа. Без facade / den / CLI.
+
+**Сделано (Orchestrator: Dev + Test субагенты параллельно, приёмка по §6 спеки):**
+- `archive/age_vault.rs` (created): `encrypt_bytes_to_file`, `encrypt_file_to_age` (→ bytes_read), `decrypt_file_from_age` (test-only, `#[cfg(any(test, feature = "age-decrypt"))]`), atomic write (`<output>.tmp` + rename, temp удаляется при ошибке), empty passphrase → `Error::Encrypt`.
+- `domain/error.rs`: новый вариант `Error::Encrypt { message }` — passphrase никогда в Display.
+- `archive/mod.rs` + `lib.rs`: `pub mod age_vault` + re-exports encrypt-функций (decrypt на уровне lib НЕ ре-экспортирован).
+- `Cargo.toml`: `age = "0.12"`, `zeroize = { version = "1", features = ["derive"] }`, `[features] age-decrypt = []`.
+
+**Файлы:**
+- `crates/raccpack-core/src/archive/age_vault.rs` (created)
+- `crates/raccpack-core/Cargo.toml`, `src/domain/error.rs`, `src/archive/mod.rs`, `src/lib.rs`, `Cargo.lock` (changed)
+
+**Тесты:**
+- `cargo test -p raccpack-core age_vault` → 7/7 pass (roundtrip, wrong passphrase, empty passphrase, file roundtrip + bytes_read, no-leak в Display, overwrite, binary magic header).
+- `cargo test --workspace` → все зелёные (включая регрессию CLI/core).
+- `cargo clippy --workspace --all-targets -- -D warnings` → чисто.
+- `cargo fmt -p raccpack-core -- --check` → чисто.
+
+**Зафиксировано (решения):**
+- age version: **0.12.1** (0.10.0 yanked; MSRV 1.74 ≤ workspace 1.75).
+- Формат: **binary** (без ASCII armor); фича `armor` не включалась (отклонение от snippet в спеке — модуль не используется).
+- Passphrase: caller `Zeroizing<String>` → внутренняя копия `secrecy::SecretString`; обе zeroize на drop. Промежуточный `String` от `to_owned()` — не zeroized (кратковременный; тот же паттерн, что в примерах самого age-крейта).
+- Атомарная запись внутри vault (tmp + rename), overwrite ок.
+
+**Риски / follow-up:**
+- A1.2/A1.3: те же age-примитивы лягут в encrypt шаг stash.
+- decrypt не ре-экспортирован из lib root — только под `age-decrypt` feature / test.
+
+**Критерий готовности §6:**
+- [x] encrypt_file_to_age / encrypt_bytes_to_file работают
+- [x] Passphrase через Zeroizing/SecretString; empty rejected
+- [x] Ошибки без утечки passphrase
+- [x] Decrypt для тестов roundtrip
+- [x] Модуль изолирован в archive/age_vault.rs
+- [x] Тесты §5 зелёные
 
 ## Этапы
 
