@@ -10,7 +10,20 @@
 //! separate [`crate::secrets::stash_remove::remove_stash_sources`] call (Commit
 //! semantics only). If encryption fails, `encrypt_bytes_to_file` already
 //! leaves no partial `output_age` behind.
+//!
+//! INVARIANTS:
+//!
+//! - **No TOCTOU size drift**: the ustar header size is taken from the *open*
+//!   file's `metadata().len()`, not from the selection-time
+//!   `StashFileEntry::size_bytes`, so a file changed between select and batch
+//!   cannot produce a truncated/corrupt tar. The manifest mirrors the actual
+//!   archived size.
+//! - **0600 end-to-end**: tar entry mode is `0o600` (secrets) and `output_age`
+//!   is `chmod`ed `0o600` after encryption (best-effort on Unix).
+//! - The whole tar is buffered in memory (Alpha scope); streaming
+//!   tar → age writer is a later optimization.
 
+use std::fs;
 use std::fs::File;
 use std::path::{Component, Path, PathBuf};
 
@@ -54,12 +67,16 @@ pub struct StashBatchResult {
 /// 2. A `tar::Builder` over an in-memory buffer appends each entry under a
 ///    freshly built [`tar::Header::new_ustar`] header (POSIX ustar), using its
 ///    POSIX-relative name (components joined with `/`, no `..`, no leading `/`,
-///    no `./`). Open and tar errors map to [`Error::Io`] on the offending path.
+///    no `./`). The header size is the *open file's* `metadata().len()` (not
+///    the selection-time size), so a file mutated between select and batch
+///    cannot truncate the tar. Open, metadata, and tar errors map to
+///    [`Error::Io`] on the offending path. Entry mode is `0o600`.
 /// 3. `finish()` + `into_inner()` yield the tar bytes.
 /// 4. [`encrypt_bytes_to_file`] writes the age file atomically; the passphrase
-///    is zeroized by the age backend, never appears in errors.
-/// 5. The manifest mirrors `entries`; `bytes_archived` is the sum of
-///    `entry.size_bytes`.
+///    is zeroized by the age backend, never appears in errors. The finished
+///    `output_age` is then `chmod`ed `0o600` (best-effort on Unix).
+/// 5. The manifest mirrors `entries` using the actual archived sizes;
+///    `bytes_archived` is the sum of those sizes.
 ///
 /// The `output_age` staging path is returned in
 /// [`StashBatchResult::age_path`]; the caller decides where to place it
@@ -84,10 +101,17 @@ pub fn write_stash_age(
             path: entry.path.clone(),
             source,
         })?;
+        let actual_len = file
+            .metadata()
+            .map_err(|source| Error::Io {
+                path: entry.path.clone(),
+                source,
+            })?
+            .len();
         let name = posix_archive_name(&entry.relative_path)?;
         let mut header = tar::Header::new_ustar();
-        header.set_size(entry.size_bytes);
-        header.set_mode(0o644);
+        header.set_size(actual_len);
+        header.set_mode(0o600);
         header.set_mtime(0);
         header.set_entry_type(tar::EntryType::Regular);
         builder
@@ -96,11 +120,11 @@ pub fn write_stash_age(
                 path: entry.path.clone(),
                 source,
             })?;
-        bytes_archived += entry.size_bytes;
+        bytes_archived += actual_len;
         manifest.push(StashManifestEntry {
             original_path: entry.path.clone(),
             risk: entry.risk,
-            size_bytes: entry.size_bytes,
+            size_bytes: actual_len,
         });
     }
 
@@ -114,6 +138,7 @@ pub fn write_stash_age(
     })?;
 
     encrypt_bytes_to_file(&tar_bytes, output_age, passphrase)?;
+    set_secrets_file_mode(output_age);
 
     Ok(StashBatchResult {
         age_path: output_age.to_path_buf(),
@@ -142,6 +167,28 @@ fn posix_archive_name(relative: &Path) -> Result<String, Error> {
         }
     }
     Ok(parts.join("/"))
+}
+
+/// Best-effort `chmod 0600` for a finished `.age` file (Unix only).
+///
+/// Mirrors `den::layout::set_mode_best_effort`: a failed `chmod` is ignored,
+/// never fatal — the vault is still encrypted. On non-Unix platforms this is a
+/// no-op (permissions are documented as a Unix recommendation). The facade's
+/// den `secrets/` placement (A1.3) applies the authoritative `0600`.
+fn set_secrets_file_mode(path: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(metadata) = fs::metadata(path) {
+            let mut permissions = metadata.permissions();
+            permissions.set_mode(0o600);
+            let _ = fs::set_permissions(path, permissions);
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+    }
 }
 
 #[cfg(test)]
@@ -232,5 +279,63 @@ mod tests {
     fn posix_name_rejects_parent_dir() {
         let err = posix_archive_name(Path::new("a/../b")).unwrap_err();
         assert!(err.to_string().contains("escapes"));
+    }
+
+    #[test]
+    fn header_size_tracks_actual_file_len() {
+        let dir = TempDir::new().unwrap();
+        let target = dir.path().join("proj");
+        fs::create_dir_all(&target).unwrap();
+        let source = target.join(".env");
+        fs::write(&source, b"TOKEN=abc\n").unwrap();
+
+        let opts = StashSelectOptions {
+            target: target.clone(),
+            ..StashSelectOptions::default()
+        };
+        let entries = select_files_for_stash(&opts).unwrap();
+        assert_eq!(entries[0].size_bytes, 10);
+
+        // Selection-time size differs from the on-disk size: the batch must
+        // use the open file's length so the tar stays consistent.
+        fs::write(&source, b"TOKEN=abc\nTOKEN=def\n").unwrap();
+
+        let output = dir.path().join("stash.age");
+        let result = write_stash_age(&entries, &output, &passphrase()).unwrap();
+
+        assert_eq!(result.bytes_archived, 20);
+        assert_eq!(result.manifest[0].size_bytes, 20);
+
+        let plaintext = decrypt_file_from_age(&output, &passphrase()).unwrap();
+        let mut archive = tar::Archive::new(&plaintext[..]);
+        for item in archive.entries().unwrap() {
+            let mut entry = item.unwrap();
+            assert_eq!(entry.size(), 20);
+            let mut contents = Vec::new();
+            entry.read_to_end(&mut contents).unwrap();
+            assert_eq!(contents, b"TOKEN=abc\nTOKEN=def\n");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn age_output_mode_is_0600() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = TempDir::new().unwrap();
+        let target = dir.path().join("proj");
+        fs::create_dir_all(&target).unwrap();
+        fs::write(target.join(".env"), b"TOKEN=secret\n").unwrap();
+
+        let opts = StashSelectOptions {
+            target: target.clone(),
+            ..StashSelectOptions::default()
+        };
+        let entries = select_files_for_stash(&opts).unwrap();
+        let output = dir.path().join("stash.age");
+        write_stash_age(&entries, &output, &passphrase()).unwrap();
+
+        let mode = fs::metadata(&output).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "staged .age must be 0600, got {mode:o}");
     }
 }

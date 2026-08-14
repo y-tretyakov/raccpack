@@ -6,8 +6,12 @@
 //! no `..` (safe for tar), the folded [`SensitiveRisk`], and the file size.
 //!
 //! Selected paths must be contained under the target root (F-PATH-1); a path
-//! escaping it is an error, never a silently-broadened archive. Files that do
-//! not meet the minimum risk are simply not included (`Ok(vec![])` when nothing
+//! escaping it is [`crate::Error::PathOutsideTarget`], a non-regular path
+//! (directory, symlink, device) is [`crate::Error::NotAFile`] — never a
+//! silently-broadened archive. Containment and the tar `relative_path` are
+//! computed from **canonicalized** paths, so user-supplied `..`/`./` or
+//! symlinked intermediates cannot make an entry escape. Files that do not meet
+//! the minimum risk are simply not included (`Ok(vec![])` when nothing
 //! survives).
 
 use std::collections::HashSet;
@@ -15,7 +19,6 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 use crate::domain::{Error, SensitiveRisk};
-use crate::scan::is_path_under_root;
 use crate::scan::walk::ensure_scan_root;
 
 use super::content::{scan_file_content, ContentScanLimits};
@@ -64,25 +67,32 @@ impl Default for StashSelectOptions {
 ///
 /// # Algorithm
 ///
-/// - `opts.target` is validated with [`ensure_scan_root`] first.
+/// - `opts.target` is validated with [`ensure_scan_root`] and canonicalized
+///   once; both containment and the tar `relative_path` are computed against
+///   the canonical root.
 /// - With `only_files`: every path must (a) exist — else
-///   [`Error::PathNotFound`], (b) be a regular file — else
-///   [`Error::Other`], and (c) be contained under `target` via
-///   [`is_path_under_root`] — else [`Error::Other`]. Inclusion is decided by
-///   filename matches and (when `scan_content`) content hits filtered against
-///   `min_risk`; a file with no qualifying source is skipped, not an error.
-///   Duplicates (same canonical path) collapse into one entry.
+///   [`Error::PathNotFound`], (b) be a regular file (checked with
+///   `symlink_metadata`, so symlinks, directories, and special files are
+///   rejected) — else [`Error::NotAFile`], and (c) be contained under the
+///   canonical target — else [`Error::PathOutsideTarget`]. Inclusion is decided
+///   by filename matches and (when `scan_content`) content hits filtered
+///   against `min_risk`; a file with no qualifying source is skipped, not an
+///   error. Duplicates (same canonical path) collapse into one entry.
 /// - Without `only_files`: [`scan_secrets`] runs with the same `min_risk` /
 ///   `scan_content`, and each finding maps to one entry.
-/// - `relative_path` is `path` stripped of `target` with every component
-///   validated (mirroring `archive::pack::relative_posix_name`); `..`, `/`, and
-///   drive-prefix components are rejected with [`Error::Other`].
+/// - `relative_path` is the canonical path stripped of the canonical target
+///   with every component validated (mirroring `archive::pack::relative_posix_name`);
+///   `..`, `/`, and drive-prefix components are rejected.
 /// - `size_bytes` comes from `fs::metadata` (IO failures → [`Error::Io`]).
 /// - Results are sorted by `path` ascending; an empty selection is
 ///   `Ok(vec![])` (the "nothing to stash" error belongs to
 ///   [`crate::secrets::stash_batch::write_stash_age`]).
 pub fn select_files_for_stash(opts: &StashSelectOptions) -> Result<Vec<StashFileEntry>, Error> {
     ensure_scan_root(&opts.target)?;
+    let canonical_target = fs::canonicalize(&opts.target).map_err(|source| Error::Io {
+        path: opts.target.clone(),
+        source,
+    })?;
 
     let mut entries: Vec<StashFileEntry> = Vec::new();
     if let Some(files) = &opts.only_files {
@@ -91,28 +101,30 @@ pub fn select_files_for_stash(opts: &StashSelectOptions) -> Result<Vec<StashFile
             if !file.exists() {
                 return Err(Error::PathNotFound { path: file.clone() });
             }
-            if file.is_dir() {
-                return Err(Error::Other {
-                    message: format!("not a file: {}", file.display()),
-                });
-            }
-            if !is_path_under_root(file, &opts.target)? {
-                return Err(Error::Other {
-                    message: format!("path outside stash target: {}", file.display()),
-                });
+            let file_type = fs::symlink_metadata(file)
+                .map_err(|source| Error::Io {
+                    path: file.clone(),
+                    source,
+                })?
+                .file_type();
+            if !file_type.is_file() {
+                return Err(Error::NotAFile { path: file.clone() });
             }
             let canonical = fs::canonicalize(file).map_err(|source| Error::Io {
                 path: file.clone(),
                 source,
             })?;
-            if !seen.insert(canonical) {
+            if !canonical.starts_with(&canonical_target) {
+                return Err(Error::PathOutsideTarget { path: file.clone() });
+            }
+            if !seen.insert(canonical.clone()) {
                 continue;
             }
 
             let Some(risk) = qualifying_risk(file, opts)? else {
                 continue;
             };
-            let relative_path = relative_stash_path(&opts.target, file)?;
+            let relative_path = relative_stash_path(&canonical_target, &canonical)?;
             let size_bytes = metadata_len(file)?;
             entries.push(StashFileEntry {
                 path: file.clone(),
@@ -128,7 +140,11 @@ pub fn select_files_for_stash(opts: &StashSelectOptions) -> Result<Vec<StashFile
             ..SecretScanOptions::default()
         };
         for finding in scan_secrets(&opts.target, &scan_opts)? {
-            let relative_path = relative_stash_path(&opts.target, &finding.path)?;
+            let canonical = fs::canonicalize(&finding.path).map_err(|source| Error::Io {
+                path: finding.path.clone(),
+                source,
+            })?;
+            let relative_path = relative_stash_path(&canonical_target, &canonical)?;
             let size_bytes = metadata_len(&finding.path)?;
             entries.push(StashFileEntry {
                 path: finding.path,
@@ -303,8 +319,50 @@ mod tests {
         };
         let err = select_files_for_stash(&opts).unwrap_err();
         assert!(
-            err.to_string().contains("outside"),
+            matches!(err, Error::PathOutsideTarget { .. }),
             "expected outside-target error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn only_files_curdir_relative_path_is_clean() {
+        let dir = TempDir::new().unwrap();
+        let target = dir.path().join("proj");
+        fs::create_dir_all(&target).unwrap();
+        write(&target, ".env", b"TOKEN=secret\n");
+
+        let via_curdir = target.join("./.env");
+        let opts = StashSelectOptions {
+            target: target.clone(),
+            only_files: Some(vec![via_curdir]),
+            ..StashSelectOptions::default()
+        };
+        let entries = select_files_for_stash(&opts).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].relative_path, PathBuf::from(".env"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn only_files_symlink_is_rejected() {
+        use std::os::unix::fs::symlink;
+
+        let dir = TempDir::new().unwrap();
+        let target = dir.path().join("proj");
+        fs::create_dir_all(&target).unwrap();
+        write(&target, ".env", b"TOKEN=secret\n");
+        symlink(target.join(".env"), target.join("link.env")).unwrap();
+
+        let opts = StashSelectOptions {
+            target: target.clone(),
+            only_files: Some(vec![target.join("link.env")]),
+            ..StashSelectOptions::default()
+        };
+        let err = select_files_for_stash(&opts).unwrap_err();
+        assert!(
+            matches!(err, Error::NotAFile { .. }),
+            "symlinks must be refused, got: {err}"
         );
     }
 
