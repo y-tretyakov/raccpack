@@ -19,6 +19,12 @@ pub enum Error {
         #[source]
         source: std::io::Error,
     },
+    /// Encryption/decryption failure in the age backend.
+    ///
+    /// The `message` never contains the passphrase (see
+    /// [`crate::archive::age_vault`] invariants).
+    #[error("encryption failed: {message}")]
+    Encrypt { message: String },
     /// Invalid configuration input.
     #[error("invalid configuration: {message}")]
     Config { message: String },
