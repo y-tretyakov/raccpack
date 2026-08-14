@@ -30,6 +30,25 @@
 
 _(пусто — первый этап Alpha ещё не стартовал)_
 
+## Этапы
+
+### 2026-08-14 13:20 — docs: трекинг agent knowledge docs (dev + main)
+
+**Задача:** закоммитить три общих документа через PR в `dev` и в `main`.
+
+**Сделано:**
+- `.gitignore`: убраны строки `raccpack-architecture-vision.md` / `raccpack-roadmap-v1.md`, чтобы документы трекались.
+- `docs/FOLLOWUPS_FROM_MVP.md`, `docs/raccpack-architecture-vision.md`, `docs/raccpack-roadmap-v1.md` — закоммичены.
+- PR #48 → `dev` (squash, merged).
+- PR #49 → `main` (squash, merged через --admin, т.к. main защищён 1 approval).
+
+**Файлы (changed):** `.gitignore`
+**Файлы (created):** `docs/raccpack-architecture-vision.md`, `docs/raccpack-roadmap-v1.md`, `docs/FOLLOWUPS_FROM_MVP.md` (в main; в dev FOLLOWUPS был с #45)
+**Тесты:** n/a (только docs). `cargo` не затрагивался.
+**Решения:**
+- `main` не переделывался целиком под `dev` — только добавлены 3 документа (main остаётся за релизами вех).
+- Ветки `main`/`dev` не удалялись. `.agents/` не трогался.
+
 ## Принятые решения (Alpha+)
 
 | Дата | Решение |
