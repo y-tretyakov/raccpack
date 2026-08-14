@@ -20,10 +20,11 @@
 //! # }
 //! ```
 //!
-//! `is_under_root` / path-containment checks are NOT implemented here; they are
-//! a required follow-up before `pack` / `stash` can rely on entries staying
-//! within the scan root.
+//! Path-containment checks live here: [`is_path_under_root`] canonicalizes both
+//! sides and guarantees an entry stays within the scan root, which `pack` /
+//! `stash` rely on.
 
+use std::fs;
 use std::path::Path;
 
 use walkdir::WalkDir;
@@ -130,4 +131,75 @@ pub fn ensure_scan_root(root: &Path) -> Result<(), Error> {
         });
     }
     Ok(())
+}
+
+/// Whether `path` is contained under `root`, after canonicalizing both sides.
+///
+/// Both paths must exist (`fs::canonicalize`); a missing path yields
+/// [`Error::Io`] with the offending path. The check is component-wise on the
+/// canonical paths, so a sibling like `/a/bc` is NOT under `/a/b`. Because both
+/// sides are canonicalized, a `..` path that resolves inside `root` (e.g.
+/// `/a/b/c/../file`) is accepted.
+pub fn is_path_under_root(path: &Path, root: &Path) -> Result<bool, Error> {
+    let canonical_path = fs::canonicalize(path).map_err(|source| Error::Io {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    let canonical_root = fs::canonicalize(root).map_err(|source| Error::Io {
+        path: root.to_path_buf(),
+        source,
+    })?;
+    Ok(canonical_path.starts_with(canonical_root))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn is_path_under_root_accepts_nested_file() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("proj");
+        fs::create_dir_all(root.join("src")).unwrap();
+        let inside = root.join("src/main.rs");
+        fs::write(&inside, b"fn main() {}\n").unwrap();
+
+        assert!(is_path_under_root(&inside, &root).unwrap());
+        assert!(is_path_under_root(&root, &root).unwrap());
+    }
+
+    #[test]
+    fn is_path_under_root_rejects_sibling_prefix() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("b");
+        fs::create_dir(&root).unwrap();
+        let sibling = dir.path().join("bc");
+        fs::write(&sibling, b"not under b\n").unwrap();
+
+        assert!(!is_path_under_root(&sibling, &root).unwrap());
+    }
+
+    #[test]
+    fn is_path_under_root_resolves_dotdot_inside() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("a/b");
+        fs::create_dir_all(root.join("c")).unwrap();
+        let real = root.join("file.txt");
+        fs::write(&real, b"x\n").unwrap();
+
+        let via_dotdot = root.join("c/../file.txt");
+        assert!(is_path_under_root(&via_dotdot, &root).unwrap());
+    }
+
+    #[test]
+    fn is_path_under_root_missing_path_is_err() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("proj");
+        fs::create_dir(&root).unwrap();
+        let missing = root.join("nope.txt");
+
+        assert!(is_path_under_root(&missing, &root).is_err());
+    }
 }

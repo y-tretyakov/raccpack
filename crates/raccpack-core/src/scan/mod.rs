@@ -19,4 +19,4 @@ pub use candidates::{find_candidates, CandidateOptions, ProjectCandidate};
 pub use markers::{default_markers, MarkerDef, MarkerHit, MarkerKind};
 pub use size::project_size_bytes;
 pub use skip::{SkipPolicy, SkipReason};
-pub use walk::{ensure_scan_root, walk_tree, WalkOptions};
+pub use walk::{ensure_scan_root, is_path_under_root, walk_tree, WalkOptions};
