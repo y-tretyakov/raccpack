@@ -34,6 +34,9 @@ pub enum Error {
         found: String,
         expected: &'static str,
     },
+    /// Nothing to archive (empty selection).
+    #[error("nothing to stash: {message}")]
+    StashEmpty { message: String },
     /// Catch-all for errors without a dedicated variant.
     #[error("{message}")]
     Other { message: String },
@@ -51,6 +54,9 @@ impl Error {
             Error::Encrypt { .. } => {
                 Some("Check that the passphrase is non-empty and the output path is writable.")
             }
+            Error::StashEmpty { .. } => Some(
+                "No sensitive files matched the min-risk threshold; lower --min-risk or check `racc dig` output.",
+            ),
             _ => None,
         }
     }
@@ -81,6 +87,11 @@ mod tests {
         assert!(err.to_string().contains("io error at /tmp"));
         let dyn_err: &dyn std::error::Error = &err;
         assert!(dyn_err.source().is_some());
+
+        let empty = Error::StashEmpty {
+            message: "no files".into(),
+        };
+        assert_eq!(empty.to_string(), "nothing to stash: no files");
     }
 
     #[test]
@@ -113,6 +124,13 @@ mod tests {
             }
             .suggestion(),
             Some("Check that the passphrase is non-empty and the output path is writable.")
+        );
+        assert_eq!(
+            Error::StashEmpty {
+                message: "x".into()
+            }
+            .suggestion(),
+            Some("No sensitive files matched the min-risk threshold; lower --min-risk or check `racc dig` output.")
         );
         assert_eq!(
             Error::Config {
