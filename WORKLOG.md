@@ -10,7 +10,7 @@
 
 ```
 [x] A1.1 age + zeroize passphrase
-[ ] A1.2 stash manifest (без raw) + remove sources в Commit
+[x] A1.2 stash manifest (без raw) + remove sources в Commit
 [ ] A1.3 facade stash + den/secrets/…
 [ ] A1.4 CLI racc stash
 [ ] A2.1 cleanup strategies + config toggles
@@ -78,6 +78,52 @@
 - **D. `Error::Encrypt` suggestion** — добавлен hint («check passphrase / output writable»).
 - **E. Zeroize** — принято: `Zeroizing<String>` → `SecretString`; двойной zeroize на drop ок.
 - **F. Минимальная длина passphrase** — сознательно только non-empty; CLI warn про слабые пароли — A1.4/CLI.
+
+## Этапы
+
+### A1.2 — stash manifest (без raw) + remove sources в Commit (CLOSED)
+
+- **Дата:** 2026-08-14 18:36 EEST
+- **Ветка:** `a1.2-stash-manifest-remove` (PR #55 → dev, squash, merged)
+- **Статус:** done
+- **Dev:** dev-a1.2 · **Test:** test-a1.2 (параллельно, стыковка без rework)
+
+#### Сделано
+- `secrets/stash_select.rs` (created): `StashFileEntry`, `StashSelectOptions` (default min_risk=High, scan_content=true), `select_files_for_stash`. Обе ветки: only_files (containment, exists, dir → Err, dedup по canonical path, риск через match_filename_all + scan_file_content с фильтром min_risk) и полный `scan_secrets`. `relative_path` без `..` (валидация компонентов, зеркало `relative_posix_name` из pack). Пустая выборка → `Ok(vec![])`.
+- `secrets/stash_batch.rs` (created): `StashManifestEntry` (serde, без raw), `StashBatchResult`, `write_stash_age` — ustar-tar в памяти (`tar::Header::new_ustar` + `append_data`, POSIX-имена без `..`/`./`/leading `/`) → `encrypt_bytes_to_file`. Пустой вход → `Error::StashEmpty`.
+- `secrets/stash_remove.rs` (created): `remove_stash_sources` — явный вызов, fail-fast, каталоги пропускаются (не считаются), symlink удаляется как ссылка.
+- `domain/error.rs`: variant `Error::StashEmpty { message }` + suggestion («lower --min-risk / check racc dig»).
+- `scan/walk.rs`: `is_path_under_root` (canonicalize обеих сторон, `starts_with`) — закрывает **F-PATH-1**; module-doc переписан (containment теперь есть); re-export из `scan/mod.rs`.
+- Re-exports в `secrets/mod.rs`; **lib.rs не трогали** (сужение public API A1.1).
+
+#### Файлы
+- created: `crates/raccpack-core/src/secrets/stash_select.rs`, `stash_batch.rs`, `stash_remove.rs`, `crates/raccpack-core/tests/stash.rs`
+- changed: `src/domain/error.rs`, `src/scan/walk.rs`, `src/scan/mod.rs`, `src/secrets/mod.rs`
+
+#### Тесты
+- `cargo test --workspace` → pass (регрессий нет; без `age-decrypt` 11 stash-тестов).
+- `cargo test -p raccpack-core stash --features age-decrypt` → 12 passed (вкл. roundtrip decrypt+untar восстановления содержимого и относительных имён).
+- `cargo fmt --all -- --check` → clean. `cargo clippy --workspace --all-targets -- -D warnings` → clean.
+- Test-субагент сдал `tests/stash.rs` через `/tmp` (parallel-безопасно); при стыковке исправлен move-bug (`let _temp = temp;` → `let _ = &temp;`), файл отформатирован.
+
+#### Зафиксировано
+- Формат batch: **tar (ustar) внутри age**, один `.age`. `tar 0.4.46` не имеет `Builder::set_format`/`ArchiveFormat` — ustar сделан через `Header::new_ustar()` (настоящий POSIX ustar magic `ustar\0`).
+- Manifest JSON содержит только `original_path`/`risk`/`size_bytes` — без содержимого.
+- `remove_stash_sources` НЕ вызывается нигде в pipeline — только явный вызов (Commit).
+- Path containment: `is_path_under_root` canonicalize-based; для `--only` порядок = exists → dir-check → containment → dedup.
+
+#### Критерий готовности (DoD из a1.2 §6)
+- [x] Select + batch encrypt + remove разделены по файлам §3
+- [x] Manifest без raw
+- [x] Tar paths relative and safe (нет `..`)
+- [x] F-PATH-1: path-containment под `target` (в т.ч. `--only` / selected paths)
+- [x] Remove только явный вызов
+- [x] Тесты зелёные (+ outside-target → Error)
+
+#### Риски / follow-up
+- A1.3 (facade `stash` + den `secrets/place`): утилизировать `write_stash_age` (staging .age) + `remove_stash_sources` (Commit), имя `.age` по `{slug}__{ts}__secrets.age` (F-PATH-3 — staging вне project tree).
+- ustar-имена длиннее 255 байт/100+155 → tar-ошибка (Error::Io); лимит принят для MVP, не обрабатывается отдельно.
+- `is_path_under_root` для несуществующего пути → `Error::Io` (не PathNotFound); в `stash_select` exists-check идёт раньше — семантика корректна.
 
 ## Этапы
 
