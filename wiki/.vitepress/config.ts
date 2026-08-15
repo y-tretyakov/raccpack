@@ -15,7 +15,10 @@ const rus = {
       text: 'Использование',
       items: [
         { text: 'Использование CLI', link: '/cli-usage' },
-        { text: 'Stash — секреты в age', link: '/stash' },
+        { text: 'Sniff', link: '/sniff' },
+        { text: 'Dig', link: '/dig' },
+        { text: 'Pack', link: '/pack' },
+        { text: 'Stash', link: '/stash' },
         { text: 'Конфигурация', link: '/configuration' },
         { text: 'TUI', link: '/tui-usage' },
         { text: 'Desktop', link: '/desktop-usage' },
@@ -49,7 +52,10 @@ const rus = {
       text: 'Использование',
       items: [
         { text: 'CLI', link: '/cli-usage' },
-        { text: 'Stash — секреты в age', link: '/stash' },
+        { text: 'Sniff', link: '/sniff' },
+        { text: 'Dig', link: '/dig' },
+        { text: 'Pack', link: '/pack' },
+        { text: 'Stash', link: '/stash' },
         { text: 'Конфигурация', link: '/configuration' },
         { text: 'TUI', link: '/tui-usage' },
         { text: 'Desktop', link: '/desktop-usage' },
