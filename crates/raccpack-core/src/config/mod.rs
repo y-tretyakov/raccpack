@@ -27,7 +27,7 @@ pub use error::ConfigError;
 /// Top-level raccpack configuration.
 ///
 /// Unknown TOML keys are ignored (no `deny_unknown_fields`) so future sections
-/// such as `[sensitive]`, `[cleanup]`, or `[advanced]` do not break parsing.
+/// such as `[sensitive]` or `[advanced]` do not break parsing.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct RaccConfig {
     /// Paths for the scan input and den output.
@@ -36,6 +36,9 @@ pub struct RaccConfig {
     /// Scanner behavior settings.
     #[serde(default)]
     pub scanner: ScannerConfig,
+    /// Cleanup (rinse) strategy toggles.
+    #[serde(default)]
+    pub cleanup: CleanupConfig,
 }
 
 /// Raw path settings.
@@ -67,6 +70,31 @@ impl Default for ScannerConfig {
     fn default() -> Self {
         Self {
             max_depth: default_max_depth(),
+        }
+    }
+}
+
+/// Cleanup (rinse) behavior settings.
+#[derive(Debug, Clone, Deserialize)]
+pub struct CleanupConfig {
+    /// Strategy ids enabled when `RinseOptions.strategies` is `None`.
+    #[serde(default = "default_enabled_strategies")]
+    pub enabled_strategies: Vec<String>,
+}
+
+/// Default enabled cleanup strategy ids: only `rust`, `node`, `python`.
+///
+/// `jvm`, `go`, and `generic` are opt-in: `dist`/`build`/`vendor`/`tmp` are
+/// *careful* names that may be genuine source or user data (see
+/// `clean::strategy::DEFAULT_STRATEGIES`).
+pub fn default_enabled_strategies() -> Vec<String> {
+    vec!["rust".into(), "node".into(), "python".into()]
+}
+
+impl Default for CleanupConfig {
+    fn default() -> Self {
+        Self {
+            enabled_strategies: default_enabled_strategies(),
         }
     }
 }
@@ -159,11 +187,13 @@ impl RaccConfig {
 
     /// Validate the parsed configuration.
     ///
-    /// Currently checks that `scanner.max_depth` is at least 1. Empty
+    /// Checks that `scanner.max_depth` is at least 1 and that every
+    /// `cleanup.enabled_strategies` entry is a known strategy id. Empty
     /// `scan_root` / `den_dir` strings are handled at resolve time and do not
     /// need mutation here. Called automatically by [`RaccConfig::load`] and
     /// [`RaccConfig::load_from_path`].
     pub fn validate(&self) -> Result<(), ConfigError> {
-        validate::validate_max_depth(self.scanner.max_depth)
+        validate::validate_max_depth(self.scanner.max_depth)?;
+        validate::validate_enabled_strategies(&self.cleanup.enabled_strategies)
     }
 }
