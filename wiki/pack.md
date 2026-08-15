@@ -64,6 +64,10 @@ racc pack --project <PATH> [OPTIONS]
 | `--zstd-level <N>` | crate default (`3`) | Уровень сжатия zstd |
 | `--output-name <NAME>` | `{slug}__{UTC}` | Имя артефакта без `.tar.zst` |
 
+::: warning
+`--no-content-deny` отключает только проверку **содержимого**. Deny по **имени** файла (`.env`, ключи и т.п.) остаётся. Архив `pack` **не шифруется** — для хранения секретов используйте `racc stash`.
+:::
+
 ### Глобальные флаги
 
 | Флаг | Описание |

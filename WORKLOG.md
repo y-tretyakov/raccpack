@@ -28,6 +28,39 @@
 
 ## Этапы
 
+### Wiki callouts safety (CLOSED)
+
+- **Дата:** 2026-08-15
+- **Статус:** done
+- **Роли:** Orchestrator (аудит/правки) — точечные callouts, без переписывания страниц.
+
+#### Задача
+Расставить VitePress-callouts (`::: info` / `::: warning` / `::: danger` / `::: tip`) на страницах CLI-вики там, где важные факты тонули в тексте: удаление исходников у `stash --remove-sources`, dry-run по умолчанию, passphrase в git, exit code 2 у `dig`, отсутствие raw в выводе, ослабление защиты у `pack --no-content-deny`, кэш у `sniff`.
+
+#### Сделано
+- `stash.md`: `::: warning` (dry-run по умолчанию) + `::: danger` (`--remove-sources` удаляет исходники только после успешного Commit; сначала dry-run; в CI без `--remove-sources`) — после быстрого старта; `::: warning` про `RACCPACK_PASSPHRASE` (не в git, CI → secrets store) вместо двух продублированных bullet-ов в «Passphrase».
+- `dig.md`: `::: info` (exit **2** = политика `--fail-on`, не сбой CLI; `1` — ошибка выполнения) после таблицы кодов выхода; `::: tip` (в выводе никогда нет raw — только mask/hash/len) после правил маскирования.
+- `pack.md`: `::: warning` рядом с `--no-content-deny` (отключает только контентный deny; deny по имени остаётся; архив не шифруется → для секретов `racc stash`).
+- `cli-usage.md`: короткий `::: danger` у примера stash c `--remove-sources` (ссылка на [Stash](/stash)); «Примечания» дополнены ссылками на [Dig](/dig) и уточнением смысла кода 2.
+- `sniff.md`: `::: tip` (не виден новый проект → кэш → `--force-refresh`) в секции «Кэш».
+
+#### Проверки
+- Поведение сверено с `crates/raccpack-cli`/`raccpack-core` (stash: commit = `--yes && !dry-run`, `remove_sources` только после размещения архива; dig: exit code от `--fail-on`; pack: `deny_content_secrets = !no_content_deny`) — выдуманных флагов нет.
+- `pnpm run wiki:build` — зелёный (6.4s; font-warnings предсуществующие).
+- Callout-лимиты: stash 3 / dig 2 / pack 2 / sniff 2 / cli-usage 4 — в рамках правил (2–3 deep, 3–4 overview), без каскадов по 5+.
+- Противоречий pack ↔ stash нет (pack «не шифруется → stash»; stash «удаляет только после успешного commit»).
+
+#### DoD
+- [x] stash: callout про удаление файлов (`--remove-sources`)
+- [x] dig: callout «exit 2 = политика, не crash»
+- [x] pack: warning про ослабление `--no-content-deny` и «не шифрование»
+- [x] Overview не раздут (никаких новых таблиц флагов)
+- [x] `wiki:build` зелёный
+- [x] Нет выдуманных флагов/поведения
+
+#### Зафиксировано
+- Без изменений production-кода CLI/core — только `wiki/*.md` (+ WORKLOG).
+
 ### Wiki IA — CLI overview + deep pages (CLOSED)
 
 - **Дата:** 2026-08-15
