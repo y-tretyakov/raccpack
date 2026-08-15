@@ -48,6 +48,14 @@ racc stash --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes
 racc stash --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes --remove-sources
 ```
 
+::: warning
+По умолчанию `stash` работает в **dry-run**: не создаёт `.age`, не трогает den и не удаляет файлы. Запись в den — только с `--yes`.
+:::
+
+::: danger
+`--remove-sources` **удаляет** исходные секретные файлы с диска после **успешного** Commit (`--yes`). Сначала выполните dry-run без `--yes`. В CI не передавайте `--remove-sources`, если файлы ещё нужны job'у.
+:::
+
 Интерактивно (без env): запустите с `--yes` в терминале — CLI запросит passphrase дважды (без отображения символов).
 
 ## Синтаксис
@@ -126,8 +134,10 @@ racc stash --project <PATH> [OPTIONS]
 
 Рекомендации:
 
-- Не коммитьте passphrase в скрипты в git.
-- Для CI используйте secrets store → env.
+::: warning
+Не коммитьте `RACCPACK_PASSPHRASE` и не храните passphrase в открытых скриптах. В CI задавайте переменную через secrets store.
+:::
+
 - После команды процесс не обязан хранить пароль; в core материал ключа очищается (zeroize). Значение не пишется в логи и JSON.
 
 ### Структура den после stash
