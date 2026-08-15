@@ -35,6 +35,9 @@ pub enum ConfigError {
     /// `scanner.max_depth` is not usable (must be >= 1).
     #[error("invalid max_depth: {value} (must be >= 1)")]
     InvalidMaxDepth { value: usize },
+    /// `cleanup.enabled_strategies` contains an unknown strategy id.
+    #[error("unknown cleanup strategy `{id}`")]
+    UnknownCleanupStrategy { id: String },
 }
 
 impl ConfigError {
@@ -55,6 +58,9 @@ impl ConfigError {
             }
             ConfigError::InvalidMaxDepth { .. } => {
                 Some("Set scanner.max_depth to a value of at least 1.")
+            }
+            ConfigError::UnknownCleanupStrategy { .. } => {
+                Some("Set cleanup.enabled_strategies to known ids: rust, node, python, jvm, go, generic.")
             }
             ConfigError::Read { .. } | ConfigError::Parse { .. } => None,
         }

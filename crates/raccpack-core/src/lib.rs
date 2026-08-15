@@ -3,6 +3,7 @@
 pub mod app;
 pub mod archive;
 pub mod cache;
+pub mod clean;
 pub mod config;
 pub mod den;
 pub mod detect;
@@ -20,7 +21,11 @@ pub use archive::{
     pack_tree, should_deny_file_in_pack, ContentDenyOptions, PackTreeOptions, PackTreeResult,
 };
 pub use cache::{store_sniff_cache, try_load_sniff_cache};
-pub use config::{ConfigError, PathsConfig, RaccConfig, ScannerConfig};
+pub use clean::{
+    find_trash_dirs, DetectTrashOptions, StrategyDef, StrategyId, TrashDir, TrashMatchKind,
+    TrashPattern, DEFAULT_STRATEGIES,
+};
+pub use config::{CleanupConfig, ConfigError, PathsConfig, RaccConfig, ScannerConfig};
 pub use den::{
     ensure_den, pack_relative_path, place_pack, place_secrets_archive, project_slug,
     secrets_relative_path, short_id, staging_pack_path, utc_timestamp_now, DenPaths,
