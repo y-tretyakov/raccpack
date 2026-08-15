@@ -180,6 +180,29 @@
 - `batch_id` заменяет ts в имени файла, `yyyy/mm` — от now (зафиксировано в wiki).
 - A1.4: CLI `racc stash` (passphrase env/prompt) будет использовать этот facade; нужен `passphrase.rs` + `commands/stash.rs`.
 
+### A1.3 — review fixes (P1/P2 человека)
+
+- **Дата:** 2026-08-15
+- **Ветка:** `a1.3-review-fixes`
+- **Статус:** done
+- **Dev:** dev-a1.3-review · **Test:** test-a1.3-review (параллельно)
+
+#### Сделано
+- **P1-1/P1-2 (F-PATH-3):** guard «staging внутри project» перемещён **до** `ensure_den`/`create_dir_all` и переведён на canonical containment через новый helper `scan::canonicalize_existing_prefix` (canonicalize ближайшего существующего предка + дозапись хвоста). Теперь при den внутри project (в т.ч. через symlink-алиасинг) **ничего** не создаётся в project (нет ни `.den-version`, ни `staging/`). Логика `is_path_under_root` не тронута.
+- **P1-3 (AgeIdentity::Debug):** `Debug` больше не derive — ручная реализация: `Passphrase([redacted])` (значение не печатается), `Recipients` — список.
+- **P2-4:** убран лишний `pass.clone()` — passphrase передаётся в `write_stash_age` по ссылке `&Zeroizing<String>`.
+- P2-5 (slug), P2-6 (remove_dir parent), P2-7 (manifest absolute path) — оставлено как есть (reviewer: ок / на A1.4).
+
+#### Файлы
+- changed: `src/app/stash.rs`, `src/scan/walk.rs`, `src/scan/mod.rs`, `tests/stash_facade.rs`
+
+#### Тесты
+- `tests/stash_facade.rs`: +3 теста (всего 20): guard до создания (den внутри project ничего не оставляет), symlink-алиасинг den → project rejected, Debug не светит passphrase.
+- `cargo test --workspace` → pass (регрессий нет). `cargo fmt --all -- --check` → clean. `cargo clippy --workspace --all-targets -- -D warnings` → clean.
+
+#### Follow-up
+- `pack.rs` F-PATH-3 имеет ту же лексическую схему (`staging.starts_with(&project)` после `create_dir_all`) — кандидат на тот же canonical-guard (вне scope A1.3).
+
 ## Этапы
 
 ### 2026-08-14 13:20 — docs: трекинг agent knowledge docs (dev + main)

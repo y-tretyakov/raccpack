@@ -33,6 +33,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[cfg(unix)]
+use std::os::unix::fs::symlink;
+
 #[cfg(feature = "age-decrypt")]
 use std::io::Read;
 
@@ -539,6 +542,92 @@ fn den_inside_project_is_rejected() {
     assert!(
         !msg.contains(PASSWORD_VALUE),
         "error must not leak raw secret material: {msg}"
+    );
+    assert!(
+        !den.exists(),
+        "guard must run before creating the den skeleton: {}",
+        den.display()
+    );
+    assert!(
+        !den.join(".den-version").exists(),
+        "the den skeleton must not be written anywhere under the project"
+    );
+    assert!(
+        !den.join("staging").exists(),
+        "no staging directory may appear inside the project"
+    );
+}
+
+/// A den reachable through a symlink INTO the project must be rejected even
+/// though its lexical path sits outside it — the guard must canonicalize
+/// (P1-2), not rely on `Path::starts_with` alone.
+#[cfg(unix)]
+#[test]
+fn symlinked_den_aliasing_into_project_is_rejected() {
+    let (temp, proj) = project_dir();
+    let real = proj.join("real-dir");
+    fs::create_dir_all(&real).expect("create real den target inside proj");
+    let den_link = temp.path().join("den-link");
+    symlink(&real, &den_link).expect("create symlink den-link -> proj/real-dir");
+
+    let ctx = ctx_for(&proj, &den_link, RunMode::Commit);
+    write(&proj, ".env", "PASSWORD=value\n");
+
+    let err = stash(&ctx, &stash_options(&proj), &identity(), &mut NullProgress)
+        .expect_err("a den aliased into the project must be rejected");
+    assert!(
+        matches!(&err, Error::Other { .. }),
+        "expected Error::Other, got {err:?}"
+    );
+
+    assert!(
+        !real.join(".den-version").exists(),
+        "guard must run before the den skeleton is created inside the project"
+    );
+    assert!(
+        !real.join("staging").exists(),
+        "no staging directory may appear inside the project"
+    );
+    assert!(
+        !real.join("secrets").exists(),
+        "no secrets directory may appear inside the project"
+    );
+    assert!(
+        collect_files(&real).is_empty(),
+        "the den target dir must stay untouched after rejection: {:?}",
+        collect_files(&real)
+    );
+}
+
+/// Debug output for a passphrase identity must never leak the passphrase
+/// (P1-3): it shows a redaction marker instead.
+#[test]
+fn age_identity_debug_redacts_passphrase() {
+    let debug = format!("{:?}", identity());
+    assert!(
+        !debug.contains(PASSPHRASE),
+        "AgeIdentity::Passphrase Debug must not leak the passphrase: {debug}"
+    );
+    assert!(
+        debug.contains("[redacted]"),
+        "AgeIdentity::Passphrase Debug must show a redaction marker: {debug}"
+    );
+}
+
+/// Debug output for a recipients identity shows the recipients, never the
+/// passphrase.
+#[test]
+fn age_identity_debug_recipients_never_contain_passphrase() {
+    let recipient = "age1fakefakefakefakefakefakefakefakefakefakefakefake";
+    let recipients = AgeIdentity::Recipients(vec![recipient.to_string()]);
+    let debug = format!("{:?}", recipients);
+    assert!(
+        debug.contains(recipient),
+        "recipients must be visible in Debug output: {debug}"
+    );
+    assert!(
+        !debug.contains(PASSPHRASE),
+        "recipients Debug output must never contain the passphrase: {debug}"
     );
 }
 
