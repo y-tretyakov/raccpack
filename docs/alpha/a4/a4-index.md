@@ -49,7 +49,7 @@ docs/wiki/git-and-dx.md
 
 ## Follow-ups из MVP (для A4)
 
-Источник: [FOLLOWUPS_FROM_MVP.md](FOLLOWUPS_FROM_MVP.md).
+Источник: AGENTS.md (follow-ups консолидированы; `FOLLOWUPS_FROM_MVP.md` удалён).
 
 | ID | Что сделать в A4 |
 |----|------------------|

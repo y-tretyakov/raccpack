@@ -47,7 +47,7 @@ docs/wiki/
 
 ## Follow-ups из MVP (обязательные для A1)
 
-Источник: [FOLLOWUPS_FROM_MVP.md](FOLLOWUPS_FROM_MVP.md).
+Источник: AGENTS.md (follow-ups консолидированы; `FOLLOWUPS_FROM_MVP.md` удалён).
 
 | ID | Что сделать в A1 | Статус |
 |----|------------------|--------|

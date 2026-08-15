@@ -48,7 +48,7 @@ docs/wiki/raid.md
 
 ## Follow-ups из MVP (для A3)
 
-Источник: [FOLLOWUPS_FROM_MVP.md](FOLLOWUPS_FROM_MVP.md).
+Источник: AGENTS.md (follow-ups консолидированы; `FOLLOWUPS_FROM_MVP.md` удалён).
 
 | ID | Что сделать в A3 |
 |----|------------------|
