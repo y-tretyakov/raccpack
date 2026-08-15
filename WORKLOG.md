@@ -47,6 +47,7 @@
 #### Проверки
 - Поведение сверено с `crates/raccpack-cli`/`raccpack-core` (stash: commit = `--yes && !dry-run`, `remove_sources` только после размещения архива; dig: exit code от `--fail-on`; pack: `deny_content_secrets = !no_content_deny`) — выдуманных флагов нет.
 - `pnpm run wiki:build` — зелёный (6.4s; font-warnings предсуществующие).
+- **Live verified** (после squash-merge в `dev` и деплоя `wiki.yml`): на https://y-tretyakov.github.io/raccpack/stash.html — danger (`--remove-sources` удаляет…), dig.html — info (exit 2 = политика `--fail-on`), pack.html — warning (`--no-content-deny`… не шифруется). Callout-классы `custom-block` на месте.
 - Callout-лимиты: stash 3 / dig 2 / pack 2 / sniff 2 / cli-usage 4 — в рамках правил (2–3 deep, 3–4 overview), без каскадов по 5+.
 - Противоречий pack ↔ stash нет (pack «не шифруется → stash»; stash «удаляет только после успешного commit»).
 
@@ -56,6 +57,7 @@
 - [x] pack: warning про ослабление `--no-content-deny` и «не шифрование»
 - [x] Overview не раздут (никаких новых таблиц флагов)
 - [x] `wiki:build` зелёный
+- [x] Live-страницы отражают md (проверено на stash/dig/pack после деплоя)
 - [x] Нет выдуманных флагов/поведения
 
 #### Зафиксировано
