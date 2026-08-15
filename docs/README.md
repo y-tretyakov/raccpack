@@ -20,10 +20,11 @@ docs/
 |------|------------|
 | `AGENTS.md` | Единственная памятка Orchestrator: правила, backlog Alpha, модульность, git, wiki, инварианты |
 | `WORKLOG.md` | Текущий журнал (Alpha+) |
+| `docs/FOLLOWUPS_FROM_MVP.md` | Открытые follow-ups из MVP (обязательные для Alpha) — live-документ, ссылается на него `docs/alpha/*-index.md` |
 
 Устаревшие knowledge-docs (`raccpack-agent-workflow.md`, `raccpack-roadmap-v1.md`,
 `raccpack-architecture-vision.md`, `raccpack-facade-and-den.md`, `raccpack-modularity.md`,
-`raccpack-markers-detect-modularity.md`, `FOLLOWUPS_FROM_MVP.md`) **удалены** — их содержание
+`raccpack-markers-detect-modularity.md`) **удалены** — их содержание
 консолидировано в `AGENTS.md` (см. §4/§10). Не восстанавливать.
 
 ## Правила для агента
