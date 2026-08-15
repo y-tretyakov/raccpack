@@ -71,6 +71,8 @@ Data-driven стратегии очистки мусора сборки/кэша
 - [x] F-SKIP-1 задокументирован
 
 #### Риски / follow-up
+- **F-SKIP-1 (замечание приёмки):** имена trash пока два списка — `scan::skip::DEFAULT_DIR_NAMES` и patterns в `clean::strategy::DEFAULT_STRATEGIES`. DoD «задокументировать» выполнен, но **единый источник правды ещё нет**. До/вместе с pack `default_pack()` (или A2.2): либо shared name table, либо инвариант-тест «cleanup patterns ⊆ skip/pack policy, где уместно». Не закрывать follow-up раньше.
+- **A2.2:** при delete-фазе убрать запись hits изнутри `filter_entry` (side effect в predicate) — чище явный цикл по entries или stack/DFS.
 - Public API breaking: `RaccConfig` получил поле `cleanup` (struct-literal).
 - `cargo test -p raccpack-core clean strategy detect` из спеки — невалидный cargo-синтаксис (несколько фильтров); рабочий эквивалент: `cargo test -p raccpack-core --test clean` или `cargo test -p raccpack-core -- clean strategy detect`.
 - Wiki/`supported` для rinse — отдельная UX-задача (Docs после FINAL A2 / A2.3).
