@@ -246,7 +246,13 @@
 #### Риски / follow-up
 - `read_passphrase` не покрыт unit-тестами для interactive-ветки (нужен PTY) — покрыто smoke-проверкой вручную.
 - `RiskLevel`/`FailOnPolicy` дублируют маппинг на core-типы; при появлении новых `--fail-on`-подобных флагов — кандидат на общий маппер.
-- Wiki: страница `wiki/stash.md` + правки `cli-usage.md`/`index.md` — отдельный PR (деплой Pages на push в dev).
+- Wiki: страница `wiki/stash.md` + правки `cli-usage.md`/`index.md` — PR #62 (squash, merged; deploy Pages на push в dev — success).
+
+#### Review remarks (не блокеры merge, PR #61)
+- **P2 — dummy passphrase в DryRun:** `AgeIdentity::Passphrase(Zeroizing::new(DRY_RUN_PASSPHRASE…))` — работает (facade не доходит до encrypt), но чище `Option<AgeIdentity>` только для Commit или no-op path в CLI.
+- **P2 — rpassword отдаёт String:** до обёртки в `Zeroizing` кратко живут обычные `String` (first/second) — для CLI приемлемо; идеал — сразу zeroizing-буфер.
+- **P2 — RACCPACK_PASSPHRASE остаётся в env** процесса (может попасть в логи CI) — осознанный CI-tradeoff; стоит одной строкой в wiki/help.
+- **P3 — exit_policy: FailOnCritical в ctx:** на stash не влияет (exit 0/1); можно `Ignore` для ясности.
 
 ## Этапы
 
