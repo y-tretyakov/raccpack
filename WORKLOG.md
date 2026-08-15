@@ -28,6 +28,42 @@
 
 ## Этапы
 
+### Wiki IA — CLI overview + deep pages (CLOSED)
+
+- **Дата:** 2026-08-15
+- **Ветка:** `wiki-ia-cli` (PR → dev, squash, merged)
+- **Статус:** done
+- **Роли:** Orchestrator (план/приёмка) + 2 Docs-субагента (параллельно) + Review-субагент (аудит).
+
+#### Задача
+Развязать `cli-usage` (overview) и страницы команд: каждая реализованная команда (`sniff`, `dig`, `pack`, `stash`) — отдельная deep-страница по единому 13-пунктовому шаблону; overview — только глобальные флаги, типовой сценарий и краткие карточки со ссылками.
+
+#### Сделано
+- `cli-usage.md` (rewrite): overview — глобальные флаги, блок «Типовой сценарий» (`sniff → dig → stash → pack`), краткие карточки 4 команд с примерами и ссылками «Подробно», секция «В разработке» (rinse/raid/den/init), примечания (JSON без raw; exit 2 только у dig).
+- `sniff.md`, `dig.md`, `pack.md` (created, deep): 13-секционный шаблон — что делает/не делает, быстрый старт, синтаксис, полные таблицы флагов с defaults/приоритетами, поведение (кэш/dry-run/commit), human+JSON-поля, exit codes, примеры (локально/JSON/CI/edge), частые ошибки, безопасность, связанные команды, футер «обновлять в том же PR, что CLI».
+- `stash.md` (align): приведена к шаблону без потерь (расшифровка `age -d`, CI-примеры, passphrase-приоритет, den layout, batch-id).
+- `.vitepress/config.ts`: nav/sidebar «Использование» → CLI, Sniff, Dig, Pack, Stash, Конфигурация, TUI, Desktop.
+- `index.md`: фича «Den — хранилище» переведена в настоящее время (age в `secrets/` уже реализован).
+- `quick-start.md`: добавлен шаг 7 (stash), раздел «Что дальше» обновлён (4 команды + ссылки на deep-страницы).
+- `concepts.md`: изменений не потребовалось (уже в настоящем времени).
+
+#### Проверки
+- `pnpm run wiki:build` — зелёный; все страницы (cli-usage/sniff/dig/pack/stash) собраны.
+- Review-аудит (независимый субагент): флаги/дефолты/exit codes/JSON-поля сверены с `cli.rs` + `racc <cmd> --help` + реальным прогоном бинарника. BLOCK-расхождений нет; 2 nit исправлены (формулировка ключа кэша sniff; реальный текст ошибки stash).
+- Внутренние ссылки и якоря — резолвятся; nav/sidebar в собранном HTML содержат все 4 команды.
+
+#### DoD
+- [x] Overview без полных flag-таблиц команд (только глобальные + карточки)
+- [x] Deep-страницы для всех 4 реализованных команд по шаблону
+- [x] Нет выдуманных флагов (аудит по коду)
+- [x] Ссылки overview ↔ deep, related commands, «назад к обзору»
+- [x] `wiki:build` зелёный
+- [x] index/concepts/quick-start — без «позже» про секреты
+
+#### Зафиксировано
+- **EN:** RU first — EN-зеркало не full-parity (только introduction/supported); EN deep-страницы — отдельным follow-up этапом.
+- Без изменений production-кода CLI/core.
+
 ### A1.1 — age + zeroize passphrase (CLOSED)
 
 - **Дата:** 2026-08-14
