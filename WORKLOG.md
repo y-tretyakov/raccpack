@@ -13,7 +13,7 @@
 [x] A1.2 stash manifest (без raw) + remove sources в Commit
 [x] A1.3 facade stash + den/secrets/…
 [x] A1.4 CLI racc stash
-[ ] A2.1 cleanup strategies + config toggles
+[x] A2.1 cleanup strategies + config toggles
 [ ] A2.2 facade rinse DryRun/Commit
 [ ] A2.3 CLI racc rinse
 [ ] A3.1 facade raid (stash→rinse→pack→move, fail-fast)
@@ -27,6 +27,54 @@
 ```
 
 ## Этапы
+
+### A2.1 — cleanup strategies + config toggles (CLOSED)
+
+- **Дата:** 2026-08-16
+- **Статус:** done
+- **Роли:** Orchestrator; Dev + Test (параллельно).
+
+#### Задача
+Data-driven стратегии очистки мусора сборки/кэша: именованные стратегии (rust/node/python/jvm/go/generic), набор точных имён директорий (с `*`-suffix паттернами `*.egg-info`), обнаружение под project root, config toggles (`[cleanup] enabled_strategies`), **без** удаления (A2.2) и без CLI.
+
+#### Сделано
+- `src/clean/strategy.rs` — `StrategyId` (`as_str` / `from_str_ignore_case`), `TrashMatchKind::DirNameExact`, `TrashPattern::matches` (`*`-suffix, семантика как `SkipPolicy`), `StrategyDef`, `DEFAULT_STRATEGIES` (rust/node/python/jvm/go/generic; `dist`/`build`/`vendor`/`tmp` помечены как careful).
+- `src/clean/detect.rs` — `TrashDir`, `DetectTrashOptions`, `find_trash_dirs`: `follow_links(false)`, pruning matched dirs (не спускаемся внутрь), root depth-0 исключается, опциональный `compute_size` (отдельный restricted walk, не `project_size_bytes`), sort by path, defensive containment.
+- `src/config/mod.rs` — `CleanupConfig.enabled_strategies`, defaults `rust/node/python`, `#[serde(default)] pub cleanup` в `RaccConfig`.
+- `src/config/validate.rs` — strict: неизвестный id → `ConfigError::UnknownCleanupStrategy` (case-insensitive).
+- `src/lib.rs` — `pub mod clean` + re-exports.
+- `tests/clean.rs` — 22 integration теста (все кейсы спеки §6 + extras: pruning, root-exclusion, sort, max_depth, roundtrip).
+
+#### Файлы
+- created: `src/clean/mod.rs`, `src/clean/strategy.rs`, `src/clean/detect.rs`, `tests/clean.rs`
+- changed: `src/config/mod.rs`, `src/config/validate.rs`, `src/config/error.rs`, `src/lib.rs`, `tests/config.rs` (механический фикс struct-literal нового поля `cleanup`)
+
+#### Тесты
+- `cargo test --workspace` — green (все suites)
+- `cargo test -p raccpack-core --test clean` — 22 passed
+- `cargo clippy --workspace --all-targets -- -D warnings` — pass
+- `cargo fmt --check` — pass
+
+#### Решения
+- Strict validation неизвестных strategy id в конфиге (рекомендация спеки §4), case-insensitive.
+- `*.egg-info` поддержан через `*`-suffix в `TrashPattern::matches` (не плодили glob-kind), консистентно с `SkipPolicy`.
+- Matched dirs pruning → нет двойного обнаружения и нет спуска в гигантские `node_modules`/`target`.
+- Корень (depth 0) никогда не записывается как trash — защита от удаления всего проекта в A2.2.
+- F-SKIP-1: паттерны задокументированы в `strategy.rs` для согласованности с будущим `default_pack()`.
+
+#### Критерий готовности (DoD из a2.1 §7)
+- [x] `DEFAULT_STRATEGIES` + `StrategyId` в `clean/strategy.rs`
+- [x] `CleanupConfig` в config, defaults rust/node/python
+- [x] `find_trash_dirs` без удаления
+- [x] `follow_links(false)`
+- [x] Тесты §6 зелёные
+- [x] F-SKIP-1 задокументирован
+
+#### Риски / follow-up
+- Public API breaking: `RaccConfig` получил поле `cleanup` (struct-literal).
+- `cargo test -p raccpack-core clean strategy detect` из спеки — невалидный cargo-синтаксис (несколько фильтров); рабочий эквивалент: `cargo test -p raccpack-core --test clean` или `cargo test -p raccpack-core -- clean strategy detect`.
+- Wiki/`supported` для rinse — отдельная UX-задача (Docs после FINAL A2 / A2.3).
+
 
 ### Wiki callouts safety (CLOSED)
 
