@@ -1,6 +1,6 @@
 ---
 title: Использование CLI
-description: Справочник команд racc — глобальные флаги, sniff, dig, pack, вывод JSON и использование в CI.
+description: Справочник команд racc — глобальные флаги, sniff, dig, pack, stash, вывод JSON и использование в CI.
 ---
 
 # Использование CLI
@@ -186,13 +186,55 @@ Pack complete
 
 > Подробнее о deny-правилах при упаковке (имена/содержимое, пороги): [Что поддерживается](/supported)
 
+### `racc stash` — вынести секреты в зашифрованный archive
+
+Собирает чувствительные файлы проекта в один archive **age**, кладёт его в den по раскладке `secrets/{yyyy}/{mm}/` и по желанию удаляет исходники. Сырые секреты не попадают ни в человекочитаемый вывод, ни в JSON.
+
+```
+racc stash --project PATH [--den PATH] [--yes] [--dry-run]
+           [--remove-sources] [--min-risk LEVEL] [--only PATH]
+           [--batch-id ID]
+```
+
+| Флаг | Описание |
+|------|----------|
+| `--project PATH` | Каталог проекта для поиска секретов (обязательный) |
+| `--den PATH` | Каталог den (по умолчанию из конфигурации `paths.den_dir`) |
+| `--yes` | **Commit**: записать `.age` в den |
+| `--dry-run` | Явный dry-run; имеет приоритет над `--yes`, ничего не пишет |
+| `--remove-sources` | После успешного Commit удалить исходные файлы (в dry-run игнорируется) |
+| `--min-risk LEVEL` | Минимальный уровень риска: `low`, `medium`, `high` (по умолчанию), `critical` |
+| `--only PATH` | Можно повторять: архивировать только перечисленные файлы (внутри `--project`) |
+| `--batch-id ID` | Фрагмент имени артефакта вместо временного токена: `{slug}__{ID}__secrets.age` |
+
+::: warning
+По умолчанию `stash` работает в **dry-run** и ничего не пишет. Commit — только с `--yes`.
+:::
+
+Passphrase берётся из переменной окружения `RACCPACK_PASSPHRASE`, из интерактивного ввода в TTY (дважды, без эха) или из одной строки на stdin (для CI). В dry-run passphrase не требуется. Коды выхода: `0` (успех) и `1` (ошибка).
+
+Примеры:
+
+```bash
+# Dry-run: показать, что попадёт в архив (ничего не пишется)
+racc stash --project ~/DEV/PROJS/app-api
+
+# Commit с env-passphrase для CI (исходники не удаляются)
+export RACCPACK_PASSPHRASE="$STASH_SECRET"
+racc stash --project "$CI_PROJECT_DIR" --den "$DEN_PATH" --yes --json
+
+# Commit и удалить исходные секретные файлы
+racc stash --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes --remove-sources
+```
+
+> Подробнее: [Stash — секреты в age](/stash)
+
 ### Что пока ещё в разработке
 
 Следующие команды планируются в ближайших версиях (см. [Дорожную карту](/roadmap)):
 
 | Команда | Назначение | Статус |
 |---------|------------|--------|
-| `racc stash` | Вынести секреты в age-архив | Планируется (Alpha) |
 | `racc rinse` | Очистить мусор сборки | Планируется (Alpha) |
 | `racc raid` | Полный цикл одним действием | Планируется (Alpha) |
 | `racc den …` | Управление den (список, очистка staging) | Планируется (Beta) |

@@ -26,7 +26,7 @@ features:
   - title: tar.zst
     details: Каждый проект пакуется в чистый tar.zst без секретов и мусора сборки.
   - title: CLI · TUI · Desktop
-    details: Одна бизнес-логика, три интерфейса. Сейчас в CLI доступны sniff, dig и pack, остальные команды — по roadmap.
+    details: Одна бизнес-логика, три интерфейса. Сейчас в CLI доступны sniff, dig, pack и stash, остальные команды — по roadmap.
   - title: Безопасность по умолчанию
     details: Секреты маскируются в отчётах, dry-run перед разрушающими операциями.
   - title: Den — хранилище
