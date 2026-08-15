@@ -8,6 +8,8 @@
 //! - [`short_id`]: 8 lowercase hex chars from a blake3 hash of clock nanos and
 //!   a process address — high uniqueness, no determinism required.
 //! - [`pack_relative_path`] yields `packs/{yyyy}/{mm}/{slug}__{ts}.tar.zst`.
+//! - [`secrets_relative_path`] yields
+//!   `secrets/{yyyy}/{mm}/{slug}__{ts}__secrets.age`.
 //!
 //! INVARIANT: every function is deterministic where required, never panics
 //! (short/malformed `ts` falls back to `"0000"` / `"00"`), and produces ASCII
@@ -106,6 +108,30 @@ pub fn pack_relative_path(slug: &str, ts: &str) -> PathBuf {
         .join(yyyy)
         .join(mm)
         .join(format!("{slug}__{ts}.tar.zst"))
+}
+
+/// Relative den path for a stash: `secrets/{yyyy}/{mm}/{slug}__{ts}__secrets.age`.
+///
+/// `yyyy` = `ts[0..4]`, `mm` = `ts[4..6]`. A `ts` shorter than 6 chars falls
+/// back to `"0000"` / `"00"` so this never panics.
+pub fn secrets_relative_path(slug: &str, ts: &str) -> PathBuf {
+    secrets_relative_path_token(slug, ts, ts)
+}
+
+/// [`secrets_relative_path`] with a custom name token in place of `ts`.
+///
+/// The `yyyy`/`mm` directory segments are still derived from the real
+/// timestamp `ts` (which keeps its `YYYYMMDD…` shape), while the artifact
+/// filename becomes `{slug}__{token}__secrets.age` — used for `--batch-id`.
+/// `token` must be a safe fragment (no path separators); validation is the
+/// caller's responsibility.
+pub fn secrets_relative_path_token(slug: &str, ts: &str, token: &str) -> PathBuf {
+    let yyyy = ts.get(..4).unwrap_or("0000");
+    let mm = ts.get(4..6).unwrap_or("00");
+    PathBuf::from("secrets")
+        .join(yyyy)
+        .join(mm)
+        .join(format!("{slug}__{token}__secrets.age"))
 }
 
 /// Days since 1970-01-01 → civil `(year, month, day)` (1-indexed month/day).
@@ -214,5 +240,27 @@ mod tests {
     fn pack_path_never_panics_on_short_ts() {
         let path = pack_relative_path("s", "12");
         assert!(path.to_string_lossy().starts_with("packs/"));
+    }
+
+    #[test]
+    fn secrets_path_derives_year_month_and_suffix() {
+        assert_eq!(
+            secrets_relative_path("my-api", "20260804T155230Z"),
+            PathBuf::from("secrets/2026/08/my-api__20260804T155230Z__secrets.age")
+        );
+    }
+
+    #[test]
+    fn secrets_path_token_keeps_dirs_from_ts() {
+        assert_eq!(
+            secrets_relative_path_token("my-api", "20260804T155230Z", "nightly"),
+            PathBuf::from("secrets/2026/08/my-api__nightly__secrets.age")
+        );
+    }
+
+    #[test]
+    fn secrets_path_never_panics_on_short_ts() {
+        let path = secrets_relative_path("s", "12");
+        assert!(path.to_string_lossy().starts_with("secrets/"));
     }
 }

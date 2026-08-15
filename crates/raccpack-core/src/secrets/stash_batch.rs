@@ -35,7 +35,7 @@ use crate::domain::{Error, SensitiveRisk};
 use super::stash_select::StashFileEntry;
 
 /// One raw-free manifest record for an archived source file.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StashManifestEntry {
     /// Absolute path of the archived source file.
     pub original_path: PathBuf,
