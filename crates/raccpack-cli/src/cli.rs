@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use raccpack_core::SecretExitPolicy;
+use raccpack_core::{SecretExitPolicy, SensitiveRisk};
 
 /// Command-line interface for the `racc` binary.
 #[derive(Debug, Parser)]
@@ -48,6 +48,8 @@ pub enum Commands {
     Dig(DigArgs),
     /// Archive a project tree into the den
     Pack(PackArgs),
+    /// Stash sensitive files into an age-encrypted archive in the den
+    Stash(StashArgs),
 }
 
 /// Options specific to `racc sniff`.
@@ -112,6 +114,74 @@ pub struct PackArgs {
     /// Override the artifact file name (without .tar.zst)
     #[arg(long, value_name = "NAME")]
     pub output_name: Option<String>,
+}
+
+/// Options specific to `racc stash`.
+#[derive(Debug, Args, Default)]
+pub struct StashArgs {
+    /// Project or subtree to stash (required)
+    #[arg(long, value_name = "PATH")]
+    pub project: PathBuf,
+
+    /// Commit mode: write the encrypted archive into the den
+    #[arg(long)]
+    pub yes: bool,
+
+    /// Force dry-run even when --yes is also given
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Delete the original files after a successful commit
+    #[arg(long)]
+    pub remove_sources: bool,
+
+    /// Minimum risk level to include
+    #[arg(long, value_name = "LEVEL", value_enum, default_value = "high")]
+    pub min_risk: RiskLevel,
+
+    /// Only these files (repeatable, must be under the project)
+    #[arg(long, value_name = "PATH")]
+    pub only: Vec<PathBuf>,
+
+    /// Optional name fragment replacing the timestamp in the artifact name
+    #[arg(long, value_name = "ID")]
+    pub batch_id: Option<String>,
+}
+
+/// Minimum risk level selected via `--min-risk`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum RiskLevel {
+    /// Include LOW and above
+    #[value(name = "low")]
+    Low,
+    /// Include MEDIUM and above
+    #[value(name = "medium")]
+    Medium,
+    /// Include HIGH and above (default)
+    #[value(name = "high")]
+    High,
+    /// Include CRITICAL only
+    #[value(name = "critical")]
+    Critical,
+}
+
+impl Default for RiskLevel {
+    /// Default to HIGH, matching the core `StashOptions` default.
+    fn default() -> Self {
+        Self::High
+    }
+}
+
+impl RiskLevel {
+    /// Map the CLI risk level to the core sensitive risk.
+    pub fn to_risk(self) -> SensitiveRisk {
+        match self {
+            Self::Low => SensitiveRisk::Low,
+            Self::Medium => SensitiveRisk::Medium,
+            Self::High => SensitiveRisk::High,
+            Self::Critical => SensitiveRisk::Critical,
+        }
+    }
 }
 
 /// Exit policy selected via `--fail-on`.
@@ -337,5 +407,170 @@ mod tests {
     fn clap_rejects_pack_without_project() {
         let result = Cli::try_parse_from(["racc", "pack", "--dry-run"]);
         assert!(result.is_err(), "missing --project must be rejected");
+    }
+
+    #[test]
+    fn stash_args_default_to_dry_run_high() {
+        let args = StashArgs::default();
+        assert!(args.project.as_os_str().is_empty());
+        assert!(!args.yes);
+        assert!(!args.dry_run);
+        assert!(!args.remove_sources);
+        assert_eq!(args.min_risk, RiskLevel::High);
+        assert!(args.only.is_empty());
+        assert!(args.batch_id.is_none());
+    }
+
+    #[test]
+    fn clap_parse_stash_with_all_flags() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "stash",
+            "--project",
+            "/tmp/app",
+            "--den",
+            "/tmp/den",
+            "--yes",
+            "--remove-sources",
+            "--min-risk",
+            "critical",
+            "--only",
+            "/tmp/app/.env",
+            "--only",
+            "/tmp/app/id_rsa",
+            "--batch-id",
+            "release-42",
+        ])
+        .expect("parse should succeed");
+        assert_eq!(cli.global.den, Some(PathBuf::from("/tmp/den")));
+        match cli.command {
+            Commands::Stash(args) => {
+                assert_eq!(args.project, PathBuf::from("/tmp/app"));
+                assert!(args.yes);
+                assert!(!args.dry_run);
+                assert!(args.remove_sources);
+                assert_eq!(args.min_risk, RiskLevel::Critical);
+                assert_eq!(
+                    args.only,
+                    vec![
+                        PathBuf::from("/tmp/app/.env"),
+                        PathBuf::from("/tmp/app/id_rsa")
+                    ]
+                );
+                assert_eq!(args.batch_id.as_deref(), Some("release-42"));
+            }
+            _ => panic!("expected stash command"),
+        }
+    }
+
+    #[test]
+    fn clap_parse_stash_default_min_risk_is_high() {
+        let cli = Cli::try_parse_from(["racc", "stash", "--project", "/tmp/app"])
+            .expect("parse should succeed");
+        match cli.command {
+            Commands::Stash(args) => {
+                assert_eq!(args.min_risk, RiskLevel::High);
+                assert!(!args.yes);
+                assert!(!args.dry_run);
+                assert!(!args.remove_sources);
+            }
+            _ => panic!("expected stash command"),
+        }
+    }
+
+    #[test]
+    fn clap_parse_stash_min_risk_mapping() {
+        for (input, expected) in [
+            ("low", RiskLevel::Low),
+            ("medium", RiskLevel::Medium),
+            ("high", RiskLevel::High),
+            ("critical", RiskLevel::Critical),
+        ] {
+            let cli = Cli::try_parse_from([
+                "racc",
+                "stash",
+                "--project",
+                "/tmp/app",
+                "--min-risk",
+                input,
+            ])
+            .expect("parse should succeed");
+            match cli.command {
+                Commands::Stash(args) => assert_eq!(args.min_risk, expected),
+                _ => panic!("expected stash command"),
+            }
+        }
+    }
+
+    #[test]
+    fn clap_parse_stash_only_repeatable() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "stash",
+            "--project",
+            "/tmp/app",
+            "--only",
+            "a",
+            "--only",
+            "b",
+            "--only",
+            "c",
+        ])
+        .expect("parse should succeed");
+        match cli.command {
+            Commands::Stash(args) => {
+                assert_eq!(args.only.len(), 3);
+                assert_eq!(args.only[0], PathBuf::from("a"));
+                assert_eq!(args.only[2], PathBuf::from("c"));
+            }
+            _ => panic!("expected stash command"),
+        }
+    }
+
+    #[test]
+    fn clap_parse_stash_dry_run_and_yes_both_accepted() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "stash",
+            "--project",
+            "/tmp/app",
+            "--yes",
+            "--dry-run",
+        ])
+        .expect("parse should succeed");
+        match cli.command {
+            Commands::Stash(args) => {
+                assert!(args.yes);
+                assert!(args.dry_run);
+            }
+            _ => panic!("expected stash command"),
+        }
+    }
+
+    #[test]
+    fn clap_rejects_stash_without_project() {
+        let result = Cli::try_parse_from(["racc", "stash", "--yes"]);
+        assert!(result.is_err(), "missing --project must be rejected");
+    }
+
+    #[test]
+    fn clap_rejects_unknown_min_risk_level() {
+        let result = Cli::try_parse_from([
+            "racc",
+            "stash",
+            "--project",
+            "/tmp/app",
+            "--min-risk",
+            "bogus",
+        ]);
+        assert!(result.is_err(), "unknown --min-risk value must be rejected");
+    }
+
+    #[test]
+    fn risk_level_maps_to_core_risk() {
+        assert_eq!(RiskLevel::Low.to_risk(), SensitiveRisk::Low);
+        assert_eq!(RiskLevel::Medium.to_risk(), SensitiveRisk::Medium);
+        assert_eq!(RiskLevel::High.to_risk(), SensitiveRisk::High);
+        assert_eq!(RiskLevel::Critical.to_risk(), SensitiveRisk::Critical);
     }
 }
