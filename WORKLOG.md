@@ -12,7 +12,7 @@
 [x] A1.1 age + zeroize passphrase
 [x] A1.2 stash manifest (без raw) + remove sources в Commit
 [x] A1.3 facade stash + den/secrets/…
-[ ] A1.4 CLI racc stash
+[x] A1.4 CLI racc stash
 [ ] A2.1 cleanup strategies + config toggles
 [ ] A2.2 facade rinse DryRun/Commit
 [ ] A2.3 CLI racc rinse
@@ -202,6 +202,51 @@
 
 #### Follow-up
 - `pack.rs` F-PATH-3 имеет ту же лексическую схему (`staging.starts_with(&project)` после `create_dir_all`) — кандидат на тот же canonical-guard (вне scope A1.3).
+
+## Этапы
+
+### A1.4 — CLI `racc stash` (prompt passphrase / env для CI) (CLOSED)
+
+- **Дата:** 2026-08-15 17:12 EEST
+- **Ветка:** `a1.4-cli-stash` (PR #61 → dev, squash, merged)
+- **Статус:** done
+- **Dev:** dev-a1.4 · **Test:** test-a1.4 (параллельно, стыковка без rework)
+
+#### Сделано
+- `commands/stash.rs` (created): `run_stash` — load config → overrides → resolve project → mode (Commit iff `--yes` без `--dry-run`) → `StashOptions` → passphrase → facade `stash` → вывод. Dry-run никогда не запрашивает passphrase.
+- `passphrase.rs` (created): `read_passphrase() -> Zeroizing<String>` — приоритет: env `RACCPACK_PASSPHRASE` (непустой) → interactive TTY (двойной ввод с подтверждением, echo off) → одна строка из piped stdin → `CliError::Passphrase` с hint. Zeroizing на drop; значение нигде не логируется/не печатается.
+- `output_stash.rs` (created): `print_stash` — JSON `StashResult` / human-блоки (dry-run: Would archive / Would remove sources / nothing written; commit: Archive / Files / Removed sources).
+- `commands/paths.rs` (created): общий `resolve_project_path` вынесен из `pack.rs` (повторное использование pack+stash, unit-тесты переехали).
+- `cli.rs`: `Commands::Stash`, `StashArgs` (`--project` required, `--yes`, `--dry-run`, `--remove-sources`, `--min-risk low|medium|high|critical` default high, `--only` repeatable, `--batch-id`), `RiskLevel` → `SensitiveRisk`; +9 unit-тестов.
+- `error.rs`: `CliError::Passphrase { message }` + suggestion.
+- `main.rs`/`commands/mod.rs`: wire-up; `Cargo.toml` (cli): `rpassword = "7"`, `zeroize = { version = "1", features = ["derive"] }`.
+
+#### Отклонение от спеки (зафиксировано)
+- Passphrase читается **только** в Commit; в DryRun — константный placeholder `unused-dry-run-passphrase` (фасад возвращается до encrypt в DryRun, placeholder не используется). Спека §4 (шаг 3 — read_passphrase всегда) уточнена ради UX: dry-run без tty/env не должен падать (wiki показывает dry-run без env).
+- `std::env::remove_var` **не** вызывается: значение уже видно в `/proc/PID/environ` с момента exec; `Zeroizing` покрывает копию CLI; удаление переменной удобно для повторного использования в shell. Tradeoff задокументирован.
+
+#### Файлы
+- created: `crates/raccpack-cli/src/commands/stash.rs`, `passphrase.rs`, `output_stash.rs`, `commands/paths.rs`, `tests/cli_stash.rs`
+- changed: `crates/raccpack-cli/src/cli.rs`, `commands/mod.rs`, `commands/pack.rs`, `error.rs`, `main.rs`, `Cargo.toml`, `Cargo.lock` (workspace root)
+
+#### Тесты
+- `cargo test --workspace` → pass (154 core + cli suites; cli_stash 13 integration).
+- `cargo test -p raccpack-cli` → pass (45 unit + 18 dig + 12 pack + 10 sniff + 13 stash).
+- `cargo fmt --all -- --check` → clean. `cargo clippy --workspace --all-targets -- -D warnings` → clean.
+- Smoke (вручную): env passphrase commit → `.age` в `secrets/yyyy/mm/` (0600, magic header); interactive tty (двойной ввод, совпадение) → ok; mismatch → exit 1 + hint; no env + no tty → exit 1 + hint; piped stdin → ok; `--dry-run` перебивает `--yes`, ничего не пишет; `--remove-sources` удаляет источники только в Commit.
+
+#### Критерий готовности (DoD из a1.4 §6)
+- [x] `racc stash` dry-run + commit
+- [x] Passphrase via env + interactive
+- [x] `--remove-sources` only on Commit success path
+- [x] JSON `StashResult`
+- [x] Modules: `commands/stash.rs`, `passphrase.rs`
+- [x] Wiki updated (отдельный PR — wiki/stash.md)
+
+#### Риски / follow-up
+- `read_passphrase` не покрыт unit-тестами для interactive-ветки (нужен PTY) — покрыто smoke-проверкой вручную.
+- `RiskLevel`/`FailOnPolicy` дублируют маппинг на core-типы; при появлении новых `--fail-on`-подобных флагов — кандидат на общий маппер.
+- Wiki: страница `wiki/stash.md` + правки `cli-usage.md`/`index.md` — отдельный PR (деплой Pages на push в dev).
 
 ## Этапы
 
