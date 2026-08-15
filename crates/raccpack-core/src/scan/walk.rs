@@ -22,10 +22,13 @@
 //!
 //! Path-containment checks live here: [`is_path_under_root`] canonicalizes both
 //! sides and guarantees an entry stays within the scan root, which `pack` /
-//! `stash` rely on.
+//! `stash` rely on. [`canonicalize_existing_prefix`] resolves a path that may
+//! not exist yet (canonicalizing its deepest existing ancestor) so the same
+//! check can run before any directory is created.
 
+use std::ffi::OsString;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
 
@@ -150,6 +153,60 @@ pub fn is_path_under_root(path: &Path, root: &Path) -> Result<bool, Error> {
         source,
     })?;
     Ok(canonical_path.starts_with(canonical_root))
+}
+
+/// Canonicalize the deepest existing ancestor of `path`, then re-append the
+/// remaining components lexically.
+///
+/// Unlike [`is_path_under_root`], `path` itself does not need to exist — the
+/// `stash` F-PATH-3 guard runs before its `staging/…` directories are created.
+/// `..` components in the existing prefix are resolved by the canonicalization;
+/// components below the resolved ancestor are appended verbatim, so callers
+/// must not reintroduce `..` or symlinks there. Relative paths with no existing
+/// ancestor resolve against the working directory.
+pub(crate) fn canonicalize_existing_prefix(path: &Path) -> Result<PathBuf, Error> {
+    if path.as_os_str().is_empty() {
+        return Err(Error::Other {
+            message: "cannot resolve an empty path".to_string(),
+        });
+    }
+    let mut tail: Vec<OsString> = Vec::new();
+    let mut prefix = path;
+    loop {
+        if let Ok(real) = fs::canonicalize(prefix) {
+            let mut resolved = real;
+            for component in tail.iter().rev() {
+                resolved.push(component);
+            }
+            return Ok(resolved);
+        }
+        match prefix.file_name() {
+            Some(name) => {
+                if let Some(parent) = prefix.parent() {
+                    if !parent.as_os_str().is_empty() {
+                        tail.push(name.to_os_string());
+                        prefix = parent;
+                        continue;
+                    }
+                }
+                tail.push(name.to_os_string());
+            }
+            None => {
+                return Err(Error::Other {
+                    message: format!("cannot resolve {}: no existing ancestor", path.display()),
+                });
+            }
+        }
+        let working_dir = fs::canonicalize(Path::new(".")).map_err(|source| Error::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        let mut resolved = working_dir;
+        for component in tail.iter().rev() {
+            resolved.push(component);
+        }
+        return Ok(resolved);
+    }
 }
 
 #[cfg(test)]

@@ -11,9 +11,9 @@
 //! INVARIANTS:
 //!
 //! - **Identity**: only `AgeIdentity::Passphrase` is accepted; recipients are
-//!   [`Error::Unsupported`]. The passphrase is moved into the zeroizing
-//!   variant, cloned only into a `Zeroizing<String>` for encryption, and never
-//!   appears in results or errors.
+//!   [`Error::Unsupported`]. The passphrase is held in the zeroizing variant,
+//!   borrowed (never cloned) for encryption, and never appears in results,
+//!   errors, or `Debug` output.
 //! - **DryRun writes nothing**: no `ensure_den`, no staging, no source
 //!   removal; `StashResult::archive_path` is the expected final path.
 //! - **Fail-safe order**: encrypt → place → (optionally) remove sources.
@@ -21,7 +21,8 @@
 //!   the archive is already in the den and the error documents the partial
 //!   state.
 //! - **F-PATH-3**: the staging path lives under `den/staging/…` and is
-//!   rejected when it would fall inside the project tree.
+//!   rejected by a canonicalized containment check before any directory is
+//!   created, so a den nested inside the project leaves no staging leftovers.
 //! - **Manifest is raw-free**: [`StashManifestEntry`]s carry only path, risk,
 //!   and size — never file contents.
 
@@ -37,6 +38,7 @@ use crate::den::{
     PlaceSecretsRequest,
 };
 use crate::domain::{Error, Result, SensitiveRisk};
+use crate::scan::canonicalize_existing_prefix;
 use crate::secrets::stash_batch::StashManifestEntry;
 use crate::secrets::{
     remove_stash_sources, select_files_for_stash, write_stash_age, StashSelectOptions,
@@ -77,13 +79,24 @@ impl Default for StashOptions {
 ///
 /// A1 supports passphrases only; recipient identities fail with
 /// [`Error::Unsupported`]. The passphrase is held zeroizing so no plain
-/// `String` copy outlives a call.
-#[derive(Debug, Clone)]
+/// `String` copy outlives a call; [`Debug`] output never prints its value.
+#[derive(Clone)]
 pub enum AgeIdentity {
     /// Scrypt passphrase (zeroized on drop).
     Passphrase(Zeroizing<String>),
     /// Public age recipients (not supported in A1).
     Recipients(Vec<String>),
+}
+
+impl std::fmt::Debug for AgeIdentity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AgeIdentity::Passphrase(_) => write!(f, "Passphrase([redacted])"),
+            AgeIdentity::Recipients(recipients) => {
+                f.debug_tuple("Recipients").field(recipients).finish()
+            }
+        }
+    }
 }
 
 /// Outcome of a [`stash`] run.
@@ -129,7 +142,7 @@ pub struct StashResult {
 /// - Missing / non-directory target → [`Error::PathNotFound`] /
 ///   [`Error::NotADirectory`].
 /// - Invalid [`StashOptions::batch_id`] → [`Error::Other`].
-/// - Staging inside the project tree → [`Error::Other`].
+/// - Staging path (canonicalized) inside the project tree → [`Error::Other`].
 /// - Any den/encrypt IO failure → [`Error::Io`]; incompatible den →
 ///   [`Error::DenVersion`].
 pub fn stash(
@@ -145,7 +158,7 @@ pub fn stash(
                     message: "passphrase must not be empty".to_string(),
                 });
             }
-            pass.clone()
+            pass
         }
         AgeIdentity::Recipients(_) => {
             return Err(Error::Unsupported {
@@ -200,8 +213,6 @@ pub fn stash(
         });
     }
 
-    ensure_den(&ctx.paths.den_dir)?;
-
     let short = short_id();
     let staging = ctx
         .paths
@@ -209,12 +220,10 @@ pub fn stash(
         .join("staging")
         .join(&short)
         .join("secrets.age");
-    let staging_dir = staging.parent().ok_or_else(|| Error::Other {
-        message: "invalid den staging path".to_string(),
-    })?;
-    create_dir_all(staging_dir)?;
 
-    if staging.starts_with(&opts.target) {
+    let resolved_staging = canonicalize_existing_prefix(&staging)?;
+    let resolved_target = canonicalize_existing_prefix(&opts.target)?;
+    if resolved_staging.starts_with(&resolved_target) {
         return Err(Error::Other {
             message:
                 "staging path lies inside the project tree; use a den directory outside the project"
@@ -222,9 +231,16 @@ pub fn stash(
         });
     }
 
+    ensure_den(&ctx.paths.den_dir)?;
+
+    let staging_dir = staging.parent().ok_or_else(|| Error::Other {
+        message: "invalid den staging path".to_string(),
+    })?;
+    create_dir_all(staging_dir)?;
+
     progress.emit(stash_event(30, "Encrypting archive…", false));
 
-    let batch = write_stash_age(&entries, &staging, &passphrase).map_err(|err| {
+    let batch = write_stash_age(&entries, &staging, passphrase).map_err(|err| {
         best_effort_staging_cleanup(&staging);
         err
     })?;
