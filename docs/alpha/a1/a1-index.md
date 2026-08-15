@@ -49,11 +49,11 @@ docs/wiki/
 
 Источник: [FOLLOWUPS_FROM_MVP.md](FOLLOWUPS_FROM_MVP.md).
 
-| ID | Что сделать в A1 |
-|----|------------------|
-| **F-PATH-1** | Единый path-containment: stash-файлы только under `target`; нет escape через symlink/`..` |
-| **F-PATH-3** | Staging `.age` только под den, не внутри project tree |
-| **F-SKIP-2** | File-deny секретов ≠ dir SkipPolicy (уже name-based в secrets) |
+| ID | Что сделать в A1 | Статус |
+|----|------------------|--------|
+| **F-PATH-1** | Единый path-containment: stash-файлы только under `target`; нет escape через symlink/`..` | ✅ closed (A1.2 `stash_select` + `is_path_under_root`) |
+| **F-PATH-3** | Staging `.age` только под den, не внутри project tree | ✅ closed (A1.3: `den/staging/…`, guard в `stash`) |
+| **F-SKIP-2** | File-deny секретов ≠ dir SkipPolicy (уже name-based в secrets) | ✅ name-based (A1.2) |
 
 ## Связь с Alpha
 

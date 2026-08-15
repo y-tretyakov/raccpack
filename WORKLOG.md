@@ -11,7 +11,7 @@
 ```
 [x] A1.1 age + zeroize passphrase
 [x] A1.2 stash manifest (без raw) + remove sources в Commit
-[ ] A1.3 facade stash + den/secrets/…
+[x] A1.3 facade stash + den/secrets/…
 [ ] A1.4 CLI racc stash
 [ ] A2.1 cleanup strategies + config toggles
 [ ] A2.2 facade rinse DryRun/Commit
@@ -140,6 +140,45 @@
 - **Отложено (зафиксировано для следующих этапов):** P1#2 — весь tar в RAM → stream tar→age writer (Alpha OK); P2#9 — pub surface `stash_*` через `secrets::` → аудит к 1.0.
 - **Тесты:** `cargo test --workspace` green; stash: 22 unit (с `--features age-decrypt`) + 12 integration (roundtrip decrypt+untar) pass; fmt/clippy `-D warnings` clean.
 - `is_path_under_root` остаётся pub helper (использует A1.3); порядок проверок в select теперь: exists → `symlink_metadata`/is_file → canonical containment → dedup.
+
+## Этапы
+
+### A1.3 — facade `stash` + `den/secrets/…` (CLOSED)
+
+- **Дата:** 2026-08-15
+- **Ветка:** `a1.3-facade-stash-den`
+- **Статус:** done
+- **Dev:** dev-a1.3 · **Test:** test-a1.3 (параллельно, стыковка без rework)
+
+#### Сделано
+- `app/stash.rs` (created): `StashOptions`, `AgeIdentity` (`Passphrase(Zeroizing<String>)` / `Recipients`), `StashResult` (serde), `stash()` facade. DryRun: select + ожидаемый путь, ничего не пишет/не удаляет (даже не создаёт den); Commit: select → `write_stash_age` в `den/staging/{short_id}/secrets.age` → `place_secrets_archive_ensured` → (если `remove_sources`) `remove_stash_sources`.
+- `den/secrets_place.rs` (created): `PlaceSecretsRequest` (с `batch_id`), `PlaceSecretsResult`, `place_secrets_archive` / `place_secrets_archive_ensured` — зеркало `place_pack` (atomic rename, cross-device fallback, escaping-guard, `0600`).
+- `den/names.rs`: `secrets_relative_path` / `secrets_relative_path_token` → `secrets/{yyyy}/{mm}/{slug}__{ts}__secrets.age` (batch_id → name token вместо ts, `yyyy/mm` от now).
+- `domain/error.rs`: `Error::Unsupported { feature }` + suggestion (Recipients).
+- `den/place.rs`: helpers вынесены в `pub(crate)` (`reject_escaping`, `move_archive`, `validate_name_fragment`; `validate_output_name` делегирует).
+- `lib.rs` re-exports: `stash`, `StashOptions`, `StashResult`, `AgeIdentity`, `place_secrets_archive`, `PlaceSecretsRequest`, `PlaceSecretsResult`, `secrets_relative_path`.
+
+#### Follow-up закрыты
+- **F-PATH-1** (path containment stash) — закрыт в A1.2 (`is_path_under_root` + canonical containment в `stash_select`), переиспользован в A1.3.
+- **F-PATH-3** (staging только под den) — staging = `den/staging/{short_id}/`, runtime-guard «staging внутри project → Error» (тест `den_inside_project_is_rejected`).
+
+#### Отклонение от спеки
+- `AgeIdentity::Passphrase(Zeroizing<String>)` вместо `Passphrase(String)`: не создаётся plain `String`-копия (инвариант zeroize A1.1; согласуется с потоком A1.4, где passphrase приходит уже `Zeroizing`).
+
+#### Файлы
+- created: `crates/raccpack-core/src/app/stash.rs`, `crates/raccpack-core/src/den/secrets_place.rs`, `crates/raccpack-core/tests/stash_facade.rs`
+- changed: `src/den/names.rs`, `src/den/place.rs`, `src/den/mod.rs`, `src/app/mod.rs`, `src/domain/error.rs`, `src/secrets/stash_batch.rs`, `src/lib.rs`, `docs/alpha/a1/a1.3-facade-stash-den.md`
+
+#### Тесты
+- `cargo test --workspace` → pass (регрессий нет).
+- `cargo test -p raccpack-core --features age-decrypt` → pass (roundtrip decrypt+untar).
+- `tests/stash_facade.rs` (17): DryRun ничего не пишет/не создаёт den; Commit кладёт `.age` под `secrets/yyyy/mm/` (magic header, roundtrip); remove_sources on/off; min_risk фильтр; Recipients → Unsupported; пустой passphrase → Encrypt; serde StashResult без raw (dry + commit); progress 0/30/70/[90]/100; staging чист; den внутри project rejected; batch_id.
+- `cargo fmt --all -- --check` → clean. `cargo clippy --workspace --all-targets -- -D warnings` → clean.
+
+#### Риски / follow-up
+- Коллизия имени `.age` в ту же секунду: `place_secrets_archive` перезаписывает атомарно (как документировано для `place_pack`); уникальность/raid naming — на A3.
+- `batch_id` заменяет ts в имени файла, `yyyy/mm` — от now (зафиксировано в wiki).
+- A1.4: CLI `racc stash` (passphrase env/prompt) будет использовать этот facade; нужен `passphrase.rs` + `commands/stash.rs`.
 
 ## Этапы
 

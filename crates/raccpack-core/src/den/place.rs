@@ -124,8 +124,9 @@ pub(crate) fn place_pack_ensured(req: &PlacePackRequest) -> Result<PlacePackResu
 /// Reject a relative den path containing `..`, `/`, or `Prefix` components.
 ///
 /// Defense in depth: the slug is already restricted to `[a-zA-Z0-9._-]`, but
-/// a caller-supplied `timestamp` could smuggle in path separators.
-fn reject_escaping(rel: &Path) -> Result<()> {
+/// a caller-supplied `timestamp` / name token could smuggle in path
+/// separators. Shared by pack and secrets placement.
+pub(crate) fn reject_escaping(rel: &Path) -> Result<()> {
     let escapes = rel.components().any(|component| {
         matches!(
             component,
@@ -141,23 +142,31 @@ fn reject_escaping(rel: &Path) -> Result<()> {
     }
 }
 
-/// Validate a custom artifact filename (without `.tar.zst`).
+/// Validate an artifact-name fragment (without its extension suffix).
 ///
 /// Rejects empty names, `.` and `..`, and names containing `/`, `\` or a NUL
-/// byte. Shared by [`place_pack`] and the facade `pack` use-case so both apply
-/// the identical rule.
-pub(crate) fn validate_output_name(name: &str) -> Result<()> {
+/// byte. `what` labels the kind of name in the error message (e.g.
+/// "pack output name", "stash batch id").
+pub(crate) fn validate_name_fragment(name: &str, what: &str) -> Result<()> {
     if name.is_empty() || name == "." || name == ".." || name.contains(['/', '\\', '\0']) {
         return Err(Error::Other {
-            message: format!("invalid pack output name: {name:?}"),
+            message: format!("invalid {what}: {name:?}"),
         });
     }
     Ok(())
 }
 
+/// Validate a custom pack artifact filename (without `.tar.zst`).
+///
+/// Delegates to the shared [`validate_name_fragment`]; kept so the pack path
+/// and `place_pack` apply the identical rule as before.
+pub(crate) fn validate_output_name(name: &str) -> Result<()> {
+    validate_name_fragment(name, "pack output name")
+}
+
 /// Rename `source` to `destination`, falling back to copy + remove on
-/// cross-device moves.
-fn move_archive(source: &Path, destination: &Path) -> Result<()> {
+/// cross-device moves. Shared by pack and secrets placement.
+pub(crate) fn move_archive(source: &Path, destination: &Path) -> Result<()> {
     match fs::rename(source, destination) {
         Ok(()) => Ok(()),
         Err(err) if is_cross_devices(&err) => {

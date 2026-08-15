@@ -11,9 +11,10 @@ pub mod scan;
 pub mod secrets;
 
 pub use app::{
-    dig, exit_code_for_secrets, pack, sniff, AppContext, DigOptions, DigResult, NullProgress,
-    OperationKind, PackOptions, PackResult, ProgressEvent, ProgressSink, RepeatedSecret, RunMode,
-    SecretExitPolicy, SensitiveFile, SniffOptions, SniffResult, WorkspacePaths,
+    dig, exit_code_for_secrets, pack, sniff, stash, AgeIdentity, AppContext, DigOptions, DigResult,
+    NullProgress, OperationKind, PackOptions, PackResult, ProgressEvent, ProgressSink,
+    RepeatedSecret, RunMode, SecretExitPolicy, SensitiveFile, SniffOptions, SniffResult,
+    StashOptions, StashResult, WorkspacePaths,
 };
 pub use archive::{
     pack_tree, should_deny_file_in_pack, ContentDenyOptions, PackTreeOptions, PackTreeResult,
@@ -21,8 +22,9 @@ pub use archive::{
 pub use cache::{store_sniff_cache, try_load_sniff_cache};
 pub use config::{ConfigError, PathsConfig, RaccConfig, ScannerConfig};
 pub use den::{
-    ensure_den, pack_relative_path, place_pack, project_slug, short_id, staging_pack_path,
-    utc_timestamp_now, DenPaths, PlacePackRequest, PlacePackResult, DEN_VERSION,
+    ensure_den, pack_relative_path, place_pack, place_secrets_archive, project_slug,
+    secrets_relative_path, short_id, staging_pack_path, utc_timestamp_now, DenPaths,
+    PlacePackRequest, PlacePackResult, PlaceSecretsRequest, PlaceSecretsResult, DEN_VERSION,
 };
 pub use detect::{candidate_to_project, detect_stack, detect_stacks, stack_from_candidate};
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};

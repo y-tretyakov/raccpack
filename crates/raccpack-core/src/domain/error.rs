@@ -43,6 +43,9 @@ pub enum Error {
     /// A path exists but is not a regular file (directory, symlink, device…).
     #[error("not a file: {path}")]
     NotAFile { path: PathBuf },
+    /// A requested feature is not implemented in this version.
+    #[error("unsupported: {feature}")]
+    Unsupported { feature: String },
     /// Catch-all for errors without a dedicated variant.
     #[error("{message}")]
     Other { message: String },
@@ -67,6 +70,9 @@ impl Error {
                 Some("Provide paths strictly inside the project root.")
             }
             Error::NotAFile { .. } => Some("Provide regular file paths."),
+            Error::Unsupported { .. } => Some(
+                "This version supports passphrase identities only; recipient keys arrive in a later release.",
+            ),
             _ => None,
         }
     }
@@ -169,6 +175,20 @@ mod tests {
             }
             .to_string(),
             "not a file: /tmp/x"
+        );
+        assert_eq!(
+            Error::Unsupported {
+                feature: "age recipient identities".into()
+            }
+            .to_string(),
+            "unsupported: age recipient identities"
+        );
+        assert_eq!(
+            Error::Unsupported {
+                feature: "x".into()
+            }
+            .suggestion(),
+            Some("This version supports passphrase identities only; recipient keys arrive in a later release.")
         );
         assert_eq!(
             Error::Config {
