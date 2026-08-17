@@ -145,13 +145,37 @@ racc stash --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes --remove-so
 
 Подробно: [Stash](/stash)
 
+### `racc rinse`
+
+Удаляет из проекта известные каталоги артефактов сборки по **стратегиям** (`target`, `node_modules`, `__pycache__`, …). По умолчанию работает в **dry-run** и ничего не удаляет — commit только с `--yes`. Стратегии без флага берутся из `config.cleanup.enabled_strategies` (по умолчанию `rust`, `node`, `python`).
+
+```text
+racc rinse --project PATH [--strategy ID ...] [--yes] [--dry-run]
+```
+
+```bash
+# Dry-run: показать, что было бы удалено (ничего не удаляется)
+racc rinse --project ~/DEV/PROJS/app-api
+
+# Commit: реально удалить найденный мусор
+racc rinse --project ~/DEV/PROJS/app-api --yes
+
+# Только Node-мусор (node_modules, .next, …)
+racc rinse --project ~/DEV/PROJS/app-api --strategy node --yes
+```
+
+::: warning
+По умолчанию `rinse` работает в **dry-run** и ничего не удаляет. Удаление каталогов — только с `--yes`.
+:::
+
+Подробно: [Rinse](/rinse)
+
 ## В разработке
 
 Следующие команды планируются в ближайших версиях (см. [Дорожную карту](/roadmap)):
 
 | Команда | Назначение | Статус |
 |---------|------------|--------|
-| `racc rinse` | Очистить мусор сборки | Планируется |
 | `racc raid` | Полный цикл одной командой | Планируется |
 | `racc den` | Управление den | Планируется |
 | `racc init` | Стартовая конфигурация | Планируется |
@@ -159,4 +183,4 @@ racc stash --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes --remove-so
 ## Примечания
 
 - JSON-вывод никогда не содержит raw-значений секретов — только маскированные превью и хеши (подробнее: [Dig](/dig)).
-- Код выхода `2` используется только у `dig` (политика `--fail-on`) и означает сработавшую политику, а не сбой CLI; у `pack` и `stash` коды выхода — только `0` (успех) и `1` (ошибка).
+- Код выхода `2` используется только у `dig` (политика `--fail-on`) и означает сработавшую политику, а не сбой CLI; у `pack`, `stash` и `rinse` коды выхода — только `0` (успех) и `1` (ошибка).

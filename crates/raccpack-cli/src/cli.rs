@@ -50,6 +50,8 @@ pub enum Commands {
     Pack(PackArgs),
     /// Stash sensitive files into an age-encrypted archive in the den
     Stash(StashArgs),
+    /// Remove build-artifact directories from a project
+    Rinse(RinseArgs),
 }
 
 /// Options specific to `racc sniff`.
@@ -146,6 +148,26 @@ pub struct StashArgs {
     /// Optional name fragment replacing the timestamp in the artifact name
     #[arg(long, value_name = "ID")]
     pub batch_id: Option<String>,
+}
+
+/// Options specific to `racc rinse`.
+#[derive(Debug, Args, Default)]
+pub struct RinseArgs {
+    /// Project directory to clean (required)
+    #[arg(long, value_name = "PATH")]
+    pub project: PathBuf,
+
+    /// Commit mode: actually delete the trash directories
+    #[arg(long)]
+    pub yes: bool,
+
+    /// Force dry-run even when --yes is also given
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Cleanup strategy ids to apply (repeatable; default from config)
+    #[arg(long, value_name = "ID")]
+    pub strategy: Vec<String>,
 }
 
 /// Minimum risk level selected via `--min-risk`.
@@ -572,5 +594,91 @@ mod tests {
         assert_eq!(RiskLevel::Medium.to_risk(), SensitiveRisk::Medium);
         assert_eq!(RiskLevel::High.to_risk(), SensitiveRisk::High);
         assert_eq!(RiskLevel::Critical.to_risk(), SensitiveRisk::Critical);
+    }
+
+    #[test]
+    fn rinse_args_default_to_dry_run_and_empty_strategies() {
+        let args = RinseArgs::default();
+        assert!(args.project.as_os_str().is_empty());
+        assert!(!args.yes);
+        assert!(!args.dry_run);
+        assert!(args.strategy.is_empty());
+    }
+
+    #[test]
+    fn clap_parse_rinse_with_all_flags() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "rinse",
+            "--project",
+            "/tmp/app",
+            "--yes",
+            "--strategy",
+            "node",
+            "--strategy",
+            "rust",
+        ])
+        .expect("parse should succeed");
+        match cli.command {
+            Commands::Rinse(args) => {
+                assert_eq!(args.project, PathBuf::from("/tmp/app"));
+                assert!(args.yes);
+                assert!(!args.dry_run);
+                assert_eq!(args.strategy, vec!["node".to_string(), "rust".to_string()]);
+            }
+            _ => panic!("expected rinse command"),
+        }
+    }
+
+    #[test]
+    fn clap_parse_rinse_with_global_den_and_json() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "--den",
+            "/tmp/den",
+            "--json",
+            "rinse",
+            "--project",
+            "/tmp/app",
+        ])
+        .expect("parse should succeed");
+        assert_eq!(cli.global.den, Some(PathBuf::from("/tmp/den")));
+        assert!(cli.global.json);
+        match cli.command {
+            Commands::Rinse(args) => {
+                assert_eq!(args.project, PathBuf::from("/tmp/app"));
+                assert!(
+                    args.strategy.is_empty(),
+                    "no strategy by default (config decides)"
+                );
+            }
+            _ => panic!("expected rinse command"),
+        }
+    }
+
+    #[test]
+    fn clap_rejects_rinse_without_project() {
+        let result = Cli::try_parse_from(["racc", "rinse", "--yes"]);
+        assert!(result.is_err(), "missing --project must be rejected");
+    }
+
+    #[test]
+    fn clap_parse_rinse_dry_run_and_yes_both_accepted() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "rinse",
+            "--project",
+            "/tmp/app",
+            "--yes",
+            "--dry-run",
+        ])
+        .expect("parse should succeed");
+        match cli.command {
+            Commands::Rinse(args) => {
+                assert!(args.yes);
+                assert!(args.dry_run);
+            }
+            _ => panic!("expected rinse command"),
+        }
     }
 }
