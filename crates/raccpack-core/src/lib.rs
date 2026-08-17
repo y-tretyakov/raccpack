@@ -12,18 +12,18 @@ pub mod scan;
 pub mod secrets;
 
 pub use app::{
-    dig, exit_code_for_secrets, pack, sniff, stash, AgeIdentity, AppContext, DigOptions, DigResult,
-    NullProgress, OperationKind, PackOptions, PackResult, ProgressEvent, ProgressSink,
-    RepeatedSecret, RunMode, SecretExitPolicy, SensitiveFile, SniffOptions, SniffResult,
-    StashOptions, StashResult, WorkspacePaths,
+    dig, exit_code_for_secrets, pack, rinse, sniff, stash, AgeIdentity, AppContext, DigOptions,
+    DigResult, NullProgress, OperationKind, PackOptions, PackResult, ProgressEvent, ProgressSink,
+    RepeatedSecret, RinseOptions, RinseResult, RunMode, SecretExitPolicy, SensitiveFile,
+    SniffOptions, SniffResult, StashOptions, StashResult, WorkspacePaths,
 };
 pub use archive::{
     pack_tree, should_deny_file_in_pack, ContentDenyOptions, PackTreeOptions, PackTreeResult,
 };
 pub use cache::{store_sniff_cache, try_load_sniff_cache};
 pub use clean::{
-    find_trash_dirs, DetectTrashOptions, StrategyDef, StrategyId, TrashDir, TrashMatchKind,
-    TrashPattern, DEFAULT_STRATEGIES,
+    find_trash_dirs, remove_trash_dir, DetectTrashOptions, StrategyDef, StrategyId, TrashDir,
+    TrashMatchKind, TrashPattern, DEFAULT_STRATEGIES,
 };
 pub use config::{CleanupConfig, ConfigError, PathsConfig, RaccConfig, ScannerConfig};
 pub use den::{
