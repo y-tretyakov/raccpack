@@ -15,7 +15,7 @@
 [x] A1.4 CLI racc stash
 [x] A2.1 cleanup strategies + config toggles
 [x] A2.2 facade rinse DryRun/Commit
-[ ] A2.3 CLI racc rinse
+[x] A2.3 CLI racc rinse
 [ ] A3.1 facade raid (stash→rinse→pack→move, fail-fast)
 [ ] A3.2 ProgressSink + CLI progress
 [ ] A3.3 manifest JSON в den/manifests/
@@ -122,6 +122,53 @@ Data-driven стратегии очистки мусора сборки/кэша
 - `remove_trash_dir` `Ok(0)` неразличим для симлинка и пустой dir — осознанный MVP-tradeoff.
 - Форматирование размера: core `format_mib` (progress-сообщение) vs CLI `human_size` (вывод) — дублирование между crates; возможная унификация (двинуть в core + делегировать CLI) — follow-up hygiene.
 - Wiki/`supported` + `rinse.md` UX-страница — **отдельная UX-задача после FINAL A2 / вместе с A2.3** (Docs; добавлять не в этом этапе).
+
+### A2.3 — CLI `racc rinse` (CLOSED)
+
+- **Дата:** 2026-08-17
+- **Ветка:** `a2.3-cli-rinse` (PR #69 → dev, squash, merged)
+- **Статус:** done
+- **Роли:** Orchestrator; Dev + Test (параллельно, стыковка без rework; Test начал как baseline до коммита Dev, перепрогнал по merge-ready `d7ffec7`) + Docs (wiki после зелёного FINAL кода).
+
+#### Задача
+CLI `racc rinse`: DryRun default, `--yes` → Commit (удаление trash-dirs), повторяемый `--strategy`, JSON + human, exit 0/1.
+
+#### Сделано
+- `commands/rinse.rs` (created): `run_rinse` — load_config → apply_overrides → resolve_project_path → mode (`--dry-run` побеждает `--yes`) → `AppContext` (FailOnCritical) → `RinseOptions { target, strategies: Some|None, include_custom_patterns: false }` → facade `rinse` → `output_rinse::print_rinse(&result, &target, json)`.
+- `output_rinse.rs` (created): human по §4 («Rinse (dry-run)» / «Would remove N directories (X)» / `<name>  [<strategy>]  <size>` / «(nothing deleted)»; «Rinse complete» / «Removed N directories, freed X») + JSON `RinseResult`; `human_size` переиспользован из `output.rs` (core `format_mib` не дублировался); `dir_name` — локальный 2-строчный helper (фолбэк на полный path).
+- `cli.rs`: `Commands::Rinse(RinseArgs)` — `--project` (required), `--yes`, `--dry-run`, `--strategy` (repeatable) + 5 unit-тестов. Глобальные `--json`/`--den`/`--root` уже есть.
+- `main.rs`, `commands/mod.rs` — wiring.
+- `tests/cli_rinse.rs` (created, 15): все 5 кейсов §5 + dry-run wins over yes, missing project, `--project .`, symlink-guard (`#[cfg(unix)]`), human-вывод, JSON-shape (ровно 3 top-level поля; sum == bytes_freed).
+- Wiki: `rinse.md` (deep-страница по шаблону stash.md), nav/sidebar, cli-usage (карточка + «В разработке»/exit-коды), quick-start/index/introduction, roadmap (stash+rinse → «Уже доступно»), supported («Чего пока нет»).
+
+#### Файлы
+- created: `crates/raccpack-cli/src/commands/rinse.rs`, `src/output_rinse.rs`, `crates/raccpack-cli/tests/cli_rinse.rs`, `wiki/rinse.md`
+- changed: `crates/raccpack-cli/src/cli.rs`, `commands/mod.rs`, `main.rs`, `wiki/.vitepress/config.ts`, `wiki/{cli-usage,index,introduction,quick-start,roadmap,supported}.md`
+
+#### Тесты
+- `cargo test --workspace` — 26 suites green, 0 failed (cli_rinse 15/15)
+- `cargo fmt --all -- --check` — clean · `cargo clippy --workspace --all-targets -- -D warnings` — clean
+- `pnpm run wiki:build` — green
+- Smoke: dry-run ничего не удаляет; `--strategy node` фильтрует; `--strategy foo` → exit 1; commit удаляет; `--yes --dry-run` → dry-run; `--json` dry/commit валиден; `--help` = флаги §3.
+
+#### Решения
+- `--project` — required clap-аргумент (как pack/stash): `racc rinse --yes` даёт clap usage error (exit 2), НЕ exit 1 из спеки §1.1 — консистентность с существующими командами важнее; отклонение зафиксировано в отчёте PR.
+- `--strategy` — свободная строка, unknown → exit 1 через core `Error::Config` (никакой CLI-валидации; поведение ровно как требует спека).
+- `--den`/`--root` — глобальные, принимаются; den rinse не использует (в wiki явно: «--den для rinse не используется»).
+- Human-вывод 1-в-1 по §4 (проверено живым прогоном; Test-пометки inline оставлены).
+- Wiki: roadmap/supported/introduction «догнаны» под факт реализации stash (A1.4) + rinse — согласованная консистентная правка списков CLI-поверхности (отдельно отмечена в отчёте Docs).
+
+#### Критерий готовности (DoD из a2.3 §6)
+- [x] `racc rinse` dry-run + commit
+- [x] `--strategy` override
+- [x] JSON + human
+- [x] Wiki matches flags (wiki-rinse.md / published wiki)
+- [x] Tests green
+
+#### Риски / follow-up
+- **A2.1 follow-up (не закрыт):** единый источник правды имён trash/skip — с `default_pack()` / инвариант-тест (F-SKIP-1). Не трогали.
+- **Core `format_mib` vs CLI `human_size`:** известное дублирование между crates (A2.2) — follow-up hygiene (двинуть в core + делегировать CLI); не в scope A2.3.
+- **Wiki roadmap**: stash-строка помечена done «заодно» (факт A1.4) — если roadmap политически «только вехи», вернуть точечно.
 
 ### A2.2 — review-fixes (не-блокеры ревью) (CLOSED)
 
