@@ -31,7 +31,7 @@ CLI / TUI / Desktop tool for scanning project trees, finding secrets, cleaning b
 | **dig** | Available | Secret scan (filename + content), masked values, risk levels, exit policy |
 | **pack** | Available | `tar.zst` into den (`packs/…`), name/content deny, DryRun default / `--yes` |
 | **stash** | Available (Alpha) | Age-encrypted secret archives into den (`secrets/…`), optional source removal |
-| **rinse** | Planned | Build-trash cleanup by strategies |
+| **rinse** | Available (Alpha) | Build-trash cleanup by strategies (`rust`/`node`/`python` default, more opt-in), DryRun default / `--yes` |
 | **raid** | Planned | Orchestrated stash → rinse → pack → manifest |
 | **TUI / Desktop** | Planned (Beta) | Ratatui / Tauri + React |
 
@@ -60,6 +60,10 @@ racc pack --project ~/DEV/PROJS/my-app --yes    # write pack to den
 # stash (Alpha): passphrase via env or interactive prompt
 export RACCPACK_PASSPHRASE='your-strong-passphrase'
 racc stash --project ~/DEV/PROJS/my-app --yes
+
+# rinse (Alpha): clean build-trash dirs by strategies (defaults: rust, node, python)
+racc rinse --project ~/DEV/PROJS/my-app          # dry-run
+racc rinse --project ~/DEV/PROJS/my-app --yes    # actually remove
 ```
 
 JSON output: add `--json` to any command.
@@ -75,6 +79,7 @@ Summary:
 - **Secret filename patterns (28):** `.env` family, SSH/private keys, keystores, credentials, registry configs, `secrets.*`, service-account JSON, etc.
 - **Content markers (12):** AWS, GitHub tokens, Slack, Stripe, PEM headers, connection strings, JWT-like, generic `api_key` / `secret` assignments
 - **Skip dirs (18):** `node_modules`, `target`, `dist`, `build`, VCS, Python caches/venvs, IDE, `.raccpack`, `*.egg-info`, …
+- **Cleanup strategies (6):** `rust`, `node`, `python` (enabled by default) plus opt-in `jvm`, `go`, `generic` for `rinse`
 
 ## Workspace
 
@@ -150,8 +155,8 @@ Branch protection: squash-only; `main` requires PR + 1 approval; no force push /
 ## Roadmap (high level)
 
 ```text
-MVP     sniff → dig → pack + den          ✅ 0.1.0
-Alpha   stash (age) → rinse → raid → git+CI   → 0.3.0
+MVP     sniff → dig → pack + den                ✅ 0.1.0
+Alpha   stash (age) ✅ → rinse ✅ → raid → git+CI  → 0.3.0
 Beta    TUI → Desktop (Tauri) → security harden → 0.5.0
 RC      API/den freeze → quality → UX         → 0.9.x
 Stable  1.0.0
