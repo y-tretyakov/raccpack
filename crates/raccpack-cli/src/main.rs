@@ -7,12 +7,14 @@ mod commands;
 mod error;
 mod output;
 mod output_pack;
+mod output_rinse;
 mod output_stash;
 mod passphrase;
 
 use crate::cli::{Cli, Commands};
 use crate::commands::run_dig;
 use crate::commands::run_pack;
+use crate::commands::run_rinse;
 use crate::commands::run_sniff;
 use crate::commands::run_stash;
 use crate::error::CliError;
@@ -42,6 +44,10 @@ fn run(cli: Cli) -> Result<ExitCode, CliError> {
         }
         Commands::Stash(args) => {
             run_stash(global, args)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        Commands::Rinse(args) => {
+            run_rinse(global, args)?;
             Ok(ExitCode::SUCCESS)
         }
     }
