@@ -32,12 +32,14 @@ description: Обзор команд racc — глобальные флаги и
 racc sniff
 racc dig --project <PATH>
 racc stash --project <PATH> --yes
+racc rinse --project <PATH> --yes
 racc pack --project <PATH> --yes
 ```
 
 - **sniff** — найти проекты под `scan_root`;
 - **dig** — найти секреты (read-only, ничего не пишет);
 - **stash** — вынести секреты в зашифрованный age-архив в den;
+- **rinse** — удалить мусор сборки (`target`, `node_modules`, …);
 - **pack** — упаковать проект БЕЗ секретов в `packs/`.
 
 ## Команды
