@@ -497,6 +497,19 @@ CLI `racc rinse`: DryRun default, `--yes` → Commit (удаление trash-dir
 
 ## Этапы
 
+### 2026-08-18 — docs: README sync после A2 (rinse available, cleanup strategies)
+
+**Задача:** привести README в соответствие с состоянием после A2.3 (rinse реализован, cleanup strategies в config). Ветка `docs-readme-a2` от `dev`, PR #71 → `dev` (squash, merged, ветка удалена).
+
+**Сделано:**
+- Статус-таблица: `rinse` → **Available (Alpha)** (dry-run default / `--yes`, defaults rust/node/python).
+- Quick start: добавлены `racc rinse` (dry-run + `--yes`).
+- «What is supported»: добавлен bullet cleanup strategies (6 id, opt-in `jvm`/`go`/`generic`).
+- Roadmap-блок: stash ✅ / rinse ✅.
+
+**Файлы (changed):** `README.md`
+**Тесты:** n/a (docs-only). Rust не затрагивался.
+
 ### 2026-08-18 — docs: wiki configuration `[cleanup]` + consistency после A2 (stash/rinse)
 
 **Задача:** Docs после A2.3 — обновить `configuration.md` под текущий config и согласовать consistency-страницы. Ветка `docs-wiki-config-a2` от `dev`, PR #70 → `dev` (squash, merged, ветка удалена).
