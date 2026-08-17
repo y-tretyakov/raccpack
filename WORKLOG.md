@@ -14,7 +14,7 @@
 [x] A1.3 facade stash + den/secrets/…
 [x] A1.4 CLI racc stash
 [x] A2.1 cleanup strategies + config toggles
-[ ] A2.2 facade rinse DryRun/Commit
+[x] A2.2 facade rinse DryRun/Commit
 [ ] A2.3 CLI racc rinse
 [ ] A3.1 facade raid (stash→rinse→pack→move, fail-fast)
 [ ] A3.2 ProgressSink + CLI progress
@@ -76,6 +76,52 @@ Data-driven стратегии очистки мусора сборки/кэша
 - Public API breaking: `RaccConfig` получил поле `cleanup` (struct-literal).
 - `cargo test -p raccpack-core clean strategy detect` из спеки — невалидный cargo-синтаксис (несколько фильтров); рабочий эквивалент: `cargo test -p raccpack-core --test clean` или `cargo test -p raccpack-core -- clean strategy detect`.
 - Wiki/`supported` для rinse — отдельная UX-задача (Docs после FINAL A2 / A2.3).
+
+### A2.2 — facade `rinse` DryRun/Commit + bytes freed (CLOSED)
+
+- **Дата:** 2026-08-17
+- **Ветка:** `a2.2-rinse-facade` (PR #67 → dev, squash, merged)
+- **Статус:** done
+- **Роли:** Orchestrator; Dev + Test (параллельно, стыковка без rework; Test поймал transient compile-bug Dev, в финальном дереве отсутствует).
+
+#### Задача
+Публичный facade `rinse`: DryRun — список `TrashDir` + `bytes_freed` без удаления; Commit — удалить найденные dirs и вернуть фактические stats; progress; **не** трогать secret files отдельно (только dirs из стратегий).
+
+#### Сделано
+- `clean/remove.rs` (created): `remove_trash_dir(path) -> Result<u64>` — guard `symlink_metadata`/`is_symlink` → `Ok(0)` (симлинк-дир никогда не удаляется, safety), пересчёт размера через **переиспользуемый** `dir_size_bytes` (стал `pub(crate)` в detect.rs, тело не копировалось — AGENTS §8.3.1), `remove_dir_all` → `Error::Io`.
+- `app/rinse.rs` (created): `RinseOptions` (target, `strategies: Option<Vec<String>>`, `include_custom_patterns` reserved no-op), `RinseResult` (serde/Debug/Clone/PartialEq/Eq — mirror StashResult), `rinse()` по §4: 0% «Scanning…» → resolve strategies (opts или `config.cleanup.enabled_strategies`; unknown → `Error::Config`) → `find_trash_dirs` (compute_size: true, `max_depth: scanner.max_depth`) → 40% «Found N directories (X MiB)» → DryRun return | Commit: per-dir containment `is_path_under_root` (fail → `Error::PathOutsideTarget`) → `remove_trash_dir` → 70% «Removing…» → fail-fast partial-failure → 100% «Done». Helpers `resolve_strategy_ids`, `rinse_event` (`OperationKind::Rinse`, phase `rinse`), `format_mib` (private); 3 юнит-теста.
+- Re-exports (additive): `app/mod.rs`, `clean/mod.rs`, `lib.rs` (`rinse, RinseOptions, RinseResult`, `remove_trash_dir`).
+- `tests/rinse.rs` (created): 14 integration тестов — все 8 кейсов §6 + extras (empty strategies, `include_custom_patterns` no-op, bytes_freed == sum size_bytes).
+
+#### Файлы
+- created: `crates/raccpack-core/src/app/rinse.rs`, `crates/raccpack-core/src/clean/remove.rs`, `crates/raccpack-core/tests/rinse.rs`
+- changed: `src/clean/detect.rs` (visibility `dir_size_bytes`), `src/clean/mod.rs`, `src/app/mod.rs`, `src/lib.rs`
+
+#### Тесты
+- `cargo test --workspace` — green, 24 suites, 0 failed (rinse: 14/14; core lib 157)
+- `cargo test -p raccpack-core --test rinse` — 14 passed
+- `cargo fmt --all -- --check` — clean
+- `cargo clippy --workspace --all-targets -- -D warnings` — clean
+
+#### Решения
+- `scanner.max_depth` используется напрямую; fallback «or 64» из спеки **мёртв** (ScannerConfig serde default 6, поле всегда есть) — отклонение зафиксировано.
+- Commit: в `removed` попадают только dirs с `freed_bytes > 0`; пустая удалённая dir (0 bytes) не попадает в список, хотя удаляется. Для MVP приемлемо (0 bytes freed), документировано в модуле.
+- Containment: canonicalized `is_path_under_root` перед каждым удалением + symlink-guard в `remove_trash_dir` (defense in depth, хотя `find_trash_dirs` симлинки и так не отдаёт).
+- Unknown strategy id в options/config → `Error::Config { message }` (шаг в сторону F-ERR-1; специальный вариант не заводили).
+
+#### Критерий готовности (DoD из a2.2 §7)
+- [x] `rinse` matches facade signature
+- [x] DryRun no deletes; Commit deletes only matched trash dirs
+- [x] `bytes_freed` populated (DryRun: сумма size_bytes; Commit: пересчёт на удалении)
+- [x] Modules `clean/remove.rs` + `app/rinse.rs`
+- [x] Tests green
+
+#### Риски / follow-up
+- **A2.1 follow-up (не закрыт):** запись hits изнутри `filter_entry` (side effect в predicate) в `clean/detect.rs` — вне scope A2.2, остаётся открытым (кандидат на A3/гигиену).
+- **F-SKIP-1 (не закрыт):** единый источник правды имён trash/skip ещё нет; инвариант-тест «cleanup patterns ⊆ skip/pack» — с `default_pack()` (A4 / pack follow-up).
+- `remove_trash_dir` `Ok(0)` неразличим для симлинка и пустой dir — осознанный MVP-tradeoff.
+- Форматирование размера: core `format_mib` (progress-сообщение) vs CLI `human_size` (вывод) — дублирование между crates; возможная унификация (двинуть в core + делегировать CLI) — follow-up hygiene.
+- Wiki/`supported` + `rinse.md` UX-страница — **отдельная UX-задача после FINAL A2 / вместе с A2.3** (Docs; добавлять не в этом этапе).
 
 
 ### Wiki callouts safety (CLOSED)
