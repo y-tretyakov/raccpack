@@ -116,7 +116,16 @@ racc stash --project ~/DEV/PROJS/app-api --yes
 
 Первый запуск — **dry-run** (ничего не пишет); флаг `--yes` переносит чувствительные файлы в зашифрованный age-архив в `den/secrets/`. Пароль задаётся через `RACCPACK_PASSPHRASE` или вводится интерактивно.
 
-## 8. Что дальше
+## 8. Очистите мусор сборки (`rinse`)
+
+```bash
+racc rinse --project ~/DEV/PROJS/app-api
+racc rinse --project ~/DEV/PROJS/app-api --yes
+```
+
+Первый запуск — **dry-run** (ничего не удаляет); флаг `--yes` удаляет каталоги артефактов сборки (`target`, `node_modules`, …) по стратегиям из конфигурации. Какие стратегии включены по умолчанию и как подключить `jvm`, `go`, `generic` — см. [Конфигурация](/configuration) и [Rinse](/rinse).
+
+## 9. Что дальше
 
 Сейчас CLI умеет `sniff`, `dig`, `pack`, `stash` и `rinse`; по roadmap — `raid`, `den`. Обзор команд — в [Использование CLI](/cli-usage), подробности по каждой — на страницах `/sniff`, `/dig`, `/pack`, `/stash` и `/rinse`:
 
