@@ -118,7 +118,7 @@ racc stash --project ~/DEV/PROJS/app-api --yes
 
 ## 8. Что дальше
 
-Сейчас CLI умеет `sniff`, `dig`, `pack` и `stash`; по roadmap — `rinse`, `raid`, `den`. Обзор команд — в [Использование CLI](/cli-usage), подробности по каждой — на страницах `/sniff`, `/dig`, `/pack` и `/stash`:
+Сейчас CLI умеет `sniff`, `dig`, `pack`, `stash` и `rinse`; по roadmap — `raid`, `den`. Обзор команд — в [Использование CLI](/cli-usage), подробности по каждой — на страницах `/sniff`, `/dig`, `/pack`, `/stash` и `/rinse`:
 
 - [Использование CLI](/cli-usage) — полный справочник команд.
 - [Основные понятия](/concepts) — что такое den, риски и фазы.
