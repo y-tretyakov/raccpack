@@ -143,8 +143,10 @@ fn collect_patterns(strategy_ids: &[StrategyId]) -> Result<Vec<CollectedPattern>
 /// `SkipPolicy` and would skip nested `node_modules`/`target`-like directories
 /// inside the trash dir. A trash dir's full size must include everything under
 /// it, so this helper walks unrestricted. Unreadable files are skipped and the
-/// walk continues; symlinks are never followed or counted.
-fn dir_size_bytes(path: &Path) -> Result<u64> {
+/// walk continues; symlinks are never followed or counted. `pub(crate)` so
+/// `clean::remove::remove_trash_dir` reuses the same restricted walk (AGENTS
+/// §8.3.1: shared helper, no copy).
+pub(crate) fn dir_size_bytes(path: &Path) -> Result<u64> {
     let mut total: u64 = 0;
     for item in WalkDir::new(path).follow_links(false) {
         let entry = item.map_err(|err| map_walk_error(err, path))?;
