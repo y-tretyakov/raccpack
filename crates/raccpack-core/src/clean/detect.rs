@@ -1,10 +1,12 @@
 //! Discovery of trash directories under a project root (A2.1).
 //!
-//! [`find_trash_dirs`] walks a `target` project root without following
-//! symlinks, records directories whose name matches a selected cleanup
-//! strategy, prunes them so the walk never descends into a matched dir, and
-//! (optionally) sums their byte size. Nothing is deleted at this stage.
+//! [`find_trash_dirs`] walks a `target` project root with an explicit
+//! depth-first traversal (`fs::read_dir`, symlinks never followed), records
+//! directories whose name matches a selected cleanup strategy, prunes them so
+//! the walk never descends into a matched dir, and (optionally) sums their
+//! byte size. Nothing is deleted at this stage.
 
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -55,10 +57,16 @@ struct CollectedPattern {
 /// 1. Validate `target` via [`ensure_scan_root`].
 /// 2. Collect patterns from the strategies in `strategy_ids` order. An empty
 ///    `strategy_ids` returns an empty vector (deterministic, no error).
-/// 3. Walk with `follow_links(false)` and `max_depth`, pruning any directory at
-///    depth > 0 whose name matches a pattern (first match wins, strategy order
-///    then pattern order) so it is never descended into and never recorded
-///    twice. The root entry is never matched or pruned.
+/// 3. Explicit DFS with an own stack of `(dir, depth)`. Entries are classified
+///    with `DirEntry::file_type()` (does not follow symlinks), so a symlink
+///    (incl. symlink-to-dir) is never recorded and never descended into. A
+///    directory at depth in 1..=max_depth whose name matches a pattern is
+///    recorded (first match wins, strategy order then pattern order) and
+///    pruned — never descended into — so a nested `target/node_modules` is not
+///    rediscovered. The root entry is never matched. Entries at depth ==
+///    max_depth are checked for a match but not descended into; nothing beyond
+///    max_depth is visited. A directory that cannot be read fails fast with
+///    [`Error::Io`] carrying the offending path.
 /// 4. Optionally sum sizes with a separate restricted walk.
 /// 5. Sort by `path` and defensively check containment under `target`.
 pub fn find_trash_dirs(opts: &DetectTrashOptions) -> Result<Vec<TrashDir>> {
@@ -69,30 +77,40 @@ pub fn find_trash_dirs(opts: &DetectTrashOptions) -> Result<Vec<TrashDir>> {
     }
 
     let mut found: Vec<TrashDir> = Vec::new();
-    for item in WalkDir::new(&opts.target)
-        .follow_links(false)
-        .max_depth(opts.max_depth)
-        .into_iter()
-        .filter_entry(|entry| {
-            if entry.depth() == 0 || !entry.file_type().is_dir() {
-                return true;
+    let mut stack: Vec<(PathBuf, usize)> = vec![(opts.target.clone(), 0)];
+    while let Some((dir, depth)) = stack.pop() {
+        for item in fs::read_dir(&dir).map_err(|source| Error::Io {
+            path: dir.clone(),
+            source,
+        })? {
+            let entry = item.map_err(|source| Error::Io {
+                path: dir.clone(),
+                source,
+            })?;
+            let file_type = entry.file_type().map_err(|source| Error::Io {
+                path: entry.path(),
+                source,
+            })?;
+            if !file_type.is_dir() {
+                continue;
             }
-            let name = entry.file_name().to_string_lossy();
-            match first_match(&name, &patterns) {
-                Some(m) => {
-                    found.push(TrashDir {
-                        path: entry.path().to_path_buf(),
-                        strategy: m.strategy.to_string(),
-                        pattern_name: m.pattern.name.to_string(),
-                        size_bytes: 0,
-                    });
-                    false
-                }
-                None => true,
+            let entry_depth = depth + 1;
+            if entry_depth > opts.max_depth {
+                continue;
             }
-        })
-    {
-        item.map_err(|err| map_walk_error(err, &opts.target))?;
+            let file_name = entry.file_name();
+            let name = file_name.to_string_lossy();
+            if let Some(m) = first_match(&name, &patterns) {
+                found.push(TrashDir {
+                    path: entry.path(),
+                    strategy: m.strategy.to_string(),
+                    pattern_name: m.pattern.name.to_string(),
+                    size_bytes: 0,
+                });
+            } else if entry_depth < opts.max_depth {
+                stack.push((entry.path(), entry_depth));
+            }
+        }
     }
 
     if opts.compute_size {
