@@ -497,7 +497,18 @@ CLI `racc rinse`: DryRun default, `--yes` → Commit (удаление trash-dir
 
 ## Этапы
 
-### 2026-08-14 13:20 — docs: трекинг agent knowledge docs (dev + main)
+### 2026-08-18 — docs: wiki configuration `[cleanup]` + consistency после A2 (stash/rinse)
+
+**Задача:** Docs после A2.3 — обновить `configuration.md` под текущий config и согласовать consistency-страницы. Ветка `docs-wiki-config-a2` от `dev`, PR #70 → `dev` (squash, merged, ветка удалена).
+
+**Сделано:**
+- `wiki/configuration.md`: `[cleanup]` с `enabled_strategies` (defaults, opt-in, 6 id по `DEFAULT_STRATEGIES`), `[cleanup]` убран из будущих секций, env-подсекция (`RACCPACK_CONFIG`, `RACCPACK_PASSPHRASE`), CLI overrides (`--den` не влияет на rinse), ошибки unknown strategy (текст из `ConfigError` / `Error::Config`), пометка про F-SKIP-1 без обещаний.
+- Consistency: `cli-usage.md` (rinse в типовой сценарий), `quick-start.md` (шаг rinse), `supported.md` (вводный абзац + секция «Очистка (rinse)» + exit codes + «Чего пока нет» без rinse/stash), `concepts.md` (exit codes + cleanup strategies).
+- EN-зеркало (`wiki/en/`) не трогали — скелет без парных страниц; RU-only + пометка в PR.
+
+**Файлы (changed):** `wiki/configuration.md`, `wiki/cli-usage.md`, `wiki/quick-start.md`, `wiki/supported.md`, `wiki/concepts.md`
+**Тесты:** `pnpm run wiki:build` — green. Паттерны стратегий сверены с `crates/raccpack-core/src/clean/strategy.rs`.
+**Решения:** Rust-код не изменялся; `roadmap.md` / `rinse.md` / `stash.md` / `pack.md` актуальны, не трогали.
 
 **Задача:** закоммитить три общих документа через PR в `dev` и в `main`.
 
