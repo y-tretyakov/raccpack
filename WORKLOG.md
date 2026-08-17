@@ -123,6 +123,33 @@ Data-driven стратегии очистки мусора сборки/кэша
 - Форматирование размера: core `format_mib` (progress-сообщение) vs CLI `human_size` (вывод) — дублирование между crates; возможная унификация (двинуть в core + делегировать CLI) — follow-up hygiene.
 - Wiki/`supported` + `rinse.md` UX-страница — **отдельная UX-задача после FINAL A2 / вместе с A2.3** (Docs; добавлять не в этом этапе).
 
+### A2.2 — review-fixes (не-блокеры ревью) (CLOSED)
+
+- **Дата:** 2026-08-17
+- **Ветка:** `a2.2-review-fixes` (PR #68 → dev, squash, merged)
+- **Статус:** done
+- **Роли:** Orchestrator; Dev + Test (параллельно). Тест-агент сначала увидел «чистую» ветку (правки Dev ещё не легли в рабочее дерево) — блокер снят повторной проверкой Orchestrator по финальному состоянию.
+
+#### Замечания ревью → статус
+1. **filter_entry side effect (detect.rs) — ЗАКРЫТО.** `find_trash_dirs` переписан с walkdir-`filter_entry` (push из предиката) на явный стек/DFS: `fs::read_dir` + `DirEntry::file_type()` (не следует симлинкам). Поведение 1:1 (контракт = 22 `tests/clean.rs` + 14 `tests/rinse.rs` без изменений): root depth 0 не матчится; symlink (вкл. symlink-to-dir) не записывается и не обходится; match на depth 1..=max_depth; matched pruned (nested `target/node_modules` не переоткрывается); depth==max_depth проверяется, но не обходится; ошибка чтения → `Error::Io { path }` fail-fast. `compute_size`/sort/containment/`dir_size_bytes` не тронуты.
+2. **`Error::PathOutsideTarget` wording — ЗАКРЫТО.** Display стал generic: `path outside target root: {path}` (вариант общий для stash и rinse). Ассерт в модульном тесте обновлён; stale `path outside stash target` в workspace нет (grep 0).
+3. **F-SKIP-1 — остаётся OPEN** (как и должно быть): стратегии/skip-таблицы и pack-deny не трогали; не закрывать «заодно» в A2.3. Синхронизация — с `default_pack()`/инвариант-тест.
+4. **Wiki rinse — отложено согласованно** с AGENTS: UX-страница `rinse.md`/supported — Docs-задача после FINAL A2 / вместе с A2.3.
+
+#### Файлы
+- changed: `crates/raccpack-core/src/clean/detect.rs`, `crates/raccpack-core/src/domain/error.rs`
+
+#### Тесты
+- `cargo test -p raccpack-core --test clean` — 22 passed
+- `cargo test -p raccpack-core --test rinse` — 14 passed
+- `cargo test -p raccpack-core domain::error` — 3 passed
+- `cargo test --workspace` — 0 failed (все suites)
+- `cargo fmt --all -- --check` — clean · `cargo clippy --workspace --all-targets -- -D warnings` — clean
+
+#### Решения
+- DFS-обход (порядок readdir не детерминирован на уровне OS) — итоговая сортировка `sort_by(path)` сохранена, контракт не меняется.
+- Ошибка `file_type()` → `Error::Io` с `entry.path()`; ошибка `read_dir` → `Error::Io` с самим каталогом (fail-fast).
+
 
 ### Wiki callouts safety (CLOSED)
 
