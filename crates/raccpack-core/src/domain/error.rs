@@ -37,8 +37,8 @@ pub enum Error {
     /// Nothing to archive (empty selection).
     #[error("nothing to stash: {message}")]
     StashEmpty { message: String },
-    /// A path escapes the stash target root.
-    #[error("path outside stash target: {path}")]
+    /// A path escapes the target root.
+    #[error("path outside target root: {path}")]
     PathOutsideTarget { path: PathBuf },
     /// A path exists but is not a regular file (directory, symlink, device…).
     #[error("not a file: {path}")]
@@ -167,7 +167,7 @@ mod tests {
                 path: PathBuf::from("/tmp/x")
             }
             .to_string(),
-            "path outside stash target: /tmp/x"
+            "path outside target root: /tmp/x"
         );
         assert_eq!(
             Error::NotAFile {
