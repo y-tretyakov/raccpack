@@ -16,7 +16,7 @@
 [x] A2.1 cleanup strategies + config toggles
 [x] A2.2 facade rinse DryRun/Commit
 [x] A2.3 CLI racc rinse
-[ ] A3.1 facade raid (stash→rinse→pack→move, fail-fast)
+[x] A3.1 facade raid (stash→rinse→pack→move, fail-fast)
 [ ] A3.2 ProgressSink + CLI progress
 [ ] A3.3 manifest JSON в den/manifests/
 [ ] A3.4 CLI racc raid --yes; E2E alpha
@@ -27,6 +27,58 @@
 ```
 
 ## Этапы
+
+### A3.1 — facade `raid` (stash→rinse→pack→move, fail-fast) (CLOSED)
+
+- **Дата:** 2026-08-18
+- **Ветка:** `a3.1-facade-raid` (PR #75 → dev, squash, merged)
+- **Статус:** done
+- **Роли:** Orchestrator; Dev + Test (параллельно). **Повторная реализация:** первая попытка (PR #74) была откачена ревьюером.
+
+#### Задача
+Публичный facade `raid`: оркестрация `stash → rinse → pack → move` в фиксированном порядке, fail-fast (ошибка включённой фазы останавливает следующие), флаг `success`, DryRun-safe, delegate к под-фасадам без дублирования их логики.
+
+#### Почему реверт PR #74 (зафиксировано перед перереализацией)
+1. `identity.expect(...)` в production (нарушение AGENTS §8.7 «без unwrap/expect»).
+2. `AgeIdentity::Recipients` отвергался даже при `stash.enabled == false` — спека §4 требует игнорировать identity при выключенном stash.
+3. Было только 4 unit-теста; отсутствовали обязательные 7 integration-кейсов спеки §6.
+
+#### Сделано
+- `app/raid.rs` (created): `StashPhaseOpts { enabled, min_risk, remove_sources }`, `RinsePhaseOpts { enabled }`, `PackPhaseOpts { enabled, deny_content_secrets }`, `RaidOptions` + `Default` (все фазы enabled, `min_risk: High`, `remove_sources: true`, `deny_content_secrets: true`), `RaidStageResult` (name/success/message/skipped), `RaidResult` (project_path, stages, stash/rinse/pack sub-results, den_artifacts, success, dry_run). `raid()`: preconditions → `Err` (пустой project, нет identity при enabled stash, `Recipients` при enabled stash), ошибка фазы → `Ok(RaidResult { success: false })` + последующие фазы `skipped` («not run due to prior failure»), `move` всегда финальная стадия. Artifacts при частичном фейле не откатываются, их пути попадают в `den_artifacts`. Помощники: `resolve_stash_identity` (identity игнорируется при `!stash.enabled` — фикс причины реверта), `run_stash_phase`/`run_rinse_phase`/`run_pack_phase` (строят под-опции и делегируют), `enabled_phase_count`, `ok_stage`/`failed_stage`/`skipped_stage`/`disabled_stage`, mode-aware `stash_message`/`rinse_message`/`pack_message` (без raw), `raid_event` (`OperationKind::Raid`); 4 unit-теста.
+- Re-exports (additive): `app/mod.rs`, `lib.rs` (`raid, RaidOptions, RaidResult, RaidStageResult, StashPhaseOpts, RinsePhaseOpts, PackPhaseOpts`).
+- `tests/raid.rs` (created): 13 integration-тестов — все 7 кейсов §6 (all-enabled DryRun ничего не пишет; all-enabled Commit создаёт `.age`+`.tar.zst`, удаляет исходники и node_modules; stash-fail → rinse/pack не запускаются, `success: false`; stash disabled → identity не нужен, rinse+pack идут; pack-only → stash/rinse skipped; den_artifacts содержит ожидаемые пути; default options все enabled) + extras: Recipients при enabled stash → `Err(Unsupported)`, **Recipients при disabled stash игнорируется** (regression-тест причины реверта), пустой project → `Err`, нет identity при enabled stash → `Err`, DryRun не создаёт den skeleton, JSON/сообщения стадий не содержат raw-значение.
+
+#### Файлы
+- created: `crates/raccpack-core/src/app/raid.rs`, `crates/raccpack-core/tests/raid.rs`
+- changed: `src/app/mod.rs`, `src/lib.rs`
+
+#### Тесты
+- `cargo test -p raccpack-core --lib raid` — 4 passed
+- `cargo test -p raccpack-core --test raid` — 13 passed
+- `cargo test --workspace` — green, 0 failed
+- `cargo clippy --workspace --all-targets -- -D warnings` — clean (проверялся `-p raccpack-core`)
+- `cargo fmt --check` — clean
+
+#### Решения
+- Identity резолвится через `resolve_stash_identity` один раз в начале: `Ok(None)` только при `!stash.enabled`, иначе `Err` — поэтому в основном теле ветка «enabled без identity» не существует (мертвый код удалён при перереализации).
+- `failed_stage` принимает `impl Into<String>` (message), а не `&Error` — так stage-сообщения никогда не копируют Display ошибки с raw; raw-значение тестируется (JSON-прогон).
+- Файл 441 строка production-кода (потолок 450) — принято: файл когезивен (одна концепция facade raid), предыдущая версия была 436 строк и отклонялась не по размеру. Если ревьюер захочет — split по stage-presentation helpers в follow-up.
+- Merge только в `dev` (main — только релизы вех, AGENTS §6).
+
+#### Критерий готовности (DoD из a3.1 §7)
+- [x] `raid` matches facade signature
+- [x] Fixed order stash → rinse → pack → move; `move` всегда финальная стадия
+- [x] Fail-fast: ошибка включённой фазы → `Ok(success=false)`, последующие `skipped`
+- [x] DryRun: ничего не пишется, `den_artifacts` пуст
+- [x] Identity игнорируется при `!stash.enabled` (фикс причины реверта #74)
+- [x] 7 integration-кейсов §6 + regression-тесты
+- [x] Без `unwrap`/`expect` в production
+- [x] Tests green
+
+#### Риски / follow-up
+- **A3.1 файл raid.rs** ~441 строк production (лимит 450): при следующем расширении (raid CLI, manifest) — обязательный split (stage-presentation helpers → отдельный файл или `raid/` dir).
+- **Wiki/UX:** `raid` пока не в CLI (A3.4) — страницу `raid.md` и roadmap-статус не трогаем до зелёного A3.4; сейчас не упоминать raid как доступный.
+- **Manifest (A3.3):** `RaidResult` уже содержит `den_artifacts` и `stages` — база для JSON-manifest в den/manifests; связь контракта A3.3↔A3.1 учесть при этапе A3.3.
 
 ### A2.1 — cleanup strategies + config toggles (CLOSED)
 
