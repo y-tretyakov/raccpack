@@ -1,32 +1,30 @@
 //! Facade use-case `raid`: orchestrate the project lifecycle.
 //!
-//! [`raid`] runs the enabled lifecycle phases in a fixed order —
-//! **stash → rinse → pack → move** — and stops at the first failing enabled
-//! phase (fail-fast). It never re-implements encrypt/clean/pack logic: each
+//! [`raid`] runs the enabled phases in fixed order — **stash → rinse → pack →
+//! move** — and stops at the first failing enabled phase (fail-fast). Each
 //! phase delegates to its own facade ([`crate::app::stash`],
-//! [`crate::app::rinse`], [`crate::app::pack`]) and only collects the outcome
-//! into a [`RaidStageResult`].
+//! [`crate::app::rinse`], [`crate::app::pack`]); this module only orchestrates
+//! and collects outcomes into [`RaidStageResult`]s.
 //!
 //! INVARIANTS:
 //!
 //! - **Fail-fast**: an `Err` from an enabled phase aborts the run; following
-//!   enabled phases are recorded as `skipped` ("not run due to prior failure").
-//!   Artifacts already created by earlier phases stay in the den and their
-//!   paths are reported in [`RaidResult::den_artifacts`] — never rolled back.
-//!   The one exception is [`Error::StashEmpty`]: an empty stash selection is a
-//!   no-op (`success` stage, message "nothing to stash"), not a failure, and
-//!   the run continues.
+//!   enabled phases are `skipped` ("not run due to prior failure"). Artifacts
+//!   already placed stay in [`RaidResult::den_artifacts`]. [`Error::StashEmpty`]
+//!   is a no-op ("nothing to stash") and the run continues.
 //! - **Phase failure → `Ok(RaidResult { success: false, .. })`**, not `Err`:
-//!   the partial run is a valid result for UX/JSON. Only **precondition**
-//!   errors return `Err` (missing project path, missing identity when stash is
-//!   enabled, unsupported recipients identity).
-//! - **DryRun safe**: every sub-call runs under `ctx.mode`; nothing is created
-//!   under the den and `remove_sources` never deletes. Stage success means the
-//!   plan was built without an error.
-//! - **Identity**: required only when `opts.stash.enabled`; when stash is
-//!   disabled the identity argument is ignored entirely.
-//! - **Raw-free**: stage messages carry summaries only (counts, "disabled",
-//!   "not run…"), never raw secret material.
+//!   only **precondition** errors return `Err` (missing project path,
+//!   missing/unsupported identity when stash is enabled).
+//! - **DryRun safe**: sub-calls run under `ctx.mode`; nothing is created under
+//!   the den and `remove_sources` never deletes.
+//! - **Identity**: required only when `opts.stash.enabled`; otherwise ignored.
+//! - **Progress events**: exactly one `OperationKind::Raid` completion event
+//!   per planned phase (enabled stash/rinse/pack plus implicit `"move"`), with
+//!   coherent indices/percent via the spec formula. Disabled phases emit
+//!   nothing; fail-fast phases emit "not run due to prior failure". There is
+//!   no start event — completion events are the only raid emissions.
+//! - **Raw-free**: stage and event messages carry summaries only (counts,
+//!   "disabled", "not run…", error `Display`), never raw secret material.
 
 use std::path::PathBuf;
 
@@ -36,9 +34,21 @@ use crate::domain::{Error, Result, SensitiveRisk};
 
 use super::context::AppContext;
 use super::pack::{pack, PackOptions, PackResult};
-use super::progress::{OperationKind, ProgressEvent, ProgressSink};
+use super::progress::ProgressSink;
 use super::rinse::{rinse, RinseOptions, RinseResult};
 use super::stash::{stash, AgeIdentity, StashOptions, StashResult};
+
+mod progress;
+mod stages;
+
+use progress::{emit_phase_event, plan_phases};
+use stages::{
+    disabled_stage, failed_stage, ok_stage, pack_message, rinse_message, skipped_stage,
+    stash_message,
+};
+
+/// Message used for every phase short-circuited by an earlier failure.
+const SKIPPED_MESSAGE: &str = "not run due to prior failure";
 
 /// Phase-level options for the stash part of a raid.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -135,22 +145,15 @@ pub struct RaidResult {
 
 /// Orchestrate `stash → rinse → pack → move` for `opts.project`.
 ///
-/// Runs the enabled phases in the fixed order above. A failing enabled phase
-/// short-circuits the remaining enabled phases (fail-fast); the partial result
-/// is returned as `Ok(RaidResult { success: false, .. })` with the failure and
-/// the short-circuited stages recorded. Artifacts already placed into the den
-/// by earlier successful phases are kept (their paths appear in
-/// [`RaidResult::den_artifacts`]).
+/// A failing enabled phase short-circuits the rest (fail-fast); the partial
+/// run returns `Ok(RaidResult { success: false, .. })`. Artifacts already
+/// placed into the den stay (paths in [`RaidResult::den_artifacts`]).
 ///
 /// # Errors (preconditions only)
 ///
 /// - Empty project path → [`Error::Other`].
 /// - `opts.stash.enabled` without an identity → [`Error::Other`].
 /// - `opts.stash.enabled` with [`AgeIdentity::Recipients`] → [`Error::Unsupported`].
-///
-/// Phase failures are **not** errors: they surface as `RaidResult.success == false`.
-/// The one exception is [`Error::StashEmpty`] (no secrets matched): it is a
-/// successful no-op (`"nothing to stash"`) and the run continues.
 pub fn raid(
     ctx: &AppContext,
     opts: &RaidOptions,
@@ -166,15 +169,8 @@ pub fn raid(
     let stash_identity = resolve_stash_identity(opts, identity)?;
 
     let dry_run = ctx.mode.is_dry_run();
-    let phase_count = enabled_phase_count(opts) + 1;
-
-    progress.emit(raid_event(
-        0,
-        phase_count as u32,
-        0,
-        "Starting raid…",
-        false,
-    ));
+    let planned = plan_phases(opts);
+    let phase_count = enabled_phase_count(opts) as u32 + 1;
 
     let mut stages = Vec::new();
     let mut den_artifacts = Vec::new();
@@ -190,16 +186,20 @@ pub fn raid(
                 if !dry_run {
                     den_artifacts.push(result.archive_path.clone());
                 }
-                stages.push(ok_stage("stash", stash_message(&result, dry_run)));
+                let message = stash_message(&result, dry_run);
+                stages.push(ok_stage("stash", message.clone()));
+                emit_phase_event(progress, &planned, "stash", phase_count, message);
             }
-            // No secrets matched → the phase is a no-op, not a failure: the
-            // stash is "successful with nothing to stash" and the run continues.
+            // No secrets matched → successful no-op ("nothing to stash").
             Err(Error::StashEmpty { .. }) => {
                 stages.push(ok_stage("stash", "nothing to stash"));
+                emit_phase_event(progress, &planned, "stash", phase_count, "nothing to stash");
             }
             Err(err) => {
                 overall_ok = false;
-                stages.push(failed_stage("stash", err.to_string()));
+                let message = err.to_string();
+                stages.push(failed_stage("stash", message.clone()));
+                emit_phase_event(progress, &planned, "stash", phase_count, message);
             }
         }
     } else {
@@ -211,15 +211,20 @@ pub fn raid(
             match run_rinse_phase(ctx, opts, progress) {
                 Ok(result) => {
                     rinse_result = Some(result.clone());
-                    stages.push(ok_stage("rinse", rinse_message(&result, dry_run)));
+                    let message = rinse_message(&result, dry_run);
+                    stages.push(ok_stage("rinse", message.clone()));
+                    emit_phase_event(progress, &planned, "rinse", phase_count, message);
                 }
                 Err(err) => {
                     overall_ok = false;
-                    stages.push(failed_stage("rinse", err.to_string()));
+                    let message = err.to_string();
+                    stages.push(failed_stage("rinse", message.clone()));
+                    emit_phase_event(progress, &planned, "rinse", phase_count, message);
                 }
             }
         } else {
             stages.push(skipped_stage("rinse"));
+            emit_phase_event(progress, &planned, "rinse", phase_count, SKIPPED_MESSAGE);
         }
     } else {
         stages.push(disabled_stage("rinse"));
@@ -233,15 +238,20 @@ pub fn raid(
                     if !dry_run {
                         den_artifacts.push(result.output.clone());
                     }
-                    stages.push(ok_stage("pack", pack_message(&result, dry_run)));
+                    let message = pack_message(&result, dry_run);
+                    stages.push(ok_stage("pack", message.clone()));
+                    emit_phase_event(progress, &planned, "pack", phase_count, message);
                 }
                 Err(err) => {
                     overall_ok = false;
-                    stages.push(failed_stage("pack", err.to_string()));
+                    let message = err.to_string();
+                    stages.push(failed_stage("pack", message.clone()));
+                    emit_phase_event(progress, &planned, "pack", phase_count, message);
                 }
             }
         } else {
             stages.push(skipped_stage("pack"));
+            emit_phase_event(progress, &planned, "pack", phase_count, SKIPPED_MESSAGE);
         }
     } else {
         stages.push(disabled_stage("pack"));
@@ -254,21 +264,11 @@ pub fn raid(
             "finalized staged artifacts"
         };
         stages.push(ok_stage("move", message));
+        emit_phase_event(progress, &planned, "move", phase_count, message);
     } else {
         stages.push(skipped_stage("move"));
+        emit_phase_event(progress, &planned, "move", phase_count, SKIPPED_MESSAGE);
     }
-
-    progress.emit(raid_event(
-        phase_count as u32 - 1,
-        phase_count as u32,
-        100,
-        if overall_ok {
-            "Raid completed"
-        } else {
-            "Raid stopped after a failed phase"
-        },
-        true,
-    ));
 
     Ok(RaidResult {
         project_path: opts.project.clone(),
@@ -282,11 +282,7 @@ pub fn raid(
     })
 }
 
-/// Validate the identity precondition for the stash phase.
-///
-/// When stash is disabled the identity is ignored (`Ok(None)`), even a
-/// recipients identity — spec §4. When enabled, a missing identity or an
-/// unsupported recipients identity is a precondition error.
+/// Validate the stash identity precondition (ignored when stash is disabled).
 fn resolve_stash_identity<'a>(
     opts: &RaidOptions,
     identity: Option<&'a AgeIdentity>,
@@ -351,102 +347,18 @@ fn run_pack_phase(
     pack(ctx, &pack_opts, progress)
 }
 
-/// Number of enabled phases (`stash` / `rinse` / `pack`); `move` is implicit.
+/// Number of enabled phases (`stash`/`rinse`/`pack`); `move` is implicit and
+/// `+1` equals `plan_phases(opts).len()`.
 fn enabled_phase_count(opts: &RaidOptions) -> usize {
     usize::from(opts.stash.enabled)
         + usize::from(opts.rinse.enabled)
         + usize::from(opts.pack.enabled)
 }
 
-/// Build a successful stage.
-fn ok_stage(name: &str, message: impl Into<String>) -> RaidStageResult {
-    RaidStageResult {
-        name: name.to_string(),
-        success: true,
-        message: message.into(),
-        skipped: false,
-    }
-}
-
-/// Build a failed stage (the phase ran and errored).
-fn failed_stage(name: &str, message: impl Into<String>) -> RaidStageResult {
-    RaidStageResult {
-        name: name.to_string(),
-        success: false,
-        message: message.into(),
-        skipped: false,
-    }
-}
-
-/// Build a stage for a phase short-circuited by an earlier failure.
-fn skipped_stage(name: &str) -> RaidStageResult {
-    RaidStageResult {
-        name: name.to_string(),
-        success: false,
-        message: "not run due to prior failure".to_string(),
-        skipped: true,
-    }
-}
-
-/// Build a stage for a disabled phase.
-fn disabled_stage(name: &str) -> RaidStageResult {
-    RaidStageResult {
-        name: name.to_string(),
-        success: true,
-        message: "disabled".to_string(),
-        skipped: true,
-    }
-}
-
-/// Stash stage summary, mode-aware ("would stash N files" / "stashed N files").
-fn stash_message(result: &StashResult, dry_run: bool) -> String {
-    if dry_run {
-        format!("would stash {} files", result.files_archived)
-    } else {
-        format!("stashed {} files", result.files_archived)
-    }
-}
-
-/// Rinse stage summary, mode-aware.
-fn rinse_message(result: &RinseResult, dry_run: bool) -> String {
-    if dry_run {
-        format!("found {} directories", result.removed.len())
-    } else {
-        format!("removed {} directories", result.removed.len())
-    }
-}
-
-/// Pack stage summary, mode-aware.
-fn pack_message(result: &PackResult, dry_run: bool) -> String {
-    if dry_run {
-        "would pack project".to_string()
-    } else {
-        format!("packed {} files", result.file_count)
-    }
-}
-
-/// Build a progress event for the `"raid"` phase.
-fn raid_event(
-    phase_index: u32,
-    phase_count: u32,
-    percent: u8,
-    message: impl Into<String>,
-    phase_complete: bool,
-) -> ProgressEvent {
-    ProgressEvent {
-        operation: OperationKind::Raid,
-        phase: "raid".to_string(),
-        phase_index,
-        phase_count,
-        percent,
-        overall_percent: percent,
-        message: message.into(),
-        phase_complete,
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
 
     #[test]
@@ -480,43 +392,5 @@ mod tests {
             },
         };
         assert_eq!(enabled_phase_count(&pack_only), 1);
-    }
-
-    #[test]
-    fn stage_helpers_produce_expected_shapes() {
-        let ok = ok_stage("pack", "packed 3 files");
-        assert!(ok.success);
-        assert!(!ok.skipped);
-        assert_eq!(ok.message, "packed 3 files");
-
-        let failed = failed_stage("stash", "no files");
-        assert!(!failed.success);
-        assert!(!failed.skipped);
-        assert_eq!(failed.message, "no files");
-
-        let skipped = skipped_stage("rinse");
-        assert!(!skipped.success);
-        assert!(skipped.skipped);
-        assert_eq!(skipped.message, "not run due to prior failure");
-
-        let disabled = disabled_stage("pack");
-        assert!(disabled.success);
-        assert!(disabled.skipped);
-        assert_eq!(disabled.message, "disabled");
-    }
-
-    #[test]
-    fn raid_event_helper_shape() {
-        let event = raid_event(0, 4, 0, "Starting raid…", false);
-        assert_eq!(event.operation, OperationKind::Raid);
-        assert_eq!(event.phase, "raid");
-        assert_eq!(event.phase_index, 0);
-        assert_eq!(event.phase_count, 4);
-        assert_eq!(event.percent, 0);
-        assert!(!event.phase_complete);
-
-        let done = raid_event(3, 4, 100, "Raid completed", true);
-        assert_eq!(done.phase_index, 3);
-        assert!(done.phase_complete);
     }
 }

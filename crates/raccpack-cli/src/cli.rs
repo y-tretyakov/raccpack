@@ -52,6 +52,8 @@ pub enum Commands {
     Stash(StashArgs),
     /// Remove build-artifact directories from a project
     Rinse(RinseArgs),
+    /// Orchestrated stash → rinse → pack → move for one project
+    Raid(RaidArgs),
 }
 
 /// Options specific to `racc sniff`.
@@ -168,6 +170,22 @@ pub struct RinseArgs {
     /// Cleanup strategy ids to apply (repeatable; default from config)
     #[arg(long, value_name = "ID")]
     pub strategy: Vec<String>,
+}
+
+/// Options specific to `racc raid`.
+#[derive(Debug, Args, Default)]
+pub struct RaidArgs {
+    /// Project directory to raid (required)
+    #[arg(long, value_name = "PATH")]
+    pub project: PathBuf,
+
+    /// Commit mode: run the phases for real (write to the den, remove sources)
+    #[arg(long)]
+    pub yes: bool,
+
+    /// Force dry-run even when --yes is also given
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 /// Minimum risk level selected via `--min-risk`.
@@ -680,5 +698,62 @@ mod tests {
             }
             _ => panic!("expected rinse command"),
         }
+    }
+
+    #[test]
+    fn raid_args_default_to_dry_run() {
+        let args = RaidArgs::default();
+        assert!(args.project.as_os_str().is_empty());
+        assert!(!args.yes);
+        assert!(!args.dry_run);
+    }
+
+    #[test]
+    fn clap_parse_raid_with_flags() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "raid",
+            "--project",
+            "/tmp/app",
+            "--den",
+            "/tmp/den",
+            "--yes",
+        ])
+        .expect("parse should succeed");
+        assert_eq!(cli.global.den, Some(PathBuf::from("/tmp/den")));
+        match cli.command {
+            Commands::Raid(args) => {
+                assert_eq!(args.project, PathBuf::from("/tmp/app"));
+                assert!(args.yes);
+                assert!(!args.dry_run);
+            }
+            _ => panic!("expected raid command"),
+        }
+    }
+
+    #[test]
+    fn clap_parse_raid_dry_run_and_yes_both_accepted() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "raid",
+            "--project",
+            "/tmp/app",
+            "--yes",
+            "--dry-run",
+        ])
+        .expect("parse should succeed");
+        match cli.command {
+            Commands::Raid(args) => {
+                assert!(args.yes);
+                assert!(args.dry_run);
+            }
+            _ => panic!("expected raid command"),
+        }
+    }
+
+    #[test]
+    fn clap_rejects_raid_without_project() {
+        let result = Cli::try_parse_from(["racc", "raid", "--yes"]);
+        assert!(result.is_err(), "missing --project must be rejected");
     }
 }
