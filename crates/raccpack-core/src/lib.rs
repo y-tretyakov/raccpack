@@ -12,11 +12,10 @@ pub mod scan;
 pub mod secrets;
 
 pub use app::{
-    dig, exit_code_for_secrets, pack, raid, rinse, sniff, stash, AgeIdentity, AppContext,
-    DigOptions, DigResult, NullProgress, OperationKind, PackOptions, PackPhaseOpts, PackResult,
-    ProgressEvent, ProgressSink, RaidOptions, RaidResult, RaidStageResult, RepeatedSecret,
-    RinseOptions, RinsePhaseOpts, RinseResult, RunMode, SecretExitPolicy, SensitiveFile,
-    SniffOptions, SniffResult, StashOptions, StashPhaseOpts, StashResult, WorkspacePaths,
+    dig, exit_code_for_secrets, pack, rinse, sniff, stash, AgeIdentity, AppContext, DigOptions,
+    DigResult, NullProgress, OperationKind, PackOptions, PackResult, ProgressEvent, ProgressSink,
+    RepeatedSecret, RinseOptions, RinseResult, RunMode, SecretExitPolicy, SensitiveFile,
+    SniffOptions, SniffResult, StashOptions, StashResult, WorkspacePaths,
 };
 pub use archive::{
     pack_tree, should_deny_file_in_pack, ContentDenyOptions, PackTreeOptions, PackTreeResult,
