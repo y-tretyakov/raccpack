@@ -76,9 +76,19 @@
 - [x] Tests green
 
 #### Риски / follow-up
-- **A3.1 файл raid.rs** ~441 строк production (лимит 450): при следующем расширении (raid CLI, manifest) — обязательный split (stage-presentation helpers → отдельный файл или `raid/` dir).
+- **A3.1 файл raid.rs** ~450 строк production (лимит 450): при следующем расширении (raid CLI, manifest) — обязательный split (stage-presentation helpers → отдельный файл или `raid/` dir).
 - **Wiki/UX:** `raid` пока не в CLI (A3.4) — страницу `raid.md` и roadmap-статус не трогаем до зелёного A3.4; сейчас не упоминать raid как доступный.
 - **Manifest (A3.3):** `RaidResult` уже содержит `den_artifacts` и `stages` — база для JSON-manifest в den/manifests; связь контракта A3.3↔A3.1 учесть при этапе A3.3.
+- **StashEmpty** (review #75): политика «no-op, не fail-fast» зафиксирована в спеке §4/§5 и реализована в PR #76; CLI A3.4 может рассчитывать на `success: true` для чистых проектов.
+
+#### Review-fix (PR #76 → dev, squash, merged)
+- **Дата:** 2026-08-18 · **Ветка:** `a3.1-raid-review-fixes`
+- Замечания ревью PR #75 (не блокеры) — закрыты:
+  1. **StashEmpty ≠ fail-fast** — в `raid` добавлена ветка `Err(Error::StashEmpty) → ok_stage("stash", "nothing to stash")`, run продолжается; `stash_result` остаётся `None`, artifact не добавляется. Спека §4/§5/§6 обновлена (пункт 8 тестов). Тесты: `stash_with_no_secrets_is_not_a_failure_and_run_continues` + DryRun-вариант.
+  2. **Rustdoc `RaidStageResult.success`** — исправлена опечатка «false for disabled-ok» → фактически disabled = `success: true`; теперь док говорит «true for ok and disabled, false for failed and skipped».
+  3. **WORKLOG #2** — замечание было по более раннему состоянию: текущая секция A3.1 уже описывает #75 (ветка `a3.1-facade-raid`, `tests/raid.rs`, 13 integration, Recipients/no-expect). Устаревших `a3-1-raid`-строк нет (проверено `rg`).
+  4. **Покрытие edge** — добавлены тесты StashEmpty (см. п.1).
+- Тесты: `--lib raid` 4/4, `--test raid` 15/15, workspace green, clippy `-D warnings` clean, fmt clean.
 
 ### A2.1 — cleanup strategies + config toggles (CLOSED)
 
