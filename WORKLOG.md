@@ -78,7 +78,7 @@ A3.2 включает **минимальную команду `racc raid`** (`--
 
 #### Риски / follow-up
 - **A3.4:** toggles фаз (`--no-stash`/`--no-rinse`/`--no-pack`, `--min-risk`, `--remove-sources`/`--keep-sources`, `--no-content-deny`), distinct exit 1 при `!success`, расширенный human-summary (строки A3.4 §4), E2E, `tests/e2e_raid.rs`.
-- **Wiki/UX:** `racc raid` теперь существует в CLI, но **страницу `raid.md` и roadmap-статус НЕ трогаем до зелёного A3.4** (решение A3.1, подтверждено человеком для A3.2). Расхождение wiki ↔ CLI — явный Docs-follow-up на A3.4.
+- **Wiki/UX:** `racc raid` теперь существует в CLI, но **страницу `raid.md` и roadmap-статус НЕ трогаем до зелёного A3.4** (решение A3.1, подтверждено человеком для A3.2). Актуальное расхождение wiki ↔ CLI на live: `cli-usage.md` — raid в секции «Планируется»; `roadmap.md` — `racc raid` unchecked. Закрывается в A3.4: `raid.md` + `cli-usage.md` + roadmap (карточка raid), `exit 1 при !success`, E2E (явный Docs-follow-up).
 - **`commands/raid.rs` exit-code контракт:** 0 на Ok (в т.ч. success=false) — осознанно, до A3.4; пользователю фазовая неудача видна в `Failed`/JSON `success:false`.
 
 ### A3.1 — facade `raid` (stash→rinse→pack→move, fail-fast) (CLOSED)
