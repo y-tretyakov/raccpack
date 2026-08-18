@@ -17,7 +17,7 @@
 [x] A2.2 facade rinse DryRun/Commit
 [x] A2.3 CLI racc rinse
 [x] A3.1 facade raid (stash→rinse→pack→move, fail-fast)
-[ ] A3.2 ProgressSink + CLI progress
+[x] A3.2 ProgressSink + CLI progress
 [ ] A3.3 manifest JSON в den/manifests/
 [ ] A3.4 CLI racc raid --yes; E2E alpha
 [ ] A4.1 GitClient (process) + status sensitive files в dig
@@ -27,6 +27,59 @@
 ```
 
 ## Этапы
+
+### A3.2 — ProgressSink + CLI progress для raid (CLOSED)
+
+- **Дата:** 2026-08-18
+- **Ветка:** `a3.2-progress` (PR #77 → dev, squash, merged)
+- **Статус:** done
+- **Роли:** Orchestrator; Dev + Test (параллельно; Test проверил по working-tree до коммита Dev, финальную перепроверку по merge-ready tip `b8fd38e` сделал Orchestrator сам).
+
+#### Задача
+Единые progress-события на уровне raid (не только вложенные stash/rinse/pack) + CLI-прогресс при `racc raid` без `--json`; `phase_count`/`phase_index`/`overall_percent` согласованы с числом enabled-фаз + move; JSON-режим тихий.
+
+#### Скоуп (согласован с человеком)
+A3.2 включает **минимальную команду `racc raid`** (`--project`/`--yes`/`--dry-run`, passphrase на Commit), несмотря на то что A3.4 перечисляет `commands/raid.rs` — спека A3.2 §2/§4/§6 явно требует CLI-прогресс; полные toggles (`--no-stash` и т.д.), exit 1 при `!success`, E2E, wiki — A3.4.
+
+#### Сделано
+- **Core split (follow-up A3.1):** `app/raid.rs` → `app/raid/mod.rs` (типы, `raid()`, раннеры, `resolve_stash_identity`, `enabled_phase_count`; 396 строк), `app/raid/stages.rs` (ok/failed/skipped/disabled_stage + mode-aware summaries; 179), `app/raid/progress.rs` (`plan_phases`, `overall_percent`, `emit_phase_event`; 188). Каждый файл < 400.
+- **Event-контракт:** ровно одно `OperationKind::Raid` completion-событие на planned-фазу (stash/rinse/pack enabled + move); `phase_count = enabled+1`; `overall_percent = (phase_index*100 + percent)/phase_count` clamp 0..=100; disabled → события нет, индексы сдвигаются; fail-fast → failed-фаза эмитит `err.to_string()` (без raw), последующие — `SKIPPED_MESSAGE = "not run due to prior failure"` (общая константа со stage); `StashEmpty` — no-op "nothing to stash", run продолжается. **Старт-событие «Starting raid…» убрано** — completion-события единственные эмиссии (module-doc).
+- **CLI `progress.rs`:** `CliProgress` (ProgressSink, Send) + pure `render_event` → `→ {phase}: {message}` только для `Raid && phase_complete`; nested stash/rinse/pack события и in-flight отфильтрованы; plain text без ANSI.
+- **CLI `commands/raid.rs`:** `run_raid` — Commit iff `yes && !dry_run`; passphrase (`read_passphrase`) только Commit, DryRun-плейсхолдер `DRY_RUN_PASSPHRASE` (паттерн stash); `NullProgress` при `--json`, `CliProgress` иначе; exit 0 на Ok (в т.ч. `success=false`), 1 на Err (distinct exit при `!success` — A3.4, зафиксировано в module-doc).
+- **CLI `output_raid.rs`:** JSON = pretty `RaidResult`; human = `Success`/`Failed` (фазы уже вывел CliProgress).
+- **clap:** `Commands::Raid(RaidArgs { project(required), yes, dry_run })` + wiring (`main.rs`, `commands/mod.rs`).
+
+#### Файлы
+- created: `crates/raccpack-core/src/app/raid/{stages,progress}.rs`, `crates/raccpack-core/tests/raid_progress.rs`, `crates/raccpack-cli/src/{progress,output_raid}.rs`, `crates/raccpack-cli/src/commands/raid.rs`, `crates/raccpack-cli/tests/cli_raid.rs`
+- renamed: `crates/raccpack-core/src/app/raid.rs` → `app/raid/mod.rs` (rethick: mod)
+- changed: `crates/raccpack-cli/src/cli.rs`, `commands/mod.rs`, `main.rs`
+
+#### Тесты
+- `cargo test --workspace` — green, 0 failed (28 suites; A3.1 `--test raid` 15/15 без изменений)
+- `cargo test -p raccpack-core --test raid_progress` — 5/5; `cargo test -p raccpack-cli --test cli_raid` — 6/6
+- `cargo fmt --all -- --check` — clean; `cargo clippy --workspace --all-targets -- -D warnings` — clean
+- Smoke (проверено Orchestrator): human — `→ stash: would stash 1 files / → rinse: found 1 directories / → pack: would pack project / → move: nothing to finalize / Success`, exit 0; `--json` — валидный RaidResult без `→`.
+
+#### Решения
+- Public API core не менялся (re-exports `app/mod.rs`/`lib.rs` нетронуты) — breaking note не требуется.
+- `SKIPPED_MESSAGE` — единая константа для `skipped_stage` и событий (1 источник правды).
+- `overall_percent` использует saturating-арифметику; count==0 → 0 (защита от деления на ноль).
+- `Box<dyn ProgressSink>` в CLI — минимальный выбор для NullProgress/CliProgress; enum — при росте (A3.4).
+- Тестовый NOTE-комментарий в `cli_raid.rs` («until that lands…») снят как устаревший после коммита Dev (тривиальная правка Orchestrator'а).
+
+#### Критерий готовности (DoD из a3.2 §6)
+- [x] Raid emits `OperationKind::Raid` с согласованными индексами (1 completion на planned-фазу, формула overall, move последний 100/complete)
+- [x] CLI показывает phase-progress при !json (`→ {phase}: {message}` + `Success`/`Failed`)
+- [x] JSON-режим тихий (NullProgress; в stdout только RaidResult)
+- [x] Сообщения без raw (core events + CLI вывод)
+- [x] Split raid-файла < 400 строк (A3.1 follow-up закрыт)
+- [x] A3.1-семантика `RaidResult` не изменена (тесты 15/15)
+- [x] Tests green, fmt/clippy clean
+
+#### Риски / follow-up
+- **A3.4:** toggles фаз (`--no-stash`/`--no-rinse`/`--no-pack`, `--min-risk`, `--remove-sources`/`--keep-sources`, `--no-content-deny`), distinct exit 1 при `!success`, расширенный human-summary (строки A3.4 §4), E2E, `tests/e2e_raid.rs`.
+- **Wiki/UX:** `racc raid` теперь существует в CLI, но **страницу `raid.md` и roadmap-статус НЕ трогаем до зелёного A3.4** (решение A3.1, подтверждено человеком для A3.2). Расхождение wiki ↔ CLI — явный Docs-follow-up на A3.4.
+- **`commands/raid.rs` exit-code контракт:** 0 на Ok (в т.ч. success=false) — осознанно, до A3.4; пользователю фазовая неудача видна в `Failed`/JSON `success:false`.
 
 ### A3.1 — facade `raid` (stash→rinse→pack→move, fail-fast) (CLOSED)
 
