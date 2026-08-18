@@ -16,7 +16,7 @@
 [x] A2.1 cleanup strategies + config toggles
 [x] A2.2 facade rinse DryRun/Commit
 [x] A2.3 CLI racc rinse
-[ ] A3.1 facade raid (stash→rinse→pack→move, fail-fast)
+[x] A3.1 facade raid (stash→rinse→pack→move, fail-fast)
 [ ] A3.2 ProgressSink + CLI progress
 [ ] A3.3 manifest JSON в den/manifests/
 [ ] A3.4 CLI racc raid --yes; E2E alpha
@@ -27,6 +27,46 @@
 ```
 
 ## Этапы
+
+### A3.1 — facade `raid` (stash → rinse → pack → move, fail-fast) (DONE)
+
+- **Дата:** 2026-08-18
+- **Ветка:** `a3-1-raid`
+- **Статус:** done
+- **Роли:** Orchestrator; Dev + Test (параллельно).
+
+#### Задача
+Реализовать фасадный orchestrator `raid`, который запускает включённые фазы в фиксированном порядке `stash → rinse → pack → move`, останавливается при первой ошибке (fail-fast), сохраняет `RaidResult.success` и `stages`, и работает корректно в `DryRun`/`Commit` режимах без дублирования stash/rinse/pack logic.
+
+#### Сделано
+- `crates/raccpack-core/src/app/raid.rs` (created): `RaidOptions`, phase option structs (`StashPhaseOpts`, `RinsePhaseOpts`, `PackPhaseOpts`), `RaidStageResult`, `RaidResult`, `raid()` orchestrator.
+- `raid()` возвращает `Ok(RaidResult { success:false, ... })` после phase failure и `Err(...)` только для precondition failures (`project` empty, missing stash identity, unsupported recipient identity).
+- `RaidResult.stages` содержит `stash`, `rinse`, `pack`, `move`; fail-fast short-circuits later enabled phases; move always emitted as logical final stage.
+- `den_artifacts` tracks only non-dry-run artifact paths; dry-run writes nothing.
+- `app/mod.rs` и `lib.rs` re-export new raid types and function.
+- `tests` внутри `raid.rs`: default options, dry-run success, stash failure fail-fast, and disabled-stash path.
+
+#### Файлы
+- created: `crates/raccpack-core/src/app/raid.rs`
+- changed: `crates/raccpack-core/src/app/mod.rs`, `crates/raccpack-core/src/lib.rs`, `WORKLOG.md`
+
+#### Тесты
+- `cargo test -p raccpack-core raid -- --nocapture` — pass
+- `cargo clippy -p raccpack-core --all-targets -- -D warnings` — pass
+
+#### Решения
+- Направление на fail-fast без автоматического отката: уже созданные age/pack при фазовом сбое остаются в den и отражаются в `den_artifacts` / `stages`.
+- `move` — логическая фаза финализации и не дублирует stash/rinse/pack; `manifest` write оставлен для A3.3.
+- DryRun не пишет в den и игнорирует `remove_sources` в stash; такое поведение соответствует существующим `stash`/`pack`/`rinse` contracts.
+
+#### Критерий готовности (DoD из a3.1 §7)
+- [x] `raid` API matches facade
+- [x] Order stash → rinse → pack → move
+- [x] Fail-fast + success flag
+- [x] DryRun safe
+- [x] No duplicated encrypt/clean/pack logic
+- [x] path containment / den staging invariants preserved by sub-calls
+- [x] tests green
 
 ### A2.1 — cleanup strategies + config toggles (CLOSED)
 
