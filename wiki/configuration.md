@@ -17,11 +17,30 @@ raccpack настраивается через TOML-файл и нескольк
 
 Пример:
 
-```bash
-# Явный путь через переменную окружения
+::: code-group
+
+```bash [bash]
+# bash / zsh — явный путь через переменную окружения
 export RACCPACK_CONFIG=/path/to/raccpack.toml
 racc sniff
 ```
+
+```fish [fish]
+set -gx RACCPACK_CONFIG /path/to/raccpack.toml
+racc sniff
+```
+
+```nu [nu]
+$env.RACCPACK_CONFIG = "/path/to/raccpack.toml"
+racc sniff
+```
+
+```powershell [pwsh]
+$env:RACCPACK_CONFIG = "/path/to/raccpack.toml"
+racc sniff
+```
+
+:::
 
 ## Формат файла
 

@@ -104,9 +104,15 @@ export default defineConfig({
   cleanUrls: false,
   head: [
     ['link', { rel: 'icon', href: '/raccpack/favicon.ico', type: 'image/x-icon' }],
+    [
+      'script',
+      {},
+      `(function(){try{var s=JSON.parse(localStorage.getItem('raccpack-wiki-appearance')||'{}');var r=document.documentElement;if(s.text)r.dataset.denText=s.text;if(s.width)r.dataset.denWidth=s.width;var c=s.color||'dark';if(c==='dark'){r.classList.add('dark')}else if(c==='light'){r.classList.remove('dark')}else{var d=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;r.classList.toggle('dark',!!d)}}catch(e){}})();`,
+    ],
   ],
   lastUpdated: true,
   markdown: {
+    lineNumbers: true,
     container: {
       tipLabel: 'СОВЕТ',
       warningLabel: 'ПРЕДУПРЕЖДЕНИЕ',
@@ -145,8 +151,8 @@ export default defineConfig({
       },
     },
   },
+  appearance: false,
   themeConfig: {
-    appearance: 'dark',
     i18nRouting: false,
     logo: '/logo.webp',
     siteTitle: 'raccpack',

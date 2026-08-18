@@ -129,13 +129,36 @@ racc stash --project PATH [--den PATH] [--yes] [--dry-run] [--remove-sources] [-
 # Dry-run: показать, что попадёт в архив (ничего не пишется)
 racc stash --project ~/DEV/PROJS/app-api
 
-# Commit с env-passphrase для CI (исходники не удаляются)
-export RACCPACK_PASSPHRASE="$STASH_SECRET"
-racc stash --project "$CI_PROJECT_DIR" --den "$DEN_PATH" --yes
-
 # Commit и удалить исходные секретные файлы
 racc stash --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes --remove-sources
 ```
+
+Commit с env-passphrase для CI (исходники не удаляются):
+
+::: code-group
+
+```bash [bash]
+# bash / zsh
+export RACCPACK_PASSPHRASE="$STASH_SECRET"
+racc stash --project "$CI_PROJECT_DIR" --den "$DEN_PATH" --yes
+```
+
+```fish [fish]
+set -gx RACCPACK_PASSPHRASE $STASH_SECRET
+racc stash --project $CI_PROJECT_DIR --den $DEN_PATH --yes
+```
+
+```nu [nu]
+$env.RACCPACK_PASSPHRASE = $env.STASH_SECRET
+racc stash --project $env.CI_PROJECT_DIR --den $env.DEN_PATH --yes
+```
+
+```powershell [pwsh]
+$env:RACCPACK_PASSPHRASE = $env:STASH_SECRET
+racc stash --project $env:CI_PROJECT_DIR --den $env:DEN_PATH --yes
+```
+
+:::
 
 ::: danger
 Пример с `--remove-sources` удаляет исходные секреты после успешного stash. Подробности и ограничения: [Stash](/stash).

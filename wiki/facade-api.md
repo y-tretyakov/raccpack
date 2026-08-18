@@ -77,7 +77,7 @@ pub struct AppContext {
 
 ## Операции
 
-### `sniff` — найти проекты
+### `sniff` - найти проекты
 
 ```rust
 pub struct SniffOptions {
@@ -97,7 +97,7 @@ pub fn sniff(ctx: &AppContext, opts: &SniffOptions,
 
 **Статус: реализовано.** CLI: `racc sniff`.
 
-### `dig` — найти секреты
+### `dig` - найти секреты
 
 ```rust
 pub struct DigOptions {
@@ -126,7 +126,7 @@ pub fn exit_code_for_secrets(files: &[SensitiveFile], policy: SecretExitPolicy) 
 
 **Статус: реализовано.** CLI: `racc dig`.
 
-### `stash` — вынести секреты в age-архив
+### `stash` - вынести секреты в age-архив
 
 ```rust
 pub enum AgeIdentity {
@@ -154,7 +154,7 @@ pub fn stash(ctx: &AppContext, opts: &StashOptions, identity: &AgeIdentity,
 
 **Статус: планируется (Alpha, фаза A1).**
 
-### `rinse` — очистить мусор сборки
+### `rinse` - очистить мусор сборки
 
 ```rust
 pub struct RinseOptions {
@@ -171,7 +171,7 @@ pub fn rinse(ctx: &AppContext, opts: &RinseOptions,
 
 **Статус: планируется (Alpha, фаза A2).**
 
-### `pack` — упаковать проект
+### `pack` - упаковать проект
 
 ```rust
 pub struct PackOptions {
@@ -198,7 +198,7 @@ pub fn pack(ctx: &AppContext, opts: &PackOptions,
 
 **Статус: ядро и CLI реализованы (MVP 0.1).**
 
-### `raid` — полный цикл
+### `raid` - полный цикл
 
 ```rust
 pub struct RaidOptions {

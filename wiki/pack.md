@@ -3,7 +3,7 @@ title: Pack — упаковка в den
 description: Команда racc pack — упаковка проекта в архив tar.zst и сохранение в den без секретов.
 ---
 
-# Pack — упаковка в den
+# Pack - упаковка в den
 
 Команда: `racc pack`  
 Статус: реализовано.
@@ -97,7 +97,7 @@ racc pack --project <PATH> [OPTIONS]
 
 ## Вывод
 
-### Человекочитаемый — dry-run
+### Человекочитаемый - dry-run
 
 ```text
 Pack (dry-run)
@@ -107,7 +107,7 @@ Pack (dry-run)
   (no files written)
 ```
 
-### Человекочитаемый — commit
+### Человекочитаемый - commit
 
 ```text
 Pack complete

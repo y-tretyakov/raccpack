@@ -6,8 +6,14 @@ import { withBase } from 'vitepress'
   <a
     class="sidebar-brand"
     :href="withBase('/')"
-    aria-label="RaccPack — главная страница"
+    aria-label="raccpack — главная страница"
   >
-    <img class="sidebar-brand-img" :src="withBase('/RaccPack.webp')" alt="RaccPack" />
+    <img
+      class="sidebar-brand-img"
+      :src="withBase('/RaccPack.webp')"
+      alt="raccpack"
+      width="240"
+      height="240"
+    />
   </a>
 </template>
