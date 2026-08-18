@@ -247,6 +247,65 @@ fn stash_failure_short_circuits_following_phases() {
     );
 }
 
+// --- StashEmpty is a no-op, not a failure ------------------------------------
+
+#[test]
+fn stash_with_no_secrets_is_not_a_failure_and_run_continues() {
+    let (temp, proj, den) = workspace();
+    let _ = temp;
+    write(&proj, "README.md", "# clean project, no secrets\n");
+    let ctx = ctx_for(&proj, &den, RunMode::Commit);
+
+    let result = raid_once(&ctx, &raid_options(&proj));
+
+    assert!(
+        result.success,
+        "an empty stash selection must not fail the raid: {result:?}"
+    );
+    assert!(
+        result.stash.is_none(),
+        "no archive was created, so no stash sub-result"
+    );
+
+    let stash_stage = result.stages.iter().find(|s| s.name == "stash").unwrap();
+    assert!(stash_stage.success, "stash stage must be successful");
+    assert!(
+        !stash_stage.skipped,
+        "stash ran (found nothing) — not a disabled/skipped stage"
+    );
+    assert_eq!(stash_stage.message, "nothing to stash");
+
+    assert!(
+        result.rinse.is_some(),
+        "rinse must run after an empty stash"
+    );
+    assert!(result.pack.is_some(), "pack must run after an empty stash");
+    assert!(
+        proj.join("README.md").is_file(),
+        "clean project files must survive"
+    );
+}
+
+#[test]
+fn stash_with_no_secrets_dry_run_is_also_not_a_failure() {
+    let (temp, proj, den) = workspace();
+    let _ = temp;
+    write(&proj, "README.md", "# clean project, no secrets\n");
+    let ctx = ctx_for(&proj, &den, RunMode::DryRun);
+
+    let result = raid_once(&ctx, &raid_options(&proj));
+
+    assert!(result.success, "dry run must succeed too: {result:?}");
+    assert!(result.dry_run);
+    let stash_stage = result.stages.iter().find(|s| s.name == "stash").unwrap();
+    assert!(stash_stage.success);
+    assert_eq!(stash_stage.message, "nothing to stash");
+    assert!(
+        result.den_artifacts.is_empty(),
+        "dry run must not report artifacts"
+    );
+}
+
 // --- Case 4: stash disabled → no identity required ---------------------------
 
 #[test]

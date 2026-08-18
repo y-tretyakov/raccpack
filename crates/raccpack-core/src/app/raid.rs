@@ -13,6 +13,9 @@
 //!   enabled phases are recorded as `skipped` ("not run due to prior failure").
 //!   Artifacts already created by earlier phases stay in the den and their
 //!   paths are reported in [`RaidResult::den_artifacts`] — never rolled back.
+//!   The one exception is [`Error::StashEmpty`]: an empty stash selection is a
+//!   no-op (`success` stage, message "nothing to stash"), not a failure, and
+//!   the run continues.
 //! - **Phase failure → `Ok(RaidResult { success: false, .. })`**, not `Err`:
 //!   the partial run is a valid result for UX/JSON. Only **precondition**
 //!   errors return `Err` (missing project path, missing identity when stash is
@@ -100,7 +103,8 @@ impl Default for RaidOptions {
 pub struct RaidStageResult {
     /// Phase name: `"stash"` | `"rinse"` | `"pack"` | `"move"`.
     pub name: String,
-    /// Whether the phase succeeded (`false` for disabled-ok and skipped).
+    /// Whether the phase succeeded. `true` for ok and disabled (no-op);
+    /// `false` for failed and skipped.
     pub success: bool,
     /// Human-readable summary, never containing secret material.
     pub message: String,
@@ -145,6 +149,8 @@ pub struct RaidResult {
 /// - `opts.stash.enabled` with [`AgeIdentity::Recipients`] → [`Error::Unsupported`].
 ///
 /// Phase failures are **not** errors: they surface as `RaidResult.success == false`.
+/// The one exception is [`Error::StashEmpty`] (no secrets matched): it is a
+/// successful no-op (`"nothing to stash"`) and the run continues.
 pub fn raid(
     ctx: &AppContext,
     opts: &RaidOptions,
@@ -185,6 +191,11 @@ pub fn raid(
                     den_artifacts.push(result.archive_path.clone());
                 }
                 stages.push(ok_stage("stash", stash_message(&result, dry_run)));
+            }
+            // No secrets matched → the phase is a no-op, not a failure: the
+            // stash is "successful with nothing to stash" and the run continues.
+            Err(Error::StashEmpty { .. }) => {
+                stages.push(ok_stage("stash", "nothing to stash"));
             }
             Err(err) => {
                 overall_ok = false;
