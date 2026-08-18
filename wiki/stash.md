@@ -3,7 +3,7 @@ title: Stash — вынос секретов в зашифрованный ар�
 description: Команда racc stash — собрать чувствительные файлы проекта в зашифрованный age-архив в den, при необходимости удалив исходники.
 ---
 
-# Stash — вынос секретов в зашифрованный архив (age)
+# Stash - вынос секретов в зашифрованный архив (age)
 
 Команда: `racc stash`  
 Статус: реализовано (Alpha).
@@ -268,12 +268,32 @@ racc stash --project ~/DEV/PROJS/my-api --yes --dry-run
 
 ### Примеры для CI
 
-```bash
+::: code-group
+
+```bash [bash]
+# bash / zsh
 export RACCPACK_PASSPHRASE="$STASH_SECRET"   # из CI secrets
 racc stash --project "$CI_PROJECT_DIR" --den "$DEN_PATH" --yes --json
 # исходники на CI-агенте обычно не удаляют:
 # не передавайте --remove-sources, если артефакты ещё нужны job'у
 ```
+
+```fish [fish]
+set -gx RACCPACK_PASSPHRASE $STASH_SECRET   # из CI secrets
+racc stash --project $CI_PROJECT_DIR --den $DEN_PATH --yes --json
+```
+
+```nu [nu]
+$env.RACCPACK_PASSPHRASE = $env.STASH_SECRET   # из CI secrets
+racc stash --project $env.CI_PROJECT_DIR --den $env.DEN_PATH --yes --json
+```
+
+```powershell [pwsh]
+$env:RACCPACK_PASSPHRASE = $env:STASH_SECRET   # из CI secrets
+racc stash --project $env:CI_PROJECT_DIR --den $env:DEN_PATH --yes --json
+```
+
+:::
 
 ### Расшифровка вручную (`age -d`)
 

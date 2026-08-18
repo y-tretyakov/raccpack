@@ -1,3 +1,16 @@
+/**
+ * raccpack Wiki — Den Theme
+ * Версия: 1.0.0
+ * Полностью кастомное оформление, отличное от стандартного VitePress.
+ *
+ * Требует шрифтов:
+ *   /raccpack/fonts/shoptronic-sp.woff2
+ *   /raccpack/fonts/golos-text.woff2
+ *   /raccpack/fonts/jbm-nf-*.woff2
+ */
+
+/* ===== Fonts ===== */
+
 @font-face {
   font-family: "Shoptronic SP";
   src: url("/raccpack/fonts/shoptronic-sp.woff2") format("woff2");
@@ -46,52 +59,506 @@
   font-display: swap;
 }
 
-:root:root {
+/* ===== Design Tokens + VitePress mapping ===== */
+
+:root {
+  /* Brand — same in both themes */
   --vp-c-brand-1: #c96c2c;
   --vp-c-brand-2: #e07f3b;
   --vp-c-brand-3: #f08c4a;
-  --vp-c-brand-soft: rgba(201, 108, 44, 0.16);
+  --vp-c-brand-soft: rgba(201, 108, 44, 0.14);
 
+  /* Indigo (unused default override) */
+  --vp-c-indigo-1: #c96c2c;
+  --vp-c-indigo-2: #e07f3b;
+  --vp-c-indigo-3: #f08c4a;
+
+  /* Fonts */
   --vp-font-family-base: "Golos Text", -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans",
     "Helvetica Neue", sans-serif;
   --vp-font-family-mono: "JetBrainsMono Nerd Font", ui-monospace,
     SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Layout */
+  --vp-nav-height: 56px;
+  --vp-sidebar-width: 280px;
+  --vp-layout-max-width: 1720px;
+
+  /* Den extras */
+  --den-radius-m: 10px;
+  --den-radius-l: 14px;
+  --den-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --den-duration: 220ms;
 }
 
-/* ===== Writerside-style admonitions ===== */
+/* ---------- Dark (default) ---------- */
+:root,
+.dark {
+  /* Surfaces — deep den */
+  --vp-c-bg: #0c0e12;
+  --vp-c-bg-alt: #12151c;
+  --vp-c-bg-elv: #181c26;
+  --vp-c-bg-soft: #1e2430;
 
-.custom-block {
-  position: relative;
+  /* Borders */
+  --vp-c-border: #2a3140;
+  --vp-c-divider: #2a3140;
+  --vp-c-gutter: #12151c;
+
+  /* Text */
+  --vp-c-text-1: #e8eaef;
+  --vp-c-text-2: #a0a8b8;
+  --vp-c-text-3: #6b7385;
+
+  /* Code block surface + border (theme-aware) */
+  --den-code-bg: #0d1117;
+  --den-code-border: #2a3140;
+
+  /* Shadows (theme-aware) */
+  --den-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --den-shadow-2: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --den-shadow-brand: 0 12px 40px rgba(201, 108, 44, 0.18);
+
+  /* Nav glass (theme-aware) */
+  --den-nav-bg: rgba(12, 14, 18, 0.72);
+  --den-nav-border: rgba(42, 49, 64, 0.55);
+
+  /* Risk badge colors (dark-friendly) */
+  --den-risk-critical-bg: rgba(185, 28, 28, 0.2);
+  --den-risk-critical-fg: #f87171;
+  --den-risk-critical-bd: rgba(185, 28, 28, 0.45);
+  --den-risk-high-bg: rgba(214, 69, 69, 0.18);
+  --den-risk-high-fg: #f87171;
+  --den-risk-high-bd: rgba(214, 69, 69, 0.4);
+  --den-risk-medium-bg: rgba(212, 160, 23, 0.18);
+  --den-risk-medium-fg: #fbbf24;
+  --den-risk-medium-bd: rgba(212, 160, 23, 0.4);
+  --den-risk-low-bg: rgba(61, 154, 106, 0.18);
+  --den-risk-low-fg: #4ade80;
+  --den-risk-low-bd: rgba(61, 154, 106, 0.4);
+
+  /* Admonition accent text (dark-friendly) */
+  --den-acc-info: #60a5fa;
+  --den-acc-tip: #4ade80;
+  --den-acc-warning: #fbbf24;
+  --den-acc-danger: #f87171;
+}
+
+/* ---------- Light ---------- */
+html:not(.dark),
+.light {
+  --vp-c-bg: #f8f7f4;
+  --vp-c-bg-alt: #ffffff;
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-bg-soft: #f0eeea;
+
+  --vp-c-border: #e2dfd8;
+  --vp-c-divider: #e2dfd8;
+  --vp-c-gutter: #f0eeea;
+
+  --vp-c-text-1: #1a1d23;
+  --vp-c-text-2: #4a5160;
+  --vp-c-text-3: #6b7385;
+
+  --vp-c-brand-soft: rgba(201, 108, 44, 0.12);
+
+  --den-code-bg: #f6f5f2;
+  --den-code-border: #e2dfd8;
+  --den-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --den-shadow-2: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --den-shadow-brand: 0 12px 40px rgba(201, 108, 44, 0.12);
+  --den-nav-bg: rgba(248, 247, 244, 0.82);
+  --den-nav-border: rgba(226, 223, 216, 0.85);
+
+  /* Darker accents for light backgrounds */
+  --den-risk-critical-bg: rgba(185, 28, 28, 0.1);
+  --den-risk-critical-fg: #b91c1c;
+  --den-risk-critical-bd: rgba(185, 28, 28, 0.35);
+  --den-risk-high-bg: rgba(214, 69, 69, 0.1);
+  --den-risk-high-fg: #c53030;
+  --den-risk-high-bd: rgba(214, 69, 69, 0.3);
+  --den-risk-medium-bg: rgba(212, 160, 23, 0.12);
+  --den-risk-medium-fg: #a16207;
+  --den-risk-medium-bd: rgba(212, 160, 23, 0.35);
+  --den-risk-low-bg: rgba(61, 154, 106, 0.1);
+  --den-risk-low-fg: #2f6f4e;
+  --den-risk-low-bd: rgba(61, 154, 106, 0.3);
+
+  --den-acc-info: #2563eb;
+  --den-acc-tip: #2f6f4e;
+  --den-acc-warning: #a16207;
+  --den-acc-danger: #c53030;
+}
+
+/* ===== Base ===== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Scale body text with the Appearance "Text" setting (html font-size) */
+  font-size: 1rem;
+}
+
+/* ===== Appearance: text scale ===== */
+
+/* Sidebar must cover the header on the left so the opaque header appears
+   only above the content area ("шапка только над контентом") */
+@media (min-width: 960px) {
+  :root {
+    --vp-z-index-sidebar: 40;
+  }
+}
+
+html[data-den-text='small'] {
+  font-size: 14px;
+}
+
+html[data-den-text='large'] {
+  font-size: 18px;
+}
+
+/* Fixed-px chrome text follows the scale via rem (standard = 0.875rem = 14px) */
+html[data-den-text] .VPSidebarItem .text,
+html[data-den-text] .VPNavBarMenuLink,
+html[data-den-text] .VPNavBarTranslations,
+html[data-den-text] .VPNavBarMenuGroup .button {
+  font-size: 0.875rem !important;
+}
+
+/* ===== Navigation — glass ===== */
+
+.VPNavBar {
+  background: var(--den-nav-bg) !important;
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border-bottom: 1px solid var(--den-nav-border) !important;
+}
+
+/* Wiki pages (non-home): header like original VitePress —
+   opaque bar above the sidebar, does not overlap it */
+.VPNavBar:not(.home) {
+  background: var(--vp-c-bg) !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom-color: var(--vp-c-divider) !important;
+}
+
+.VPNavBar .wrapper {
+  max-width: var(--vp-layout-max-width);
+}
+
+/* Hide default title on desktop — we use SidebarBrand */
+@media (min-width: 960px) {
+  .VPNavBarTitle {
+    display: none;
+  }
+}
+
+/* ===== Sidebar ===== */
+
+.VPSidebar {
+  background: var(--vp-c-bg-alt) !important;
+  border-right: 1px solid var(--vp-c-border) !important;
+  padding-top: 0 !important;
+}
+
+/* Sidebar reaches the very top; the sticky curtain (compensating for the
+   old nav-over-sidebar layout) is no longer needed */
+.VPSidebar .curtain {
+  display: none;
+}
+
+.VPSidebar .group {
+  margin-top: 8px;
+}
+
+.VPSidebarItem.level-0 .text {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.VPSidebarItem.is-active > .item .link > .text {
+  color: var(--vp-c-brand-1) !important;
+}
+
+.VPSidebarItem.is-active > .item .link {
+  background: var(--vp-c-brand-soft);
   border-radius: 8px;
-  border-left: 5px solid var(--acc);
-  padding: 12px 16px 10px;
+  padding: 4px 12px;
+  margin: 0 -12px;
+}
+
+/* ===== Sidebar Brand ===== */
+
+.sidebar-brand {
+  display: block;
+  margin: 1.5rem 12px 1.25rem;
+  line-height: 0;
+  transition: transform var(--den-duration) var(--den-ease);
+}
+
+.sidebar-brand:hover {
+  transform: scale(1.05);
+}
+
+.sidebar-brand-img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 168px;
+  margin: 0 auto;
+  object-fit: contain;
+  object-position: center;
+}
+
+/* ===== Document content ===== */
+
+.VPDoc {
+  padding-top: 28px;
+}
+
+/* Wider desktop container */
+@media (min-width: 960px) {
+  .VPDoc:not(.has-sidebar) .container {
+    max-width: 1180px;
+  }
+  .VPDoc:not(.has-sidebar) .content {
+    max-width: 880px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .VPDoc:not(.has-sidebar) .container {
+    max-width: 1240px;
+  }
+  .VPDoc:not(.has-sidebar) .content {
+    max-width: 920px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .VPDoc.has-aside .content-container {
+    max-width: 920px !important;
+  }
+}
+
+/* Appearance: content width */
+html[data-den-width='small'] {
+  --vp-layout-max-width: 1520px;
+}
+
+html[data-den-width='wide'] {
+  --vp-layout-max-width: 1920px;
+}
+
+@media (min-width: 1280px) {
+  html[data-den-width='small'] .VPDoc.has-aside .content-container {
+    max-width: 760px !important;
+  }
+
+  html[data-den-width='wide'] .VPDoc.has-aside .content-container {
+    max-width: 1160px !important;
+  }
+}
+
+.vp-doc {
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.vp-doc h1 {
+  font-family: "Shoptronic SP", var(--vp-font-family-base);
+  font-size: 2.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 0.75rem;
+}
+
+.vp-doc h2 {
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  border-top: none;
+  margin-top: 2.75rem;
+  padding-top: 0.85rem;
+  position: relative;
+}
+
+.vp-doc h2::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 36px;
+  height: 3px;
+  background: var(--vp-c-brand-1);
+  border-radius: 2px;
+}
+
+.vp-doc h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-top: 1.75rem;
+}
+
+.vp-doc h4 {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.vp-doc p,
+.vp-doc li {
   color: var(--vp-c-text-1);
-  background-color: var(--acc-bg);
 }
 
-.custom-block.info,
-.custom-block.tip,
-.custom-block.warning,
-.custom-block.danger,
-.custom-block.details {
-  border-left-color: var(--acc);
+.vp-doc a {
+  color: var(--vp-c-brand-1);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color var(--den-duration) var(--den-ease);
 }
 
-.custom-block .custom-block-title {
+.vp-doc a:hover {
+  color: var(--vp-c-brand-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ===== Code ===== */
+
+.vp-doc :not(pre) > code {
+  background: var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-border);
+  border-radius: 6px;
+  padding: 0.15em 0.4em;
+  font-size: 0.875em;
+  color: var(--vp-c-brand-2);
+}
+
+.vp-doc div[class*="language-"] {
+  border-radius: 12px;
+  border: 1px solid var(--den-code-border);
+  border-left: 3px solid var(--lang-accent, var(--den-code-border));
+  background: var(--den-code-bg) !important;
+  box-shadow: var(--den-shadow-1);
+  margin: 1.25rem 0;
+}
+
+/* Per-language accent stripe on the left edge */
+.vp-doc div[class*="language-bash"] { --lang-accent: #3d9a6a; }
+.vp-doc div[class*="language-text"] { --lang-accent: #8a93a5; }
+.vp-doc div[class*="language-rust"] { --lang-accent: #d4502e; }
+.vp-doc div[class*="language-json"] { --lang-accent: #d4a017; }
+.vp-doc div[class*="language-toml"] { --lang-accent: #3b82f6; }
+.vp-doc div[class*="language-powershell"] { --lang-accent: #8e5cd9; }
+.vp-doc div[class*="language-nu"] { --lang-accent: #2aa3a0; }
+.vp-doc div[class*="language-fish"] { --lang-accent: #e0509a; }
+
+.vp-doc div[class*="language-"] code {
+  font-size: 0.875em;
+  line-height: 1.55;
+}
+
+/* Long lines wrap instead of overflowing the block */
+.vp-doc div[class*="language-"] pre,
+.vp-doc div[class*="language-"] pre code {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.vp-doc div[class*="language-"] .lang {
+  color: var(--vp-c-text-3);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ===== Code groups (shell tabs) ===== */
+
+.vp-code-group {
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.vp-code-group .tabs {
+  background-color: var(--vp-c-bg-soft);
+  border-radius: var(--den-radius-m) var(--den-radius-m) 0 0;
+  box-shadow: inset 0 -1px var(--vp-c-border);
+  padding: 0 12px;
+}
+
+.vp-code-group .tabs label {
+  line-height: 44px;
+  font-size: 0.8125rem;
+  font-family: var(--vp-font-family-mono);
+  letter-spacing: 0.02em;
+  color: var(--vp-c-text-3);
+  transition: color var(--den-duration) var(--den-ease);
+}
+
+.vp-code-group .tabs label::after {
+  height: 2px;
+  border-radius: 2px;
+}
+
+.vp-code-group label:hover {
+  color: var(--vp-c-text-1);
+}
+
+.vp-code-group input:checked + label {
+  color: var(--vp-c-brand-1);
+  font-weight: 600;
+}
+
+.vp-code-group input:checked + label::after {
+  background-color: var(--vp-c-brand-1);
+}
+
+.vp-code-group div[class*="language-"] {
+  margin-top: 0 !important;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+
+/* ===== Custom blocks (admonitions) ===== */
+
+.vp-doc .custom-block {
+  position: relative;
+  border-radius: var(--den-radius-m);
+  border-left: 4px solid var(--acc);
+  border-top: 1px solid var(--vp-c-border);
+  border-right: 1px solid var(--vp-c-border);
+  border-bottom: 1px solid var(--vp-c-border);
+  padding: 14px 18px 12px;
+  color: var(--vp-c-text-1);
+  background-color: color-mix(in srgb, var(--acc) 9%, var(--vp-c-bg-soft));
+  margin: 1.25rem 0;
+}
+
+.vp-doc .custom-block .custom-block-title {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  margin: 0 0 0.25rem;
+  gap: 0.55rem;
+  margin: 0 0 0.35rem;
   font-weight: 700;
-  color: var(--acc-text);
+  font-size: 0.9rem;
+  color: var(--acc-text, var(--acc));
+  letter-spacing: 0.01em;
 }
 
-.custom-block .custom-block-title::before {
+.vp-doc .custom-block .custom-block-title::before {
   content: "";
   flex: 0 0 auto;
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.05rem;
+  height: 1.05rem;
   background-color: var(--acc);
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
@@ -100,135 +567,502 @@
   opacity: 0.95;
 }
 
-/* ---------- INFO ---------- */
-.custom-block.info {
-  --acc: #3b82f6; /* blue-500 */
-  --acc-text: #1d4ed8; /* blue-700 */
-  --acc-bg: color-mix(in srgb, #3b82f6 8%, transparent);
-  background-color: var(--acc-bg);
+/* INFO */
+.vp-doc .custom-block.info {
+  --acc: #3b82f6;
+  --acc-text: var(--den-acc-info);
+  border-left-color: var(--acc);
 }
-.custom-block.info .custom-block-title::before {
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E");
-}
-
-/* ---------- TIP ---------- */
-.custom-block.tip {
-  --acc: #10b981; /* emerald-500 */
-  --acc-text: #047857; /* emerald-700 */
-  --acc-bg: color-mix(in srgb, #10b981 8%, transparent);
-  background-color: var(--acc-bg);
-}
-.custom-block.tip .custom-block-title::before {
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5'/%3E%3Cpath d='M9 18h6'/%3E%3Cpath d='M10 22h4'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5'/%3E%3Cpath d='M9 18h6'/%3E%3Cpath d='M10 22h4'/%3E%3C/svg%3E");
+.vp-doc .custom-block.info .custom-block-title::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4M12 8h.01'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4M12 8h.01'/%3E%3C/svg%3E");
 }
 
-/* ---------- WARNING ---------- */
-.custom-block.warning {
-  --acc: #f59e0b; /* amber-500 */
-  --acc-text: #b45309; /* amber-700 */
-  --acc-bg: color-mix(in srgb, #f59e0b 8%, transparent);
-  background-color: var(--acc-bg);
+/* TIP / СОВЕТ */
+.vp-doc .custom-block.tip {
+  --acc: #3d9a6a;
+  --acc-text: var(--den-acc-tip);
+  border-left-color: var(--acc);
 }
-.custom-block.warning .custom-block-title::before {
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E");
-}
-
-/* ---------- DANGER ---------- */
-.custom-block.danger {
-  --acc: #ef4444; /* red-500 */
-  --acc-text: #b91c1c; /* red-700 */
-  --acc-bg: color-mix(in srgb, #ef4444 8%, transparent);
-  background-color: var(--acc-bg);
-}
-.custom-block.danger .custom-block-title::before {
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E");
+.vp-doc .custom-block.tip .custom-block-title::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83'/%3E%3C/svg%3E");
 }
 
-/* ---------- DETAILS (Дополнительно) ---------- */
-.custom-block.details {
-  --acc: #8b5cf6; /* violet-500 */
-  --acc-text: #6d28d9; /* violet-700 */
-  --acc-bg: color-mix(in srgb, #8b5cf6 8%, transparent);
-  background-color: var(--acc-bg);
+/* WARNING */
+.vp-doc .custom-block.warning {
+  --acc: #d4a017;
+  --acc-text: var(--den-acc-warning);
+  border-left-color: var(--acc);
 }
-.custom-block.details summary {
+.vp-doc .custom-block.warning .custom-block-title::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/%3E%3Cline x1='12' y1='9' x2='12' y2='13'/%3E%3Cline x1='12' y1='17' x2='12.01' y2='17'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/%3E%3Cline x1='12' y1='9' x2='12' y2='13'/%3E%3Cline x1='12' y1='17' x2='12.01' y2='17'/%3E%3C/svg%3E");
+}
+
+/* DANGER */
+.vp-doc .custom-block.danger {
+  --acc: #d64545;
+  --acc-text: var(--den-acc-danger);
+  border-left-color: var(--acc);
+}
+.vp-doc .custom-block.danger .custom-block-title::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='15' y1='9' x2='9' y2='15'/%3E%3Cline x1='9' y1='9' x2='15' y2='15'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='15' y1='9' x2='9' y2='15'/%3E%3Cline x1='9' y1='9' x2='15' y2='15'/%3E%3C/svg%3E");
+}
+
+/* DETAILS */
+.vp-doc .custom-block.details {
+  --acc: #6b7385;
+  --acc-text: var(--vp-c-text-2);
+  border-left-color: var(--acc);
+}
+
+/* ===== Tables ===== */
+
+.vp-doc table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: 0.925rem;
+}
+
+.vp-doc tr {
+  border-top: 1px solid var(--vp-c-border);
+}
+
+.vp-doc tr:nth-child(2n) {
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 60%, transparent);
+}
+
+.vp-doc th,
+.vp-doc td {
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--vp-c-border);
+}
+
+.vp-doc th {
+  background: var(--vp-c-bg-soft);
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Tables: horizontal-scroll container so no-wrap columns don't overflow the
+   page on small screens (wrap added by tagTables in theme/index.ts) */
+.vp-doc .den-table-wrap {
+  width: 100%;
+  margin: 1.25rem 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.vp-doc .den-table-wrap table {
+  margin: 0;
+}
+
+/* Параметр / Флаг / Команда columns never wrap to a second line
+   (cell class added by tagTables in theme/index.ts) */
+.vp-doc .den-nowrap-cell {
+  white-space: nowrap;
+}
+
+/* ===== Appearance panel ===== */
+
+/* Navbar: keep the settings button where the old theme switch used to be —
+   between the language menu and the GitHub link. The trigger is rendered via
+   the nav-bar-content-after slot (appended at the end), so flex `order`
+   moves it into place without touching the VitePress component tree. */
+.VPNavBar .content-body .VPNavBarSearch {
+  order: 0;
+}
+.VPNavBar .content-body .VPNavBarMenu {
+  order: 1;
+}
+.VPNavBar .content-body .VPNavBarTranslations {
+  order: 2;
+}
+.VPNavBar .content-body .appearance-trigger {
+  order: 3;
+}
+.VPNavBar .content-body .VPNavBarSocialLinks {
+  order: 4;
+}
+.VPNavBar .content-body .VPNavBarExtra {
+  order: 5;
+}
+.VPNavBar .content-body .VPNavBarHamburger {
+  order: 6;
+}
+
+/* Divider lines around the settings button, matching the original switch
+   separators (only on desktop, where translations + GitHub are visible) */
+@media (min-width: 1280px) {
+  .VPNavBar .content-body .appearance-trigger {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+
+  .VPNavBar .appearance-trigger::before,
+  .VPNavBar .appearance-trigger::after {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1px;
+    height: 24px;
+    background-color: var(--vp-c-divider);
+    content: "";
+  }
+
+  .VPNavBar .appearance-trigger::before {
+    left: -9px;
+  }
+
+  .VPNavBar .appearance-trigger::after {
+    right: -9px;
+  }
+}
+
+.appearance-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.appearance-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--vp-c-text-2);
+  cursor: pointer;
+  transition: color var(--den-duration) var(--den-ease),
+    background-color var(--den-duration) var(--den-ease);
+}
+
+.appearance-trigger-btn:hover {
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+}
+
+.appearance-trigger-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.appearance-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: var(--vp-z-index-nav);
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  padding: 14px 16px;
+  background: var(--vp-c-bg-alt);
+  border: 1px solid var(--vp-c-border);
+  border-radius: var(--den-radius-l);
+  box-shadow: var(--den-shadow-2);
+  font-family: var(--vp-font-family-base);
+}
+
+.appearance-panel {
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+}
+
+.appearance-head {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  margin: 0 0 0.25rem;
-  font-weight: 700;
-  color: var(--acc-text);
-  list-style: none;
-  cursor: pointer;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
 }
-.custom-block.details summary::-webkit-details-marker {
+
+.appearance-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-2);
+}
+
+.appearance-section {
+  margin-top: 10px;
+}
+
+.appearance-section h4 {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+}
+
+.appearance-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.den-radio {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+  transition: background-color var(--den-duration) var(--den-ease);
+}
+
+.den-radio:hover {
+  background: var(--vp-c-brand-soft);
+}
+
+/* Visually hidden native radio — the whole row is the clickable label */
+.den-radio-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.den-radio-mark {
+  position: relative;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--vp-c-text-3);
+  border-radius: 50%;
+  transition: border-color var(--den-duration) var(--den-ease);
+}
+
+.den-radio-input:checked + .den-radio-mark {
+  border-color: var(--vp-c-brand-1);
+}
+
+.den-radio-input:checked + .den-radio-mark::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--vp-c-brand-1);
+}
+
+.den-radio-input:focus-visible + .den-radio-mark {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+/* Mobile: keep the settings reachable; center the dropdown so it never
+   hangs off-screen, and let it scroll when it exceeds the viewport */
+@media (max-width: 959px) {
+  .appearance-pop {
+    position: fixed;
+    top: calc(var(--vp-nav-height) + 8px);
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(320px, calc(100vw - 24px));
+    max-height: calc(100dvh - var(--vp-nav-height) - 24px);
+    overflow-y: auto;
+  }
+
+  .den-radio {
+    padding: 8px 10px;
+  }
+}
+
+.den-pop-enter-active,
+.den-pop-leave-active {
+  transition: opacity 0.18s var(--den-ease),
+    transform 0.18s var(--den-ease);
+}
+
+.den-pop-enter-from,
+.den-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* Mobile popup is centered with translateX(-50%) — keep that centering
+   during the enter/leave animation instead of jumping horizontally */
+@media (max-width: 959px) {
+  .den-pop-enter-from,
+  .den-pop-leave-to {
+    transform: translate(-50%, -6px);
+  }
+}
+
+/* ===== Home Hero ===== */
+
+.VPHero {
+  --vp-home-hero-name-background: linear-gradient(
+    135deg,
+    var(--vp-c-brand-1) 0%,
+    var(--vp-c-brand-3) 100%
+  );
+  --vp-home-hero-name-color: transparent;
+}
+
+.VPHero .name,
+.VPHero .text {
+  font-family: "Shoptronic SP", "Golos Text", sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.VPHero .image-src {
+  border-radius: 22px;
+}
+
+html:not(.dark) .VPHero .image-src {
+  filter: drop-shadow(0 20px 40px rgba(201, 108, 44, 0.16));
+}
+
+.dark .VPHero .image-src {
+  filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.55));
+}
+
+.VPHomeHero .image-bg {
+  --vp-home-hero-image-background-image: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--vp-c-brand-1) 22%, transparent) 0%,
+    color-mix(in srgb, var(--vp-c-brand-3) 12%, transparent) 55%,
+    transparent 100%
+  );
+  --vp-home-hero-image-filter: blur(44px);
+}
+
+/* ===== Home plexus (desktop background, under content) ===== */
+
+.VPHome {
+  position: relative;
+}
+
+.den-plexus {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: paint;
+}
+
+.den-plexus canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.VPHome .VPHero,
+.VPHome .VPHomeFeatures,
+.VPHome .vp-doc {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 959px), (prefers-reduced-motion: reduce) {
+  .den-plexus {
+    display: none;
+  }
+}
+
+html:not(.dark) .den-plexus {
   display: none;
 }
-.custom-block.details summary::before {
-  content: "";
-  flex: 0 0 auto;
-  width: 1.1rem;
-  height: 1.1rem;
-  background-color: var(--acc);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12'/%3E%3Cpath d='m8 11 4 4 4-4'/%3E%3Cpath d='M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12'/%3E%3Cpath d='m8 11 4 4 4-4'/%3E%3Cpath d='M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4'/%3E%3C/svg%3E");
+
+/* ===== Home Features ===== */
+
+.VPHomeFeatures .VPFeature {
+  background: var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-border);
+  border-radius: var(--den-radius-l);
+  transition: transform var(--den-duration) var(--den-ease),
+    border-color var(--den-duration) var(--den-ease),
+    box-shadow var(--den-duration) var(--den-ease);
 }
 
-/* ---------- Dark theme adjustments ---------- */
-.dark .custom-block.info {
-  --acc-text: #93c5fd; /* blue-300 */
-  --acc-bg: color-mix(in srgb, #3b82f6 16%, transparent);
-}
-.dark .custom-block.tip {
-  --acc-text: #6ee7b7; /* emerald-300 */
-  --acc-bg: color-mix(in srgb, #10b981 16%, transparent);
-}
-.dark .custom-block.warning {
-  --acc-text: #fcd34d; /* amber-300 */
-  --acc-bg: color-mix(in srgb, #f59e0b 16%, transparent);
-}
-.dark .custom-block.danger {
-  --acc-text: #fca5a5; /* red-300 */
-  --acc-bg: color-mix(in srgb, #ef4444 16%, transparent);
-}
-.dark .custom-block.details {
-  --acc-text: #c4b5fd; /* violet-300 */
-  --acc-bg: color-mix(in srgb, #8b5cf6 16%, transparent);
+.VPHomeFeatures .VPFeature:hover {
+  transform: translateY(-6px);
+  border-color: var(--vp-c-brand-1);
+  box-shadow: var(--den-shadow-brand);
 }
 
-/* ===== Image lightbox ===== */
-
-body.iol-lightbox-lock {
-  overflow: hidden;
+.dark .VPHomeFeatures .VPFeature {
+  background-color: color-mix(
+    in srgb,
+    var(--vp-c-brand-1) 5%,
+    var(--vp-c-bg-soft)
+  );
 }
+
+html:not(.dark) .VPHomeFeatures .VPFeature {
+  background-color: var(--vp-c-bg-alt);
+}
+
+/* ===== Pipeline helper (for markdown + component) ===== */
+
+.den-pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.875rem;
+  margin: 1.5rem 0;
+  padding: 0.75rem 0;
+}
+
+.den-pipeline .step {
+  background: var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-border);
+  padding: 0.35rem 0.8rem;
+  border-radius: 8px;
+  color: var(--vp-c-brand-2);
+  font-weight: 500;
+  transition: border-color var(--den-duration) var(--den-ease),
+    transform var(--den-duration) var(--den-ease);
+}
+
+.den-pipeline .step:hover {
+  border-color: var(--vp-c-brand-1);
+  transform: scale(1.04);
+}
+
+.den-pipeline .arrow {
+  color: var(--vp-c-text-3);
+  user-select: none;
+  padding: 0 0.15rem;
+}
+
+/* ===== Image lightbox helpers ===== */
 
 .iol-wrap {
   position: relative;
   display: inline-block;
-  max-width: 100%;
-}
-
-.iol-wrap,
-.iol-wrap img {
   cursor: zoom-in;
+  max-width: 100%;
 }
 
 .iol-wrap img {
   display: block;
+  max-width: 100%;
+  border-radius: 10px;
+  transition: outline-color 0.2s ease;
 }
 
 .iol-wrap:hover img {
   outline: 2px solid color-mix(in srgb, var(--vp-c-brand-3) 45%, transparent);
   outline-offset: 3px;
-  transition: outline-color 0.2s ease;
 }
 
 .iol-icon {
@@ -249,6 +1083,10 @@ body.iol-lightbox-lock {
   pointer-events: none;
 }
 
+html:not(.dark) .iol-icon {
+  background: rgba(26, 29, 35, 0.65);
+}
+
 .iol-icon svg {
   width: 15px;
   height: 15px;
@@ -264,96 +1102,62 @@ body.iol-lightbox-lock {
   }
 }
 
-/* ===== Sidebar brand ===== */
+/* ===== Risk badges (utility) ===== */
 
-@media (min-width: 960px) {
-  .VPNavBarTitle {
-    display: none;
-  }
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15em 0.55em;
+  border-radius: 6px;
+  font-size: 0.8em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
 }
 
-.sidebar-brand {
-  display: block;
-  margin: 0 0 1rem;
-  line-height: 0;
+.risk-badge.critical {
+  background: var(--den-risk-critical-bg);
+  color: var(--den-risk-critical-fg);
+  border: 1px solid var(--den-risk-critical-bd);
 }
 
-.sidebar-brand-img {
-  width: 100%;
-  height: 180px;
-  object-fit: contain;
-  object-position: center;
-  border-radius: 14px;
-  box-shadow: var(--vp-shadow-1);
+.risk-badge.high {
+  background: var(--den-risk-high-bg);
+  color: var(--den-risk-high-fg);
+  border: 1px solid var(--den-risk-high-bd);
 }
 
-.dark .sidebar-brand-img {
-  box-shadow: var(--vp-shadow-2);
+.risk-badge.medium {
+  background: var(--den-risk-medium-bg);
+  color: var(--den-risk-medium-fg);
+  border: 1px solid var(--den-risk-medium-bd);
 }
 
-/* ===== Home hero / landing ===== */
-
-.VPHero {
-  --vp-home-hero-name-background: linear-gradient(
-    135deg,
-    var(--vp-c-brand-1) 0%,
-    var(--vp-c-brand-3) 100%
-  );
-  --vp-home-hero-name-color: transparent;
+.risk-badge.low {
+  background: var(--den-risk-low-bg);
+  color: var(--den-risk-low-fg);
+  border: 1px solid var(--den-risk-low-bd);
 }
 
-.dark .VPHero {
-  --vp-home-hero-name-background: linear-gradient(
-    135deg,
-    var(--vp-c-brand-2) 0%,
-    var(--vp-c-brand-3) 100%
-  );
+/* ===== Doc footer & outline ===== */
+
+.VPDocFooter {
+  margin-top: 3rem;
 }
 
-.VPHero .name,
-.VPHero .text {
-  font-family: "Shoptronic SP", "Golos Text", sans-serif;
+.VPDocAside .outline-title {
+  font-weight: 600;
   letter-spacing: 0.02em;
 }
 
-.VPHero .image-src {
-  border-radius: 24px;
-}
+/* ===== Reduced motion ===== */
 
-html:not(.dark) .VPHero .image-src {
-  filter: drop-shadow(0 20px 40px rgba(201, 108, 44, 0.16));
-}
-
-.dark .VPHero .image-src {
-  filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.5));
-}
-
-.VPHomeHero .image-bg {
-  --vp-home-hero-image-background-image: radial-gradient(
-    circle at 50% 50%,
-    color-mix(in srgb, var(--vp-c-brand-1) 22%, transparent) 0%,
-    color-mix(in srgb, var(--vp-c-brand-3) 12%, transparent) 60%,
-    transparent 100%
-  );
-  --vp-home-hero-image-filter: blur(40px);
-}
-
-.VPHomeFeatures .VPFeature {
-  border-radius: 12px;
-  transition: transform 0.25s ease, border-color 0.25s ease,
-    box-shadow 0.25s ease;
-}
-
-.VPHomeFeatures .VPFeature:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--vp-shadow-2);
-  border-color: var(--vp-c-brand-1);
-}
-
-.dark .VPHomeFeatures .VPFeature {
-  background-color: color-mix(
-    in srgb,
-    var(--vp-c-brand-1) 6%,
-    var(--vp-c-bg-soft)
-  );
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

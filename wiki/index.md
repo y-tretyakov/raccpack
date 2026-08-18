@@ -39,9 +39,7 @@ features:
 
 ## Пайплайн
 
-```
-sniff  →  dig  →  stash  →  rinse  →  pack  →  raid
-```
+<DenPipeline />
 
 ## Что дальше
 
