@@ -78,7 +78,7 @@ fn raid_event(
 mod tests {
     use std::path::PathBuf;
 
-    use crate::app::raid::{PackPhaseOpts, RinsePhaseOpts, StashPhaseOpts};
+    use crate::app::raid::{OrchestrationMode, PackPhaseOpts, RinsePhaseOpts, StashPhaseOpts};
     use crate::domain::SensitiveRisk;
 
     use super::*;
@@ -86,6 +86,7 @@ mod tests {
     fn options(stash: bool, rinse: bool, pack: bool) -> RaidOptions {
         RaidOptions {
             project: PathBuf::from("/tmp/p"),
+            mode: OrchestrationMode::Atomic,
             stash: StashPhaseOpts {
                 enabled: stash,
                 min_risk: SensitiveRisk::High,
