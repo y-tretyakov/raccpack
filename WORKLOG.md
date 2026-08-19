@@ -28,6 +28,52 @@
 
 ## Этапы
 
+### A3.3 — Atomic upgrade (PR1: scaffolding) (IN PROGRESS)
+
+- **Дата:** 2026-08-19
+- **Ветка:** `a3.3-atomic` (PR #78 → dev, squash, merged)
+- **Статус:** in progress — закрыт **PR1** (каркас API, green bridge); далее PR2 (staging) → PR3 (WAL + rollback) → orphan-тесты.
+- **Роли:** Orchestrator; Dev + Test (последовательно; Test по merge-ready tip `aed4b3a`).
+
+#### Задача (из `docs/alpha/a3_new/a3.3-atomic-upgrade.md`)
+Default **Atomic**: `OrchestrationMode { Atomic, FailFast }` в `RaidOptions`; весь Commit-raid в `den/staging/{raid_id}/` + WAL; финальные `secrets/`/`packs/` только atomic rename; `Err` → reverse-WAL → `rolled_back`, staging удалён; FailFast ≡ старое A3.1-поведение; DryRun без WAL/FS; progress commit/rollback; orphan-регрессия (ORPHAN-1..4).
+
+#### PR1 — сделано (scaffolding, additive, поведение не менялось)
+- `OrchestrationMode { Atomic, FailFast }` (default Atomic) + `RaidOptions.mode`.
+- `RaidResult.rolled_back: bool` + `rollback_warnings: Vec<String>` с `#[serde(default)]` — всегда `false`/пустые до PR3.
+- `raid()` → диспетчер по `mode`; fail-fast тело вынесено **дословно** в `app/raid/fail_fast.rs` (`fail_fast_raid`, pub(super), 236 строк); `atomic_raid` — green bridge (делегирует в fail-fast, коммент про PR2/PR3).
+- `mod.rs` 327 строк (≤ 400). Re-exports: `OrchestrationMode` в `app/mod.rs` + `lib.rs`.
+- Литералы: `RaidOptions`/`RaidResult` в тестах (raid.rs 318/366/483, raid_progress, progress.rs, output_raid.rs) дополнены новыми полями.
+- Unit: default Atomic; диспетчеризация (Atomic ≡ FailFast на DryRun); serialize additive-полей.
+
+#### Файлы
+- created: `crates/raccpack-core/src/app/raid/fail_fast.rs`
+- changed: `app/raid/mod.rs`, `app/raid/progress.rs`, `app/mod.rs`, `lib.rs`, `tests/raid.rs`, `tests/raid_progress.rs`, `crates/raccpack-cli/src/output_raid.rs`
+
+#### Тесты
+- `cargo test --workspace` — green, 0 failed (raid 15, raid_progress 5, cli_raid 6)
+- `cargo fmt --all -- --check` — clean · `cargo clippy --workspace --all-targets -- -D warnings` — clean
+- Smoke: dry-run exit 0 `Success`; `--json` содержит `rolled_back`/`rollback_warnings`.
+
+#### Решения
+- Green bridge на PR1: `atomic_raid` = делегирование в fail-fast → поведение и контракты A3.1/A3.2 не меняются (требование человека: не ломать A3.2-контракт раньше времени).
+- Поля результата additive с `#[serde(default)]` — старые JSON-тесты парсят по ключам, не ломаются.
+- `enabled_phase_count` стал `pub(super)` (перенос в fail_fast.rs) — внутренняя видимость, не public API.
+
+#### Критерий готовности PR1
+- [x] `OrchestrationMode` + `RaidOptions.mode` (default Atomic) в public API + re-exports
+- [x] `RaidResult.rolled_back`/`rollback_warnings` с serde default
+- [x] `raid()` диспетчер; `fail_fast.rs` вынесен; `atomic_raid` green bridge
+- [x] mod.rs ≤ 400 строк; без unwrap/expect в production
+- [x] Tests green, fmt/clippy clean
+
+#### Риски / follow-up
+- **PR2:** `app/raid/staging.rs` — единый `den/staging/{raid_id}/`; stash/pack пишут промежуточные артефакты туда (additive опция), placement/`remove_sources`/rinse-delete отложены в commit (иначе rollback нереализуем — решение человека).
+- **PR3:** `wal.rs` (WalOp JSONL, append+fsync до эффекта, iter_reverse) + `rollback.rs` + wire `atomic_raid` (rollback, `rolled_back`, remove staging) + progress commit/rollback + `tests/raid_atomic.rs` (ORPHAN-1..4; fault injection без test-hook в public API).
+- **A3.4:** manifest только после успешного Atomic commit (`den/manifest.rs`).
+- **A3.5:** CLI `--fail-fast`/toggles, exit 1 при `!success`, E2E, wiki — контракт A3.2 не трогать до этого этапа.
+- Wiki (user-facing) не обновляется до зелёного A3.5; dev-спеки `docs/alpha/a3_new/` — источник контракта.
+
 ### A3.2 — ProgressSink + CLI progress для raid (CLOSED)
 
 - **Дата:** 2026-08-18
