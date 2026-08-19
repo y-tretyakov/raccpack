@@ -29,8 +29,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use raccpack_core::{
-    raid, AgeIdentity, AppContext, OperationKind, PackPhaseOpts, ProgressEvent, ProgressSink,
-    RaccConfig, RaidOptions, RaidResult, RinsePhaseOpts, RunMode, SensitiveRisk, StashPhaseOpts,
+    raid, AgeIdentity, AppContext, OperationKind, OrchestrationMode, PackPhaseOpts, ProgressEvent,
+    ProgressSink, RaccConfig, RaidOptions, RaidResult, RinsePhaseOpts, RunMode, SensitiveRisk,
+    StashPhaseOpts,
 };
 use tempfile::TempDir;
 use zeroize::Zeroizing;
@@ -82,6 +83,7 @@ fn raid_options(project: &Path) -> RaidOptions {
 fn raid_options_stash_disabled(project: &Path) -> RaidOptions {
     RaidOptions {
         project: project.to_path_buf(),
+        mode: OrchestrationMode::Atomic,
         stash: StashPhaseOpts {
             enabled: false,
             min_risk: SensitiveRisk::High,

@@ -55,6 +55,8 @@ mod tests {
             den_artifacts: Vec::new(),
             success,
             dry_run: true,
+            rolled_back: false,
+            rollback_warnings: Vec::new(),
         }
     }
 

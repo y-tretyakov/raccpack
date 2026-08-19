@@ -23,8 +23,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use raccpack_core::{
-    raid, AgeIdentity, AppContext, Error, NullProgress, PackPhaseOpts, RaccConfig, RaidOptions,
-    RaidResult, RinsePhaseOpts, RunMode, StashPhaseOpts,
+    raid, AgeIdentity, AppContext, Error, NullProgress, OrchestrationMode, PackPhaseOpts,
+    RaccConfig, RaidOptions, RaidResult, RinsePhaseOpts, RunMode, StashPhaseOpts,
 };
 use tempfile::TempDir;
 use zeroize::Zeroizing;
@@ -317,6 +317,7 @@ fn stash_disabled_runs_rinse_and_pack_without_identity() {
 
     let opts = RaidOptions {
         project: proj.clone(),
+        mode: OrchestrationMode::Atomic,
         stash: StashPhaseOpts {
             enabled: false,
             min_risk: raccpack_core::SensitiveRisk::High,
@@ -364,6 +365,7 @@ fn pack_only_skips_stash_and_rinse() {
 
     let opts = RaidOptions {
         project: proj.clone(),
+        mode: OrchestrationMode::Atomic,
         stash: StashPhaseOpts {
             enabled: false,
             min_risk: raccpack_core::SensitiveRisk::High,
@@ -480,6 +482,7 @@ fn recipients_identity_is_ignored_when_stash_disabled() {
     ]);
     let opts = RaidOptions {
         project: proj.clone(),
+        mode: OrchestrationMode::Atomic,
         stash: StashPhaseOpts {
             enabled: false,
             min_risk: raccpack_core::SensitiveRisk::High,

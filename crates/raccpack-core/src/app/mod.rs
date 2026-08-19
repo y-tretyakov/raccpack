@@ -18,7 +18,8 @@ pub use dig::{dig, exit_code_for_secrets, DigOptions, DigResult, RepeatedSecret,
 pub use pack::{pack, PackOptions, PackResult};
 pub use progress::{NullProgress, OperationKind, ProgressEvent, ProgressSink};
 pub use raid::{
-    raid, PackPhaseOpts, RaidOptions, RaidResult, RaidStageResult, RinsePhaseOpts, StashPhaseOpts,
+    raid, OrchestrationMode, PackPhaseOpts, RaidOptions, RaidResult, RaidStageResult,
+    RinsePhaseOpts, StashPhaseOpts,
 };
 pub use rinse::{rinse, RinseOptions, RinseResult};
 pub use sniff::{sniff, SniffOptions, SniffResult};
