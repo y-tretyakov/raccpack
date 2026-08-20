@@ -19,7 +19,7 @@
 [x] A3.1 facade raid (stash→rinse→pack→move, fail-fast)
 [x] A3.2 ProgressSink + CLI progress
 [x] A3.3 atomic upgrade (default Atomic: staging + WAL + rollback, ORPHAN-1..4)
-[ ] A3.4 manifest JSON в den/manifests/ (после успешного Atomic commit)
+[x] A3.4 manifest JSON в den/manifests/ (после успешного Atomic commit)
 [ ] A3.5 CLI racc raid --fail-fast/toggles; exit 1 при !success; E2E alpha
 [ ] A4.1 GitClient (process) + status sensitive files в dig
 [ ] A4.2 Config migrate chain + racc init
@@ -95,6 +95,38 @@ Default **Atomic**: `OrchestrationMode { Atomic, FailFast }` в `RaidOptions`; �
 - **Исполнение:** Test-субагент (`general`) дважды вернул пустой результат (инфраструктура; первый запуск переписал `docs/alpha/a4/*` — откачено) → тесты PR2 написаны Orchestrator'ом сам (отклонение от делегирования, зафиксировано).
 - **Тесты:** `cargo test --workspace` — green, 0 failed (raid_atomic 10); `cargo fmt --all -- --check` — clean · `cargo clippy --workspace --all-targets -- -D warnings` — clean.
 - **Follow-up:** `archive/pack.rs` 436 строк (превышение 400) — было и до PR2, зафиксировано, не блокер; split при следующем касании pack.
+
+### A3.4 — Manifest JSON после successful commit (CLOSED)
+
+- **Дата:** 2026-08-20
+- **Ветка:** `a3.4-manifest` (PR #81 → dev, squash, merged)
+- **Статус:** done — manifest пишется только после успешного Atomic commit и только при размещённых артефактах.
+- **Роли:** Orchestrator (Dev-поручение + интеграционные тесты сам, субагент Test не задействован по прецеденту PR2/PR3).
+
+#### Задача (из `docs/alpha/a3_new/a3.4-manifest-after-commit.md`)
+После успешного Atomic commit: `{den}/manifests/{yyyy}/{mm}/{slug}__{ts}__{short_id}.json`. НЕ писать при `success:false`/`rolled_back`; НЕ писать в DryRun; пути артефактов relative to den; raw-секретов нет; `schema_version: 1`.
+
+#### Сделано
+- `den/manifest.rs` (196, чистый den-домен, без app-типов): `DenManifest`/`ManifestStage` (зеркало `RaidStageResult`)/`ManifestArtifacts` + `MANIFEST_SCHEMA_VERSION=1`; `manifest_relative_path(slug, ts, short_id)` — `yyyy`/`mm` из ts с фолбэком как в `names.rs`; `write_manifest` — `reject_escaping` → parent dirs → `serde_json::to_string_pretty` → `fs::write` → `set_mode_best_effort 0o600`. `StashManifestEntry` — единственная внешняя зависимость (raw-free DTO).
+- `app/raid/manifest.rs` (224): `write_raid_manifest` (slug=project_slug, ts=utc_timestamp_now, rel, write) + pure `build_raid_manifest` (артефакты relative через `den_relative` strip_prefix, фолбэк — абсолютный путь; stash_manifest passthrough; success/dry_run/created_at/tool_version) + `impl From<&RaidStageResult> for ManifestStage`.
+- `atomic.rs` (395→410): Ok-ветка commit — manifest пишется только когда артефакты непустые; **сбой записи manifest → `success:false` + `failed_stage("move")`, но `den_artifacts` остаются и `rolled_back` false** (откатывать нечего — staging уже удалён); ровно одно move-событие.
+- Re-exports: `den/mod.rs` + `lib.rs` (additive, breaking нет). Doc-tree den обновлён.
+- **Отклонения Dev (приняты):** `build_raid_manifest` принимает `den_root: &Path` (нужен для relativize в pure-функции); `&stash_result`/`&pack_result` вместо `&*…` (deref-coercion).
+
+#### Тесты
+- Unit: den/manifest.rs (путь yyyy/mm + фолбэк на коротком ts; roundtrip schema_version==1; `../evil.json` → Err без fs-эффектов) · app/raid/manifest.rs (build мапит стадии/артефакты relative/stash_manifest; пустые результаты; `den_relative` вне den — абсолютный).
+- Integration `tests/raid_atomic.rs` +5 (→18): success → ровно 1 manifest, schema v1, filename `{slug}__{ts}__{short_id}` и `created_at==ts`, stages=[stash,rinse,pack] все ok, артефакты relative и существуют под den, stash_manifest=[.env], размер из метаданных, raw-free (PASSWORD_VALUE нет); mode 0o600 (unix); rollback (ORPHAN-2) → нет manifest; phase-failure (ORPHAN-1) → нет manifest; dry-run → нет manifest.
+- `cargo test --workspace` — green, 0 failed (698 passed); fmt clean · clippy `-D warnings` clean.
+
+#### Критерий готовности (DoD из a3.4 §4)
+- [x] Path naming consistent с packs/secrets (`{slug}__{ts}__{short_id}.json`, yyyy/mm из ts)
+- [x] Только на success (rollback/phase-failure/dry-run → нет manifest)
+- [x] Tests green
+
+#### Риски / follow-up
+- **A3.5:** CLI `--fail-fast`/toggles, exit 1 при `!success`, E2E alpha, wiki UX — контракт A3.2 не трогать до этого этапа.
+- `app/raid/atomic.rs` 410 строк (мягкий max ~400; потолок 450) — split при следующем касании atomic (прецедент pack.rs 436).
+- Manifest — финальный audit после commit, не через staging/WAL; при сбое записи артефакты уже в den (откат невозможен) — задокументировано в atomic.rs.
 
 ### A3.2 — ProgressSink + CLI progress для raid (CLOSED)
 
