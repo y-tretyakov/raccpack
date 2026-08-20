@@ -105,7 +105,7 @@ export default defineConfig({
   base: '/raccpack/',
   cleanUrls: false,
   head: [
-    ['link', { rel: 'icon', href: '/raccpack/favicon.ico', type: 'image/x-icon' }],
+    ['link', { rel: 'icon', href: '/raccpack/RP.webp', type: 'image/webp' }],
     [
       'script',
       {},
@@ -156,7 +156,7 @@ export default defineConfig({
   appearance: false,
   themeConfig: {
     i18nRouting: false,
-    logo: '/logo.webp',
+    logo: '/RP.webp',
     siteTitle: 'raccpack',
     socialLinks: [
       { icon: 'github', link: 'https://github.com/y-tretyakov/raccpack' },
