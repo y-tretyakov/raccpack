@@ -29,9 +29,10 @@ pub use clean::{
 };
 pub use config::{CleanupConfig, ConfigError, PathsConfig, RaccConfig, ScannerConfig};
 pub use den::{
-    ensure_den, pack_relative_path, place_pack, place_secrets_archive, project_slug,
-    secrets_relative_path, short_id, staging_pack_path, utc_timestamp_now, DenPaths,
-    PlacePackRequest, PlacePackResult, PlaceSecretsRequest, PlaceSecretsResult, DEN_VERSION,
+    ensure_den, manifest_relative_path, pack_relative_path, place_pack, place_secrets_archive,
+    project_slug, secrets_relative_path, short_id, staging_pack_path, utc_timestamp_now,
+    write_manifest, DenManifest, DenPaths, ManifestArtifacts, ManifestStage, PlacePackRequest,
+    PlacePackResult, PlaceSecretsRequest, PlaceSecretsResult, DEN_VERSION, MANIFEST_SCHEMA_VERSION,
 };
 pub use detect::{candidate_to_project, detect_stack, detect_stacks, stack_from_candidate};
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};

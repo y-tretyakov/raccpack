@@ -53,6 +53,7 @@ use super::stash::{AgeIdentity, StashResult};
 
 mod atomic;
 mod fail_fast;
+mod manifest;
 mod progress;
 mod rollback;
 mod stages;
