@@ -195,17 +195,47 @@ racc rinse --project ~/DEV/PROJS/app-api --strategy node --yes
 
 Подробно: [Rinse](/rinse)
 
+### `racc raid`
+
+Запускает весь конвейер по проекту одной командой: **stash → rinse → pack → move**. По умолчанию — **atomic**: промежуточные файлы в `den/staging/{id}/`, удаления откладываются в commit, падение commit откатывается (`rolled_back`). После успешного commit пишется манифест в `den/manifests/{yyyy}/{mm}/`. По умолчанию работает в **dry-run** — commit только с `--yes`.
+
+```text
+racc raid --project PATH [--den PATH] [--yes] [--dry-run] [--no-stash] [--no-rinse] [--no-pack] [--min-risk LEVEL] [--keep-sources] [--no-content-deny] [--fail-fast]
+```
+
+```bash
+# Dry-run: показать весь конвейер (ничего не пишется)
+racc raid --project ~/DEV/PROJS/app-api --den ~/.raccpack/den
+
+# Полный commit (stash + rinse + pack + manifest)
+export RACCPACK_PASSPHRASE="$STASH_SECRET"
+racc raid --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes
+
+# Без stash: не трогать секреты, passphrase не нужна
+racc raid --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes --no-stash
+
+# Не удалять исходные секреты
+racc raid --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes --keep-sources
+```
+
+Exit: `0` при `success == true`, `1` при ошибке или `success == false` (в т.ч. откат commit).
+
+::: warning
+По умолчанию `raid` работает в **dry-run** и ничего не пишет/не удаляет. Commit — только с `--yes`.
+:::
+
+Подробно: [Raid](/raid)
+
 ## В разработке
 
 Следующие команды планируются в ближайших версиях (см. [Дорожную карту](/roadmap)):
 
 | Команда | Назначение | Статус |
 |---------|------------|--------|
-| `racc raid` | Полный цикл одной командой | Планируется |
 | `racc den` | Управление den | Планируется |
 | `racc init` | Стартовая конфигурация | Планируется |
 
 ## Примечания
 
 - JSON-вывод никогда не содержит raw-значений секретов — только маскированные превью и хеши (подробнее: [Dig](/dig)).
-- Код выхода `2` используется только у `dig` (политика `--fail-on`) и означает сработавшую политику, а не сбой CLI; у `pack`, `stash` и `rinse` коды выхода — только `0` (успех) и `1` (ошибка).
+- Код выхода `2` используется только у `dig` (политика `--fail-on`) и означает сработавшую политику, а не сбой CLI; у `pack`, `stash`, `rinse` и `raid` коды выхода — только `0` (успех) и `1` (ошибка).

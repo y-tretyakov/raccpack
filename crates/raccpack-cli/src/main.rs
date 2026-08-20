@@ -53,9 +53,6 @@ fn run(cli: Cli) -> Result<ExitCode, CliError> {
             run_rinse(global, args)?;
             Ok(ExitCode::SUCCESS)
         }
-        Commands::Raid(args) => {
-            run_raid(global, args)?;
-            Ok(ExitCode::SUCCESS)
-        }
+        Commands::Raid(args) => run_raid(global, args),
     }
 }

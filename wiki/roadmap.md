@@ -19,12 +19,12 @@ description: Как raccpack развивается к версии 1.0.0 — ч
 - [x] `racc pack` — упаковка проекта в `tar.zst` (dry-run по умолчанию, commit с `--yes`), исключение секретов по имени и содержимому.
 - [x] `racc stash` — вынос секретов в age-архивы (passphrase, zeroize), dry-run по умолчанию.
 - [x] `racc rinse` — очистка мусора сборки по стратегиям (dry-run по умолчанию, commit с `--yes`).
+- [x] `racc raid` — полный цикл одной командой (atomic: staging + WAL + rollback; манифесты JSON; exit 1 при `!success`).
 - [x] Структура den: раскладка `packs/{yyyy}/{mm}/`, `.den-version`, безопасное именование.
 - [x] Полный E2E-цикл MVP: sniff → dig → pack → den.
 
 ## Планируется (Alpha 0.3.x)
 
-- [ ] `racc raid` — полный цикл одной командой с манифестами JSON.
 - [ ] Git-интеграция (статус файлов в отчётах).
 - [ ] `racc init` и миграция конфигураций.
 

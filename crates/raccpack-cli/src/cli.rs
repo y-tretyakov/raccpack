@@ -186,6 +186,34 @@ pub struct RaidArgs {
     /// Force dry-run even when --yes is also given
     #[arg(long)]
     pub dry_run: bool,
+
+    /// Skip the stash phase
+    #[arg(long)]
+    pub no_stash: bool,
+
+    /// Skip the rinse phase
+    #[arg(long)]
+    pub no_rinse: bool,
+
+    /// Skip the pack phase
+    #[arg(long)]
+    pub no_pack: bool,
+
+    /// Minimum risk level to stash
+    #[arg(long, value_name = "LEVEL", value_enum, default_value = "high")]
+    pub min_risk: RiskLevel,
+
+    /// Keep source files (disables stash remove_sources)
+    #[arg(long)]
+    pub keep_sources: bool,
+
+    /// Disable content-based secret deny (name deny stays on)
+    #[arg(long)]
+    pub no_content_deny: bool,
+
+    /// Stop at the first failing phase instead of atomic rollback
+    #[arg(long)]
+    pub fail_fast: bool,
 }
 
 /// Minimum risk level selected via `--min-risk`.
@@ -701,11 +729,18 @@ mod tests {
     }
 
     #[test]
-    fn raid_args_default_to_dry_run() {
+    fn raid_args_default_to_dry_run_and_all_phases() {
         let args = RaidArgs::default();
         assert!(args.project.as_os_str().is_empty());
         assert!(!args.yes);
         assert!(!args.dry_run);
+        assert!(!args.no_stash);
+        assert!(!args.no_rinse);
+        assert!(!args.no_pack);
+        assert_eq!(args.min_risk, RiskLevel::High);
+        assert!(!args.keep_sources);
+        assert!(!args.no_content_deny);
+        assert!(!args.fail_fast);
     }
 
     #[test]
@@ -755,5 +790,40 @@ mod tests {
     fn clap_rejects_raid_without_project() {
         let result = Cli::try_parse_from(["racc", "raid", "--yes"]);
         assert!(result.is_err(), "missing --project must be rejected");
+    }
+
+    #[test]
+    fn clap_parse_raid_with_all_flags() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "raid",
+            "--project",
+            "/tmp/p",
+            "--yes",
+            "--no-stash",
+            "--no-rinse",
+            "--no-pack",
+            "--min-risk",
+            "critical",
+            "--keep-sources",
+            "--no-content-deny",
+            "--fail-fast",
+        ])
+        .expect("parse should succeed");
+        match cli.command {
+            Commands::Raid(args) => {
+                assert_eq!(args.project, PathBuf::from("/tmp/p"));
+                assert!(args.yes);
+                assert!(!args.dry_run);
+                assert!(args.no_stash);
+                assert!(args.no_rinse);
+                assert!(args.no_pack);
+                assert_eq!(args.min_risk, RiskLevel::Critical);
+                assert!(args.keep_sources);
+                assert!(args.no_content_deny);
+                assert!(args.fail_fast);
+            }
+            _ => panic!("expected raid command"),
+        }
     }
 }

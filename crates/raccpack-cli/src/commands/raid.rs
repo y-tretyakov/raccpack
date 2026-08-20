@@ -1,21 +1,26 @@
 //! The `raid` subcommand: orchestrated stash → rinse → pack → move.
 //!
 //! Loads the config, applies CLI overrides, resolves the project path, and
-//! runs the `raid` facade with all phases enabled (stash min-risk High,
-//! remove_sources, content deny). `--yes` commits; `--dry-run` wins over
-//! `--yes`. In dry-run mode no passphrase is read (placeholder identity);
-//! Commit reads it once via [`read_passphrase`].
+//! runs the `raid` facade. `--no-stash` / `--no-rinse` / `--no-pack` disable
+//! phases; `--min-risk` selects the stash floor; `--keep-sources` disables
+//! stash source removal; `--no-content-deny` disables pack content deny;
+//! `--fail-fast` selects [`OrchestrationMode::FailFast`] instead of the
+//! default atomic mode.
 //!
-//! Exit code is **0** when the facade returns `Ok`, including phase-failure
-//! runs (`RaidResult { success: false }`) — a distinct exit code for
-//! `!success` is deferred to A3.4. Exit code **1** covers config, path, and
-//! facade precondition errors via [`CliError`].
+//! `--yes` commits; `--dry-run` wins over `--yes`. The passphrase is read via
+//! [`read_passphrase`] only when the stash phase is enabled **and** the run
+//! commits; otherwise a placeholder identity is used, so `--no-stash --yes`
+//! never prompts.
+//!
+//! Exit code (contract change A3.2): **0** when the facade returns `Ok` and
+//! `RaidResult.success == true`; **1** when the facade errors or the run
+//! finished with `success == false` (including a rolled-back commit failure).
 
 use std::process::ExitCode;
 
 use raccpack_core::{
-    raid, AgeIdentity, AppContext, NullProgress, ProgressSink, RaidOptions, RunMode,
-    SecretExitPolicy, WorkspacePaths,
+    raid, AgeIdentity, AppContext, NullProgress, OrchestrationMode, PackPhaseOpts, ProgressSink,
+    RaidOptions, RinsePhaseOpts, RunMode, SecretExitPolicy, StashPhaseOpts, WorkspacePaths,
 };
 use zeroize::Zeroizing;
 
@@ -37,6 +42,13 @@ pub fn run_raid(global: GlobalOpts, args: RaidArgs) -> Result<ExitCode, CliError
         project,
         yes,
         dry_run,
+        no_stash,
+        no_rinse,
+        no_pack,
+        min_risk,
+        keep_sources,
+        no_content_deny,
+        fail_fast,
     } = args;
 
     let config = load_config(global.config.as_deref())?;
@@ -62,11 +74,27 @@ pub fn run_raid(global: GlobalOpts, args: RaidArgs) -> Result<ExitCode, CliError
 
     let opts = RaidOptions {
         project,
-        ..RaidOptions::default()
+        mode: if fail_fast {
+            OrchestrationMode::FailFast
+        } else {
+            OrchestrationMode::Atomic
+        },
+        stash: StashPhaseOpts {
+            enabled: !no_stash,
+            min_risk: min_risk.to_risk(),
+            remove_sources: !keep_sources,
+        },
+        rinse: RinsePhaseOpts { enabled: !no_rinse },
+        pack: PackPhaseOpts {
+            enabled: !no_pack,
+            deny_content_secrets: !no_content_deny,
+        },
     };
 
-    // DryRun never needs a passphrase, so read it only for Commit.
-    let identity = if commit {
+    // A passphrase is needed only for the stash phase in a Commit. When stash
+    // is disabled or the run is a dry run, use a placeholder identity that is
+    // never used for encryption.
+    let identity = if commit && opts.stash.enabled {
         AgeIdentity::Passphrase(read_passphrase()?)
     } else {
         AgeIdentity::Passphrase(Zeroizing::new(DRY_RUN_PASSPHRASE.to_string()))
@@ -81,5 +109,9 @@ pub fn run_raid(global: GlobalOpts, args: RaidArgs) -> Result<ExitCode, CliError
     let result = raid(&ctx, &opts, Some(&identity), &mut *progress)?;
 
     output_raid::print_raid(&result, global.json)?;
-    Ok(ExitCode::SUCCESS)
+    if result.success {
+        Ok(ExitCode::SUCCESS)
+    } else {
+        Ok(ExitCode::FAILURE)
+    }
 }
