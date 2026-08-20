@@ -6,6 +6,8 @@
 [`docs/archive/WORKLOG_MVP.md`](docs/archive/WORKLOG_MVP.md).
 Спеки закрытых этапов: [`docs/archive/mvp/`](docs/archive/mvp/).
 
+**Текущая версия: `0.2.11`** (закрыт A3.5 — конец фазы A3; следующий bump `0.2.12` при A4.1, см. `docs/VERSION_ROADMAP.md`).
+
 ## Backlog (Alpha → 0.3.0)
 
 ```
@@ -25,6 +27,20 @@
 [ ] A4.2 Config migrate chain + racc init
 [ ] A4.3 tracing без секретов; --verbose
 [ ] A4.4 integration tests core + CI cargo test
+```
+
+## Backlog (Detect v2 → 0.4.0)
+
+```
+[ ] D1.1 StackDetector trait + registry
+[ ] D1.2 Detection / StackNode DTO
+[ ] D1.3 detect.mode config + CLI
+[ ] D2.1 WorkspaceDetector → DAG
+[ ] D2.2 conflict merge (expert opinions)
+[ ] D2.3 flat stack + stack_tree compat
+[ ] D3.1 rinse по DAG scopes
+[ ] D3.2 sniff tree output
+[ ] D3.3 fixtures + Detect v2 exit
 ```
 
 ## Этапы
