@@ -20,7 +20,7 @@
 [x] A3.2 ProgressSink + CLI progress
 [x] A3.3 atomic upgrade (default Atomic: staging + WAL + rollback, ORPHAN-1..4)
 [x] A3.4 manifest JSON в den/manifests/ (после успешного Atomic commit)
-[ ] A3.5 CLI racc raid --fail-fast/toggles; exit 1 при !success; E2E alpha
+[x] A3.5 CLI racc raid --fail-fast/toggles; exit 1 при !success; E2E alpha; wiki
 [ ] A4.1 GitClient (process) + status sensitive files в dig
 [ ] A4.2 Config migrate chain + racc init
 [ ] A4.3 tracing без секретов; --verbose
@@ -127,6 +127,40 @@ Default **Atomic**: `OrchestrationMode { Atomic, FailFast }` в `RaidOptions`; �
 - **A3.5:** CLI `--fail-fast`/toggles, exit 1 при `!success`, E2E alpha, wiki UX — контракт A3.2 не трогать до этого этапа.
 - `app/raid/atomic.rs` 410 строк (мягкий max ~400; потолок 450) — split при следующем касании atomic (прецедент pack.rs 436).
 - Manifest — финальный audit после commit, не через staging/WAL; при сбое записи артефакты уже в den (откат невозможен) — задокументировано в atomic.rs.
+
+### A3.5 — CLI полный + E2E + orphan green + wiki (CLOSED)
+
+- **Дата:** 2026-08-20
+- **Ветка:** `a3.5-cli-e2e-wiki` (PR #82 → dev, squash, merged)
+- **Статус:** done — Alpha raid закрыт целиком (A3.1..A3.5).
+- **Роли:** Orchestrator (Dev-поручение + интеграционные тесты + wiki-правки сам, субагент не задействован).
+
+#### Задача (из `docs/alpha/a3_new/a3.5-cli-e2e-wiki.md`)
+Флаги `--no-stash/--no-rinse/--no-pack/--min-risk/--keep-sources/--no-content-deny/--fail-fast`; `--fail-fast` → `OrchestrationMode::FailFast`; **exit 1 при `!success`** (смена контракта A3.2); human summary артефактов/rolled_back; E2E + orphan green; wiki raid.md + cli-usage + roadmap.
+
+#### Сделано
+- `cli.rs` `RaidArgs` +7 флагов (`min_risk` value_enum default high). clap unit: defaults + full-parse.
+- `commands/raid.rs`: `RaidOptions` строится явно из флагов; passphrase только при `commit && stash.enabled` (`--no-stash --yes` не требует passphrase); exit по `result.success`.
+- **`main.rs` фикс:** arm Raid возвращал `Ok(SUCCESS)` поверх `run_raid(...)?` — проглатывал `ExitCode::FAILURE`. Теперь `run_raid(global, args)` (паттерн run_dig). Без этого DoD exit-контракт не работал.
+- `output_raid.rs`: human Success + `placed N artifact(s)` + пути (commit, !dry_run); Failed + `rolled back (N warnings)` при rolled_back. Unit-тесты не ломаются (новые ветки только при новых условиях).
+- **Интеграционные `cli_raid.rs` +9 (→15):** E2E full commit (`.den-version` + 1 .age + 1 .tar.zst + manifest schema v1 + human `placed 2 artifact(s)`); `--no-stash` (нет .age, .env живёт, pack есть, без passphrase); `--no-rinse` (node_modules живёт); `--no-pack` (нет .tar.zst); `--keep-sources` (.env живёт); `--min-risk critical` (High .env пропущен, pack есть, exit 0); atomic failure (chmod-000) → exit 1 + ничего в den; `--fail-fast` → orphan .age остаётся + exit 1; rolled-back (blocker `den/packs/{yyyy}/{mm}`) → exit 1 + human `rolled back`.
+- **Wiki (DoD §6):** `wiki/raid.md` (новый, стиль stash.md: флаги, atomic vs fail-fast, exit codes, passphrase, примеры, manifest); `cli-usage.md` — секция `racc raid` + убран из «В разработке» + exit-нота; `roadmap.md` — checkbox raid в сделанном; `config.ts` nav/sidebar + Raid.
+
+#### Тесты
+- `cargo test --workspace` — green, 0 failed (712 passed); fmt clean · clippy `-D warnings` clean.
+- `pnpm run wiki:build` — build complete без ошибок (font-warnings пре-существующие).
+
+#### Критерий готовности (DoD из a3.5 §7)
+- [x] Все флаги из спеки §2
+- [x] Exit 1 на `!success` (в т.ч. rolled_back failure)
+- [x] E2E + orphan green
+- [x] Wiki + cli-usage synced
+- [x] Alpha raid exit criteria met → можно A4
+
+#### Риски / follow-up
+- **A4 следующий:** A4.1 GitClient (process) + status sensitive files в dig; A4.2 config migrate + init; A4.3 tracing без секретов; A4.4 integration tests + CI.
+- `cli.rs` 829 строк (было 759) — пре-существующий монолит clap-файла, вынос в модули — отдельная гигиена (зафиксировано).
+- `app/raid/atomic.rs` 410 строк — split при следующем касании (прецедент pack.rs 436).
 
 ### A3.2 — ProgressSink + CLI progress для raid (CLOSED)
 
