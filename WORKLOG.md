@@ -28,12 +28,12 @@
 
 ## Этапы
 
-### A3.3 — Atomic upgrade (PR1: scaffolding) (IN PROGRESS)
+### A3.3 — Atomic upgrade (PR1 + PR2) (IN PROGRESS)
 
-- **Дата:** 2026-08-19
-- **Ветка:** `a3.3-atomic` (PR #78 → dev, squash, merged)
-- **Статус:** in progress — закрыт **PR1** (каркас API, green bridge); далее PR2 (staging) → PR3 (WAL + rollback) → orphan-тесты.
-- **Роли:** Orchestrator; Dev + Test (последовательно; Test по merge-ready tip `aed4b3a`).
+- **Дата:** 2026-08-19/2026-08-20
+- **Ветки:** `a3.3-atomic` (PR #78 → dev, squash, merged) · `a3.3-staging` (PR #79 → dev, squash, merged)
+- **Статус:** in progress — закрыты **PR1** (каркас API, green bridge) и **PR2** (единый `den/staging/{raid_id}/` + deferred destructive ops); далее **PR3** (WAL + rollback) → orphan-тесты.
+- **Роли:** Orchestrator; Dev + Test (последовательно; Test по merge-ready tip `aed4b3a` / `7d559b1`).
 
 #### Задача (из `docs/alpha/a3_new/a3.3-atomic-upgrade.md`)
 Default **Atomic**: `OrchestrationMode { Atomic, FailFast }` в `RaidOptions`; весь Commit-raid в `den/staging/{raid_id}/` + WAL; финальные `secrets/`/`packs/` только atomic rename; `Err` → reverse-WAL → `rolled_back`, staging удалён; FailFast ≡ старое A3.1-поведение; DryRun без WAL/FS; progress commit/rollback; orphan-регрессия (ORPHAN-1..4).
@@ -73,6 +73,19 @@ Default **Atomic**: `OrchestrationMode { Atomic, FailFast }` в `RaidOptions`; �
 - **A3.4:** manifest только после успешного Atomic commit (`den/manifest.rs`).
 - **A3.5:** CLI `--fail-fast`/toggles, exit 1 при `!success`, E2E, wiki — контракт A3.2 не трогать до этого этапа.
 - Wiki (user-facing) не обновляется до зелёного A3.5; dev-спеки `docs/alpha/a3_new/` — источник контракта.
+- **Открытый риск (из PR1):** default теперь Atomic, но настоящий rollback только в PR3. Пока `rolled_back` всегда `false`; CLI help однострочник про «rollback не реализован» — добавить в A3.5 вместе с полными toggles/exit 1.
+
+#### PR2 — сделано (atomic staging + deferred destructive ops; PR #79)
+- **Дата:** 2026-08-20 · **Ветка:** `a3.3-staging` · **Коммиты:** `118ca05` (feat) + `7d559b1` (test).
+- Additive API: `StashOptions.staging_dir` / `PackOptions.staging_dir` (stage-only: пишут `{dir}/secrets.age`/`{dir}/pack.tar.zst`, skip `ensure_den`/placement/removal, возвращают финальный ожидаемый путь), `RinseOptions.collect_only` (scan-only), `PackOptions.exclude_files` / `PackTreeOptions.exclude_files` (файлы, выбранные stash, исключаются из архива — зеркалит fail-fast, где stash их удалил до pack; сверх брифа, принято как корректный фикс: иначе при `remove_sources=false` High-контент-секрет протекал бы в pack, т.к. content-deny pack — Critical-only).
+- `app/raid/atomic.rs` (339 стр.): фазы пишут в `den/staging/{raid_id}/`, commit = `ensure_den` (только если есть что place) → place stash → place pack → `remove_stash_sources` (пересборка `removed_sources`) → `remove_trash_dirs` (пересборка rinse-result) → `remove_raid_staging`. Phase-failure → staging cleaned, `success:false`, sub-results `None`, `den_artifacts` пуст (ORPHAN-1); DryRun делегирует в fail-fast (ORPHAN-3); `rolled_back` всегда `false` (ORPHAN-2 → PR3). FailFast path не тронут.
+- `app/raid/staging.rs` (24 стр.): `raid_staging_path` + `remove_raid_staging` (best-effort). Shared `remove_trash_dirs` вынесен из rinse commit-loop в `app/rinse.rs` (pub(super)); `move_archive` re-export `pub(crate)` в `den/mod.rs`; `resolve_stash_identity`/`enabled_phase_count` — `pub(super)` в fail_fast.rs.
+- `app/pack.rs` → `app/pack/mod.rs` (332) + `app/pack/naming.rs` (116: `artifact_rel`/`resolve_artifact_name`).
+- **Файлы:** created `app/raid/{atomic,staging}.rs`, `app/pack/naming.rs`, `tests/raid_atomic.rs`; renamed `app/pack.rs`→`app/pack/mod.rs`; changed `app/raid/{mod,fail_fast}.rs`, `app/{stash,rinse}.rs`, `archive/pack.rs`, `den/mod.rs`, CLI `commands/{pack,rinse,stash}.rs`, тесты `{pack_facade,rinse,stash_facade}.rs`.
+- **Тесты `tests/raid_atomic.rs` (10):** базовый atomic commit; atomic≡fail-fast на полном успехе (field-level, пути различаются); ORPHAN-1 (cfg unix, chmod-000 файл ломает pack, stash его пропускает); ORPHAN-3 (dry-run zero FS); ORPHAN-4 (fail-fast оставляет orphan `.age`); stash-empty продолжает + pack; pack-only (1 артефакт); `remove_sources=false` — исходники на месте и **исключены из tar** (чтение tar.zst через dev-deps tar+zstd; `notes.txt` с `xoxb-*` = High контент, не denied pack); stash-failure (пустая passphrase) → `den` не создан; JSON без raw. Fault injection без test-hook в public API.
+- **Исполнение:** Test-субагент (`general`) дважды вернул пустой результат (инфраструктура; первый запуск переписал `docs/alpha/a4/*` — откачено) → тесты PR2 написаны Orchestrator'ом сам (отклонение от делегирования, зафиксировано).
+- **Тесты:** `cargo test --workspace` — green, 0 failed (raid_atomic 10); `cargo fmt --all -- --check` — clean · `cargo clippy --workspace --all-targets -- -D warnings` — clean.
+- **Follow-up:** `archive/pack.rs` 436 строк (превышение 400) — было и до PR2, зафиксировано, не блокер; split при следующем касании pack.
 
 ### A3.2 — ProgressSink + CLI progress для raid (CLOSED)
 
