@@ -330,7 +330,7 @@ tar -xf secrets.tar -C /safe/restore/dir
 | `racc dig` | Найти секреты (read-only) |
 | `racc sniff` | Найти проекты под `scan_root` |
 | `racc pack` | Упаковать проект **без** секретов в `packs/` |
-| `racc raid` | Позже (Alpha A3): stash → rinse → pack одной командой |
+| `racc raid` | Полный цикл одной командой: stash → rinse → pack → move |
 
 ---
 

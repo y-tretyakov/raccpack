@@ -272,7 +272,7 @@ racc rinse --project ~/DEV/PROJS/my-api --json | jq -r '.removed[].path'
 | `racc dig` | Найти секреты (read-only) |
 | `racc stash` | Убрать секреты в `.age` |
 | `racc pack` | Упаковать проект **без** секретов в `packs/` |
-| `racc raid` | Позже (Alpha A3): stash → rinse → pack одной командой |
+| `racc raid` | Полный цикл одной командой: stash → rinse → pack → move |
 
 ---
 
