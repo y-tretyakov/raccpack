@@ -6,7 +6,7 @@
 //!
 //! Covers:
 //! 1. Atomic full-success Commit: artifacts placed; sources / rinse deletes
-//!    deferred to the commit; staging cleaned.
+//!    deferred to the commit; staging cleaned; no rollback event.
 //! 2. Atomic ≡ FailFast on full-success Commit (field-level equality
 //!    invariant; paths differ per run so the result is compared per-field).
 //! 3. ORPHAN-1: pack fails after stash staged secrets → no den artifact,
@@ -19,6 +19,10 @@
 //!    excluded from the pack archive (`exclude_files`).
 //! 9. A failed atomic stash does not create the den.
 //! 10. RaidResult JSON never leaks raw secret values.
+//! 11. ORPHAN-2 (PR3): a rename fails mid-commit → reverse-WAL rollback:
+//!     the placed `.age` is removed, staging cleaned, sources untouched,
+//!     `rolled_back` true, a `"rollback"` completion event is emitted.
+//! 12. PR3: irreversible source/trash deletes surface `rollback_warnings`.
 //!
 //! Fault injection: a chmod-000 regular file (`src/chunk.bin`) makes `pack`
 //! fail on read (Unix only) while stash skips it (content scan is best-effort
@@ -92,6 +96,46 @@ fn empty_identity() -> AgeIdentity {
 fn raid_once(ctx: &AppContext, opts: &RaidOptions) -> RaidResult {
     let mut progress = NullProgress;
     raid(ctx, opts, Some(&identity()), &mut progress).expect("raid should succeed")
+}
+
+/// Sink that collects emitted events for assertions.
+#[derive(Default)]
+struct RecordingSink {
+    events: Vec<raccpack_core::ProgressEvent>,
+}
+
+impl raccpack_core::ProgressSink for RecordingSink {
+    fn emit(&mut self, event: raccpack_core::ProgressEvent) {
+        self.events.push(event);
+    }
+}
+
+/// Run `raid` recording every progress event; returns the result and the
+/// events.
+fn raid_recorded(
+    ctx: &AppContext,
+    opts: &RaidOptions,
+    identity: Option<&AgeIdentity>,
+) -> (RaidResult, Vec<raccpack_core::ProgressEvent>) {
+    let mut sink = RecordingSink::default();
+    let result = raid(ctx, opts, identity, &mut sink).expect("raid should return a result");
+    (result, sink.events)
+}
+
+/// The raid-level completion events (`OperationKind::Raid` and
+/// `phase_complete`), like the nested facade events are filtered out.
+fn raid_completions(events: &[raccpack_core::ProgressEvent]) -> Vec<&raccpack_core::ProgressEvent> {
+    events
+        .iter()
+        .filter(|e| e.operation == raccpack_core::OperationKind::Raid && e.phase_complete)
+        .collect()
+}
+
+/// Current UTC `yyyy/mm` (from the same clock the den naming uses), so a test
+/// can predict where an artifact would land.
+fn current_den_year_month() -> (String, String) {
+    let ts = raccpack_core::utc_timestamp_now();
+    (ts[0..4].to_string(), ts[4..6].to_string())
 }
 
 /// A project fixture with a sensitive file, a trash dir and a normal file.
@@ -627,4 +671,164 @@ fn atomic_result_json_never_leaks_raw_secret() {
     );
     assert!(json.contains("\"success\":true"));
     assert!(json.contains("\"name\":\"move\""));
+}
+
+// --- Case 11: ORPHAN-2 — a mid-commit rename failure is rolled back ----------
+
+#[test]
+fn atomic_commit_rename_failure_rolls_back_placed_artifact() {
+    let (temp, proj, den) = workspace();
+    let _ = temp;
+    full_fixture(&proj);
+    let ctx = ctx_for(&proj, &den, RunMode::Commit);
+
+    // Blocker: `den/packs/{yyyy}/{mm}` is a regular FILE, so the pack's
+    // `create_dir_all` in the commit fails AFTER the stash `.age` was placed.
+    // (The stash rename has no such conflict — `den/secrets/…` is free.)
+    let (year, month) = current_den_year_month();
+    let blocker = den.join("packs").join(&year).join(&month);
+    write(&den, &format!("packs/{year}/{month}"), "blocker file\n");
+
+    let opts = raid_options(&proj);
+    let (result, events) = raid_recorded(&ctx, &opts, Some(&identity()));
+
+    assert!(
+        !result.success,
+        "a mid-commit placement failure must fail the raid: {result:?}"
+    );
+    assert!(
+        result.rolled_back,
+        "ORPHAN-2: the commit must be rolled back via the WAL: {result:?}"
+    );
+    assert!(
+        result.den_artifacts.is_empty(),
+        "no artifact may be reported after a rollback: {:?}",
+        result.den_artifacts
+    );
+    assert!(
+        collect_files_with_ext(&den.join("secrets"), "age").is_empty(),
+        "the placed stash .age must be removed by the rollback"
+    );
+    assert!(
+        collect_files_with_ext(&den.join("packs"), "zst").is_empty(),
+        "no pack may survive a failed commit"
+    );
+    assert!(
+        blocker.is_file(),
+        "the pre-existing blocker file must be untouched"
+    );
+    staging_is_clean(&den);
+
+    assert!(
+        proj.join(".env").is_file(),
+        "remove_sources is deferred to the commit and never reached — .env must survive"
+    );
+    assert!(
+        proj.join("node_modules").exists(),
+        "rinse deletes are deferred — node_modules must survive"
+    );
+
+    let completions = raid_completions(&events);
+    assert!(
+        completions.iter().any(|e| e.phase == "rollback"),
+        "a commit rollback must emit a \"rollback\" completion event: {completions:?}"
+    );
+    assert!(
+        result
+            .rollback_warnings
+            .iter()
+            .any(|w| w.contains("could not remove directory")),
+        "the non-empty packs dir must be reported as a rollback warning: {:?}",
+        result.rollback_warnings
+    );
+}
+
+#[test]
+fn atomic_commit_success_emits_no_rollback_event() {
+    let (temp, proj, den) = workspace();
+    let _ = temp;
+    full_fixture(&proj);
+    let ctx = ctx_for(&proj, &den, RunMode::Commit);
+    let opts = raid_options(&proj);
+
+    let (result, events) = raid_recorded(&ctx, &opts, Some(&identity()));
+
+    assert!(
+        result.success,
+        "full atomic commit must succeed: {result:?}"
+    );
+    assert!(!result.rolled_back);
+    assert!(result.rollback_warnings.is_empty());
+    let completions = raid_completions(&events);
+    assert!(
+        completions.iter().all(|e| e.phase != "rollback"),
+        "a successful commit must not emit a rollback event: {completions:?}"
+    );
+}
+
+// --- Case 12: PR3 — irreversible source deletes surface warnings --------------
+
+#[cfg(unix)]
+#[test]
+fn atomic_commit_irreversible_source_deletes_report_warnings() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let (temp, proj, den) = workspace();
+    let _ = temp;
+    full_fixture(&proj);
+    // Make `node_modules/pkg` unremovable but still readable (non-root):
+    // `remove_trash_dirs` in the commit fails AFTER stash already removed
+    // `.env`, while the rinse scan can still read `pkg` to size the trash dir.
+    // Perms 0555 = read+execute, no write: scanning works, removal does not.
+    let pkg = proj.join("node_modules/pkg");
+    fs::set_permissions(&pkg, fs::Permissions::from_mode(0o555))
+        .expect("chmod 555 node_modules/pkg");
+    let ctx = ctx_for(&proj, &den, RunMode::Commit);
+
+    let opts = raid_options(&proj);
+    let (result, events) = raid_recorded(&ctx, &opts, Some(&identity()));
+
+    fs::set_permissions(&pkg, fs::Permissions::from_mode(0o755))
+        .expect("restore node_modules/pkg permissions");
+
+    assert!(
+        !result.success,
+        "the rinse failure must fail the raid: {result:?}"
+    );
+    assert!(
+        result.rolled_back,
+        "the placed artifacts must be rolled back even when some deletes are irreversible"
+    );
+    assert!(
+        collect_files_with_ext(&den.join("secrets"), "age").is_empty(),
+        "the placed stash .age must be removed by the rollback"
+    );
+    assert!(
+        collect_files_with_ext(&den.join("packs"), "zst").is_empty(),
+        "the placed pack must be removed by the rollback"
+    );
+    staging_is_clean(&den);
+
+    assert!(
+        !proj.join(".env").exists(),
+        ".env was removed before the failure and cannot be restored (documented)"
+    );
+    assert!(
+        proj.join("node_modules/pkg/index.js").is_file(),
+        "the failed remove_dir_all must leave node_modules untouched"
+    );
+
+    assert!(
+        result
+            .rollback_warnings
+            .iter()
+            .any(|w| w.contains("cannot restore deleted file")),
+        "the irreversible source delete must be reported: {:?}",
+        result.rollback_warnings
+    );
+    let completions = raid_completions(&events);
+    assert!(
+        completions.iter().any(|e| e.phase == "rollback"),
+        "a rolled-back commit must emit the rollback event: {completions:?}"
+    );
 }

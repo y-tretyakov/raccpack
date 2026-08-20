@@ -1,19 +1,22 @@
-//! Atomic raid runner — shared staging + deferred destructive ops (A3.3 PR2).
+//! Atomic raid runner — shared staging + deferred destructive ops (A3.3).
 //!
 //! [`atomic_raid`] runs the enabled phases in fixed order
 //! (**stash → rinse → pack → move**) with every intermediate artifact written
 //! under one shared `den/staging/{raid_id}/` directory and every destructive
 //! op (stash `remove_sources`, rinse deletes) deferred to the `move` (commit)
-//! phase. A mid-raid failure therefore leaves nothing in the den (ORPHAN-1);
-//! the staging dir is cleaned up best-effort and the run reports
-//! `success: false` with empty `den_artifacts`. A mid-commit failure may leave
-//! the already-placed first artifact behind — rollback/WAL land in PR3, so
-//! [`RaidResult::rolled_back`] is always `false` here.
+//! phase. A mid-raid failure therefore leaves nothing in the den (ORPHAN-1):
+//! staging is cleaned best-effort and the run reports `success: false` with
+//! empty `den_artifacts`.
+//!
+//! The commit records every forward effect in `staging/wal.jsonl` **before**
+//! applying it; a mid-commit failure rolls those effects back via
+//! [`super::rollback::rollback_from_wal`], reports `rolled_back: true`, and
+//! clears `den_artifacts`.
 //!
 //! A dry run delegates to [`super::fail_fast::fail_fast_raid`]: zero FS
 //! writes, identical events (ORPHAN-3). On a successful atomic commit the
-//! result matches the fail-fast commit result (same sub-results, `den_artifacts`
-//! in stash→pack order, identical stages).
+//! result matches the fail-fast commit result (same sub-results,
+//! `den_artifacts` in stash→pack order, identical stages).
 
 use std::path::{Path, PathBuf};
 
@@ -27,12 +30,14 @@ use crate::domain::{Error, Result};
 use crate::secrets::remove_stash_sources;
 
 use super::fail_fast::{enabled_phase_count, fail_fast_raid, resolve_stash_identity};
-use super::progress::{emit_phase_event, plan_phases};
+use super::progress::{emit_phase_event, emit_rollback_event, plan_phases};
+use super::rollback::rollback_from_wal;
 use super::stages::{
     disabled_stage, failed_stage, ok_stage, pack_message, rinse_message, skipped_stage,
     stash_message,
 };
 use super::staging::{raid_staging_path, remove_raid_staging};
+use super::wal::{Wal, WalOp};
 use super::{RaidOptions, RaidResult, SKIPPED_MESSAGE};
 
 /// Atomic orchestration of `stash → rinse → pack → move` for `opts.project`.
@@ -64,6 +69,7 @@ pub(super) fn atomic_raid(
 
     let raid_id = short_id();
     let raid_staging = raid_staging_path(&ctx.paths.den_dir, &raid_id);
+    let wal_path = raid_staging.join("wal.jsonl");
 
     let planned = plan_phases(opts);
     let phase_count = enabled_phase_count(opts) as u32 + 1;
@@ -158,7 +164,8 @@ pub(super) fn atomic_raid(
 
     if !overall_ok {
         // A phase failure leaves only staging (never the den): clean it up and
-        // report no artifacts (ORPHAN-1). Rollback logic is PR3.
+        // report no artifacts (ORPHAN-1). The WAL was never created, so no
+        // rollback is needed.
         remove_raid_staging(&raid_staging);
         stages.push(skipped_stage("move"));
         emit_phase_event(progress, &planned, "move", phase_count, SKIPPED_MESSAGE);
@@ -176,32 +183,41 @@ pub(super) fn atomic_raid(
         });
     }
 
-    let mut den_artifacts = Vec::new();
-    let success = match commit(
+    let mut rolled_back = false;
+    let mut rollback_warnings = Vec::new();
+    let (den_artifacts, success) = match commit(
         ctx,
         opts,
         &raid_staging,
+        &wal_path,
         &mut stash_result,
         &mut rinse_result,
         &mut pack_result,
-        &mut den_artifacts,
     ) {
-        Ok(()) => {
-            let message = if den_artifacts.is_empty() {
+        Ok(artifacts) => {
+            let message = if artifacts.is_empty() {
                 "nothing to finalize"
             } else {
                 "finalized staged artifacts"
             };
             stages.push(ok_stage("move", message));
             emit_phase_event(progress, &planned, "move", phase_count, message);
-            true
+            (artifacts, true)
         }
         Err(err) => {
+            // Mid-commit failure: reverse-WAL the recorded effects, drop
+            // staging and the placed-artifact list, then emit failed move
+            // followed by the rollback event.
+            let report = rollback_from_wal(&wal_path);
+            rolled_back = report.applied;
+            rollback_warnings = report.warnings;
             remove_raid_staging(&raid_staging);
-            let message = err.to_string();
+            let message = format!("commit failed, rolled back: {err}");
             stages.push(failed_stage("move", message.clone()));
             emit_phase_event(progress, &planned, "move", phase_count, message);
-            false
+            let rollback_message = format!("rolled back ({} warnings)", rollback_warnings.len());
+            emit_rollback_event(progress, phase_count, rollback_message);
+            (Vec::new(), false)
         }
     };
 
@@ -214,8 +230,8 @@ pub(super) fn atomic_raid(
         den_artifacts,
         success,
         dry_run: false,
-        rolled_back: false,
-        rollback_warnings: Vec::new(),
+        rolled_back,
+        rollback_warnings,
     })
 }
 
@@ -279,46 +295,64 @@ fn run_atomic_pack_phase(
 }
 
 /// Place the staged artifacts into the den and apply the deferred destructive
-/// ops.
+/// ops, returning the paths placed into the den.
 ///
-/// Order (PR2 policy): `ensure_den` (only when something is placed) → stash
-/// placement → pack placement → stash `remove_sources` → rinse deletes →
-/// staging cleanup. A failure mid-commit may leave the already-placed first
-/// artifact behind (orphan until the PR3 rollback); `den_artifacts` then holds
-/// whatever was placed so far.
+/// Order (PR3 policy): WAL record before every effect → stash placement → pack
+/// placement → stash `remove_sources` → rinse deletes → staging cleanup. A
+/// failure mid-commit triggers [`rollback_from_wal`] in the caller, so no
+/// placed artifact is reported on a failed commit.
 fn commit(
     ctx: &AppContext,
     opts: &RaidOptions,
     raid_staging: &Path,
+    wal_path: &Path,
     stash_result: &mut Option<StashResult>,
     rinse_result: &mut Option<RinseResult>,
     pack_result: &mut Option<PackResult>,
-    den_artifacts: &mut Vec<PathBuf>,
-) -> Result<()> {
+) -> Result<Vec<PathBuf>> {
+    // With nothing staged and no deferred deletes there is no effect to
+    // record — skip the WAL entirely so an all-disabled commit still reports
+    // a clean "move".
+    let needs_wal = stash_result.is_some()
+        || pack_result.is_some()
+        || (opts.rinse.enabled && rinse_result.as_ref().is_some_and(|r| !r.removed.is_empty()));
+    if !needs_wal {
+        remove_raid_staging(raid_staging);
+        return Ok(Vec::new());
+    }
+
+    // The WAL is created before any effect (including `ensure_den`): every
+    // forward effect is durably recorded before it is applied.
+    create_dir_all(raid_staging)?;
+    let mut wal = Wal::new(wal_path)?;
+
+    let mut placed = Vec::new();
+
     if stash_result.is_some() || pack_result.is_some() {
         ensure_den(&ctx.paths.den_dir)?;
     }
 
     if let Some(stash) = stash_result.as_ref() {
-        let parent = stash.archive_path.parent().ok_or_else(|| Error::Other {
-            message: "invalid stash artifact path".to_string(),
-        })?;
-        create_dir_all(parent)?;
-        move_archive(&raid_staging.join("secrets.age"), &stash.archive_path)?;
-        den_artifacts.push(stash.archive_path.clone());
+        place_staged_artifact(
+            &mut wal,
+            &raid_staging.join("secrets.age"),
+            &stash.archive_path,
+        )?;
+        placed.push(stash.archive_path.clone());
     }
 
     if let Some(pack) = pack_result.as_ref() {
-        let parent = pack.output.parent().ok_or_else(|| Error::Other {
-            message: "invalid pack artifact path".to_string(),
-        })?;
-        create_dir_all(parent)?;
-        move_archive(&raid_staging.join("pack.tar.zst"), &pack.output)?;
-        den_artifacts.push(pack.output.clone());
+        place_staged_artifact(&mut wal, &raid_staging.join("pack.tar.zst"), &pack.output)?;
+        placed.push(pack.output.clone());
     }
 
     if opts.stash.remove_sources {
         if let Some(stash) = stash_result.as_mut() {
+            for entry in &stash.manifest {
+                wal.record(&WalOp::DeleteFile {
+                    path: entry.original_path.clone(),
+                })?;
+            }
             let removed = remove_stash_sources(&stash.manifest)?;
             stash.removed_sources = removed;
         }
@@ -326,6 +360,11 @@ fn commit(
 
     if opts.rinse.enabled {
         if let Some(rinse) = rinse_result.as_mut() {
+            for dir in &rinse.removed {
+                wal.record(&WalOp::DeleteDir {
+                    path: dir.path.clone(),
+                })?;
+            }
             let (removed, bytes_freed) = remove_trash_dirs(&opts.project, &rinse.removed)?;
             rinse.removed = removed;
             rinse.bytes_freed = bytes_freed;
@@ -335,5 +374,22 @@ fn commit(
 
     remove_raid_staging(raid_staging);
 
-    Ok(())
+    Ok(placed)
+}
+
+/// Move one staged artifact into the den, recording the create-dir and the
+/// rename in the WAL before applying them (append+fsync precedes each effect).
+fn place_staged_artifact(wal: &mut Wal, from: &Path, to: &Path) -> Result<()> {
+    let parent = to.parent().ok_or_else(|| Error::Other {
+        message: format!("invalid artifact path: {}", to.display()),
+    })?;
+    wal.record(&WalOp::CreateDir {
+        path: parent.to_path_buf(),
+    })?;
+    create_dir_all(parent)?;
+    wal.record(&WalOp::Rename {
+        from: from.to_path_buf(),
+        to: to.to_path_buf(),
+    })?;
+    move_archive(from, to)
 }

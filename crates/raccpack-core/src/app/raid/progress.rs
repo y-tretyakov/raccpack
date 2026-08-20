@@ -1,10 +1,12 @@
 //! Raid-level progress event planning and construction.
 //!
 //! A raid run reports exactly one completion event per **planned** phase
-//! (enabled stash/rinse/pack in fixed order, then the implicit `"move"`).
-//! Disabled phases produce no event of their own, so [`plan_phases`] yields
-//! indices that renumber around them. [`overall_percent`] follows the spec
-//! formula `(phase_index * 100 + percent) / phase_count`, clamped to 0..=100.
+//! (enabled stash/rinse/pack in fixed order, then the implicit `"move"`), plus
+//! one additional `"rollback"` completion event only when a commit failure
+//! triggered a rollback. Disabled phases produce no event of their own, so
+//! [`plan_phases`] yields indices that renumber around them.
+//! [`overall_percent`] follows the spec formula
+//! `(phase_index * 100 + percent) / phase_count`, clamped to 0..=100.
 
 use crate::app::progress::{OperationKind, ProgressEvent, ProgressSink};
 
@@ -53,6 +55,19 @@ pub(super) fn emit_phase_event(
     if let Some(index) = planned.iter().position(|p| *p == phase) {
         progress.emit(raid_event(phase, index as u32, phase_count, message));
     }
+}
+
+/// Emit a raid completion event for the implicit "rollback" phase (PR3).
+///
+/// Not part of [`plan_phases`] — an extra completion event emitted only when a
+/// commit failure triggered a rollback. `phase_index == phase_count`, so the
+/// spec formula clamps the overall percent to 100.
+pub(super) fn emit_rollback_event(
+    progress: &mut dyn ProgressSink,
+    phase_count: u32,
+    message: impl Into<String>,
+) {
+    progress.emit(raid_event("rollback", phase_count, phase_count, message));
 }
 
 /// Build a raid-level completion event for a planned phase.
