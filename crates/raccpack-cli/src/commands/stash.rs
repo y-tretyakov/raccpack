@@ -61,6 +61,7 @@ pub fn run_stash(global: GlobalOpts, args: StashArgs) -> Result<ExitCode, CliErr
         min_risk: min_risk.to_risk(),
         remove_sources,
         batch_id,
+        staging_dir: None,
     };
 
     // DryRun never needs a passphrase, so read it only for Commit.

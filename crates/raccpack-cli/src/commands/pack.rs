@@ -50,6 +50,8 @@ pub fn run_pack(global: GlobalOpts, args: PackArgs) -> Result<ExitCode, CliError
         output_name,
         deny_content_secrets: !no_content_deny,
         zstd_level,
+        staging_dir: None,
+        exclude_files: Vec::new(),
     };
     let mut progress = NullProgress;
     let result = pack(&ctx, &opts, &mut progress)?;

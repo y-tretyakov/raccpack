@@ -48,5 +48,7 @@ pub use place::{place_pack, PlacePackRequest, PlacePackResult};
 pub use secrets_place::{place_secrets_archive, PlaceSecretsRequest, PlaceSecretsResult};
 
 pub(crate) use layout::create_dir_all;
-pub(crate) use place::{place_pack_ensured, validate_name_fragment, validate_output_name};
+pub(crate) use place::{
+    move_archive, place_pack_ensured, validate_name_fragment, validate_output_name,
+};
 pub(crate) use secrets_place::place_secrets_archive_ensured;

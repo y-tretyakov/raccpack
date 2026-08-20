@@ -19,7 +19,7 @@
 //! - **Raw-free**: [`TrashDir`] carries only path, strategy, pattern name, and
 //!   size — never file contents.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -40,6 +40,9 @@ pub struct RinseOptions {
     pub strategies: Option<Vec<String>>,
     /// Reserved: MVP has no custom patterns in config, so this is a no-op.
     pub include_custom_patterns: bool,
+    /// Scan-only mode for atomic raid: report found dirs without deleting
+    /// anything (removal is deferred to the raid commit). Ignored in DryRun.
+    pub collect_only: bool,
 }
 
 impl Default for RinseOptions {
@@ -49,6 +52,7 @@ impl Default for RinseOptions {
             target: PathBuf::new(),
             strategies: None,
             include_custom_patterns: false,
+            collect_only: false,
         }
     }
 }
@@ -107,6 +111,14 @@ pub fn rinse(
         false,
     ));
 
+    if opts.collect_only {
+        return Ok(RinseResult {
+            removed: dirs,
+            bytes_freed: bytes,
+            dry_run: ctx.mode.is_dry_run(),
+        });
+    }
+
     if ctx.mode.is_dry_run() {
         progress.emit(rinse_event(100, "Done", true));
         return Ok(RinseResult {
@@ -118,10 +130,28 @@ pub fn rinse(
 
     progress.emit(rinse_event(70, "Removing…", false));
 
+    let (removed, freed) = remove_trash_dirs(&opts.target, &dirs)?;
+
+    progress.emit(rinse_event(100, "Done", true));
+    Ok(RinseResult {
+        removed,
+        bytes_freed: freed,
+        dry_run: false,
+    })
+}
+
+/// Remove every contained trash dir, returning the actually removed dirs and
+/// the freed bytes.
+///
+/// Shared by the Commit path of [`rinse`] and the atomic raid commit: each
+/// directory passes a canonicalized containment check under `target` before
+/// [`remove_trash_dir`]; symlink entries are skipped. The first removal error
+/// aborts the run; directories already removed stay removed.
+pub(super) fn remove_trash_dirs(target: &Path, dirs: &[TrashDir]) -> Result<(Vec<TrashDir>, u64)> {
     let mut removed = Vec::new();
     let mut freed = 0u64;
-    for dir in &dirs {
-        if !is_path_under_root(&dir.path, &opts.target)? {
+    for dir in dirs {
+        if !is_path_under_root(&dir.path, target)? {
             return Err(Error::PathOutsideTarget {
                 path: dir.path.clone(),
             });
@@ -132,13 +162,7 @@ pub fn rinse(
             removed.push(dir.clone());
         }
     }
-
-    progress.emit(rinse_event(100, "Done", true));
-    Ok(RinseResult {
-        removed,
-        bytes_freed: freed,
-        dry_run: false,
-    })
+    Ok((removed, freed))
 }
 
 /// Parse the effective strategy ids, from `opts.strategies` when set, else
@@ -189,6 +213,7 @@ mod tests {
         assert!(opts.target.as_os_str().is_empty());
         assert!(opts.strategies.is_none());
         assert!(!opts.include_custom_patterns);
+        assert!(!opts.collect_only);
     }
 
     #[test]

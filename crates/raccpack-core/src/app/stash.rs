@@ -60,6 +60,10 @@ pub struct StashOptions {
     pub remove_sources: bool,
     /// Optional name token replacing the timestamp in the artifact filename.
     pub batch_id: Option<String>,
+    /// Stage-only mode for atomic raid: write `{dir}/secrets.age` without
+    /// placement into the den and without removing sources; `archive_path`
+    /// reports the final expected path. `None` → normal Commit placement.
+    pub staging_dir: Option<PathBuf>,
 }
 
 impl Default for StashOptions {
@@ -71,6 +75,7 @@ impl Default for StashOptions {
             min_risk: SensitiveRisk::High,
             remove_sources: false,
             batch_id: None,
+            staging_dir: None,
         }
     }
 }
@@ -133,6 +138,12 @@ pub struct StashResult {
 /// `secrets/{yyyy}/{mm}/{slug}__{ts}__secrets.age` (the token becomes
 /// `opts.batch_id` when set). With `opts.remove_sources` the originals are
 /// deleted only after the archive landed in the den.
+///
+/// With [`StashOptions::staging_dir`] set, Commit is stage-only: the archive
+/// is written to `{staging_dir}/secrets.age` without placement or source
+/// removal, and [`StashResult::archive_path`] reports the final expected path
+/// (used by the atomic raid, which defers placement to its commit phase).
+/// The containment check still runs and `ensure_den` is skipped.
 ///
 /// # Errors
 ///
@@ -213,13 +224,15 @@ pub fn stash(
         });
     }
 
-    let short = short_id();
-    let staging = ctx
-        .paths
-        .den_dir
-        .join("staging")
-        .join(&short)
-        .join("secrets.age");
+    let staging = match &opts.staging_dir {
+        Some(dir) => dir.join("secrets.age"),
+        None => ctx
+            .paths
+            .den_dir
+            .join("staging")
+            .join(short_id())
+            .join("secrets.age"),
+    };
 
     let resolved_staging = canonicalize_existing_prefix(&staging)?;
     let resolved_target = canonicalize_existing_prefix(&opts.target)?;
@@ -231,7 +244,9 @@ pub fn stash(
         });
     }
 
-    ensure_den(&ctx.paths.den_dir)?;
+    if opts.staging_dir.is_none() {
+        ensure_den(&ctx.paths.den_dir)?;
+    }
 
     let staging_dir = staging.parent().ok_or_else(|| Error::Other {
         message: "invalid den staging path".to_string(),
@@ -246,6 +261,18 @@ pub fn stash(
     })?;
 
     progress.emit(stash_event(70, "Saving to den…", false));
+
+    if opts.staging_dir.is_some() {
+        progress.emit(stash_event(100, "Done", true));
+        return Ok(StashResult {
+            archive_path: expected_abs,
+            files_archived: batch.files_archived,
+            bytes_archived: batch.bytes_archived,
+            removed_sources: 0,
+            dry_run: false,
+            manifest: batch.manifest,
+        });
+    }
 
     let placed = place_secrets_archive_ensured(&PlaceSecretsRequest {
         den_root: ctx.paths.den_dir.clone(),
@@ -317,6 +344,7 @@ mod tests {
         assert!(!opts.remove_sources);
         assert!(opts.batch_id.is_none());
         assert!(opts.only_files.is_none());
+        assert!(opts.staging_dir.is_none());
         assert!(opts.target.as_os_str().is_empty());
     }
 
