@@ -30,6 +30,7 @@ use crate::domain::{Error, Result};
 use crate::secrets::remove_stash_sources;
 
 use super::fail_fast::{enabled_phase_count, fail_fast_raid, resolve_stash_identity};
+use super::manifest::write_raid_manifest;
 use super::progress::{emit_phase_event, emit_rollback_event, plan_phases};
 use super::rollback::rollback_from_wal;
 use super::stages::{
@@ -195,14 +196,28 @@ pub(super) fn atomic_raid(
         &mut pack_result,
     ) {
         Ok(artifacts) => {
-            let message = if artifacts.is_empty() {
-                "nothing to finalize"
+            // Post-commit audit: write the manifest only when something was
+            // placed. A manifest write failure keeps the placed artifacts in
+            // the den (there is nothing to roll back) but reports the run as
+            // failed so the incomplete audit trail is visible.
+            let manifest_error = if artifacts.is_empty() {
+                None
             } else {
-                "finalized staged artifacts"
+                write_raid_manifest(ctx, opts, &raid_id, &stash_result, &pack_result, &stages).err()
             };
-            stages.push(ok_stage("move", message));
+            let success = manifest_error.is_none();
+            let message = match &manifest_error {
+                Some(err) => format!("artifacts committed but manifest write failed: {err}"),
+                None if artifacts.is_empty() => "nothing to finalize".to_string(),
+                None => "finalized staged artifacts".to_string(),
+            };
+            if success {
+                stages.push(ok_stage("move", message.clone()));
+            } else {
+                stages.push(failed_stage("move", message.clone()));
+            }
             emit_phase_event(progress, &planned, "move", phase_count, message);
-            (artifacts, true)
+            (artifacts, success)
         }
         Err(err) => {
             // Mid-commit failure: reverse-WAL the recorded effects, drop

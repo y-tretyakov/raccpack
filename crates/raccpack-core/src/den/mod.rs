@@ -8,7 +8,7 @@
 //! {den_dir}/
 //! ├── README.txt
 //! ├── .den-version          # "1"
-//! ├── manifests/yyyy/mm/
+//! ├── manifests/yyyy/mm/{slug}__{ts}__{short_id}.json
 //! ├── secrets/yyyy/mm/{slug}__{ts}__secrets.age
 //! ├── packs/yyyy/mm/{slug}__{ts}.tar.zst
 //! └── staging/{short_id}/
@@ -16,9 +16,10 @@
 //!
 //! [`ensure_den`] creates the directory tree, writes `.den-version` and
 //! `README.txt` when absent, and enforces the major version gate. The naming
-//! conventions (slug, UTC timestamp, short id, pack/secrets relative paths)
-//! are owned by [`project_slug`], [`utc_timestamp_now`], [`short_id`],
-//! [`pack_relative_path`] and [`secrets_relative_path`]. [`place_pack`] moves
+//! conventions (slug, UTC timestamp, short id, pack/secrets/manifest relative
+//! paths) are owned by [`project_slug`], [`utc_timestamp_now`], [`short_id`],
+//! [`pack_relative_path`], [`secrets_relative_path`] and
+//! [`manifest_relative_path`]. [`place_pack`] moves
 //! a completed archive produced by `crate::archive::pack_tree` into `packs/…`
 //! atomically; [`place_secrets_archive`] does the same for stash `.age`
 //! archives into `secrets/…`.
@@ -35,11 +36,16 @@
 //!   directories; it only creates dirs and renames a single archive).
 
 mod layout;
+mod manifest;
 mod names;
 mod place;
 mod secrets_place;
 
 pub use layout::{ensure_den, staging_pack_path, DenPaths, DEN_VERSION};
+pub use manifest::{
+    manifest_relative_path, write_manifest, DenManifest, ManifestArtifacts, ManifestStage,
+    MANIFEST_SCHEMA_VERSION,
+};
 pub use names::{
     pack_relative_path, project_slug, secrets_relative_path, secrets_relative_path_token, short_id,
     utc_timestamp_now,

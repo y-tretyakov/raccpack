@@ -832,3 +832,205 @@ fn atomic_commit_irreversible_source_deletes_report_warnings() {
         "a rolled-back commit must emit the rollback event: {completions:?}"
     );
 }
+
+// --- A3.4 — the manifest JSON is written only after a successful commit ------
+//
+// Spec: `docs/alpha/a3_new/a3.4-manifest-after-commit.md` §3.
+//
+// A `den/manifests/{yyyy}/{mm}/{slug}__{ts}__{short_id}.json` is written only
+// when a successful atomic commit placed at least one artifact — never on a
+// rollback, a phase failure, or a dry run. Artifact paths are den-relative and
+// the file never contains raw secret values.
+
+/// Absolute paths of `*.json` under `den/manifests` (sorted, deterministic).
+fn manifest_files(den: &Path) -> Vec<PathBuf> {
+    let mut files = collect_files_with_ext(&den.join("manifests"), "json");
+    files.sort();
+    files
+}
+
+/// Read and parse a manifest file.
+fn read_manifest(path: &Path) -> raccpack_core::DenManifest {
+    let raw = fs::read_to_string(path).expect("read manifest file");
+    serde_json::from_str(&raw).expect("parse manifest JSON")
+}
+
+#[test]
+fn successful_commit_writes_audit_manifest() {
+    let (temp, proj, den) = workspace();
+    let _ = temp;
+    let env_path = full_fixture(&proj);
+    let env_size = fs::metadata(&env_path[0]).expect(".env metadata").len();
+    let ctx = ctx_for(&proj, &den, RunMode::Commit);
+
+    let result = raid_once(&ctx, &raid_options(&proj));
+
+    assert!(
+        result.success,
+        "full atomic commit must succeed: {result:?}"
+    );
+
+    let files = manifest_files(&den);
+    assert_eq!(
+        files.len(),
+        1,
+        "exactly one manifest after a successful commit"
+    );
+    let manifest_path = &files[0];
+    let manifest = read_manifest(manifest_path);
+
+    assert_eq!(manifest.schema_version, 1);
+    assert!(manifest.success);
+    assert!(!manifest.dry_run);
+    assert!(!manifest.tool_version.is_empty());
+
+    // Filename encodes `{slug}__{ts}__{short_id}`; `created_at` must be that ts.
+    let stem = manifest_path
+        .file_stem()
+        .expect("manifest file stem")
+        .to_string_lossy();
+    let parts: Vec<&str> = stem.split("__").collect();
+    assert_eq!(
+        parts.len(),
+        3,
+        "filename must be {{slug}}__{{ts}}__{{short_id}}: {stem}"
+    );
+    assert_eq!(
+        parts[1], manifest.created_at,
+        "created_at must match the filename timestamp"
+    );
+
+    let names: Vec<&str> = manifest.stages.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(names, vec!["stash", "rinse", "pack"]);
+    assert!(
+        manifest.stages.iter().all(|s| s.success && !s.skipped),
+        "all recorded phases must have succeeded"
+    );
+
+    let artifacts = &manifest.artifacts;
+    let secrets_archive = artifacts
+        .secrets_archive
+        .as_ref()
+        .expect("stash artifact present in manifest");
+    let project_pack = artifacts
+        .project_pack
+        .as_ref()
+        .expect("pack artifact present in manifest");
+    assert!(
+        secrets_archive.is_relative() && project_pack.is_relative(),
+        "artifact paths must be relative to the den"
+    );
+    assert!(
+        den.join(secrets_archive).is_file(),
+        "secrets_archive must exist under the den: {secrets_archive:?}"
+    );
+    assert!(
+        den.join(project_pack).is_file(),
+        "project_pack must exist under the den: {project_pack:?}"
+    );
+
+    assert_eq!(
+        manifest.stash_manifest.len(),
+        1,
+        ".env must be recorded in the stash manifest"
+    );
+    assert_eq!(manifest.stash_manifest[0].original_path, proj.join(".env"));
+    assert_eq!(manifest.stash_manifest[0].size_bytes, env_size);
+
+    let raw = fs::read_to_string(manifest_path).expect("read manifest for leak check");
+    assert!(
+        !raw.contains(PASSWORD_VALUE),
+        "the manifest must never contain raw secret values: {raw}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn successful_commit_manifest_is_mode_0600() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let (temp, proj, den) = workspace();
+    let _ = temp;
+    full_fixture(&proj);
+    let ctx = ctx_for(&proj, &den, RunMode::Commit);
+
+    let result = raid_once(&ctx, &raid_options(&proj));
+    assert!(result.success);
+
+    let files = manifest_files(&den);
+    assert_eq!(files.len(), 1);
+    let mode = fs::metadata(&files[0])
+        .expect("manifest metadata")
+        .permissions()
+        .mode();
+    assert_eq!(mode & 0o777, 0o600, "manifest must be written 0o600");
+}
+
+#[test]
+fn rollback_writes_no_manifest() {
+    let (temp, proj, den) = workspace();
+    let _ = temp;
+    full_fixture(&proj);
+    let ctx = ctx_for(&proj, &den, RunMode::Commit);
+
+    // ORPHAN-2 blocker: `den/packs/{yyyy}/{mm}` is a regular file, so the
+    // pack's `create_dir_all` fails mid-commit after the stash `.age` placed.
+    let (year, month) = current_den_year_month();
+    write(&den, &format!("packs/{year}/{month}"), "blocker file\n");
+
+    let result = raid_once(&ctx, &raid_options(&proj));
+
+    assert!(
+        !result.success,
+        "a mid-commit placement failure must fail the raid: {result:?}"
+    );
+    assert!(result.rolled_back);
+    assert!(
+        manifest_files(&den).is_empty(),
+        "a rolled-back commit must not write a manifest"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn phase_failure_writes_no_manifest() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let (temp, proj, den) = workspace();
+    let _ = temp;
+    full_fixture(&proj);
+    let unreadable = add_unreadable_file(&proj);
+    let ctx = ctx_for(&proj, &den, RunMode::Commit);
+
+    let result = raid_once(&ctx, &raid_options(&proj));
+
+    fs::set_permissions(&unreadable, fs::Permissions::from_mode(0o644))
+        .expect("restore file permissions");
+
+    assert!(
+        !result.success,
+        "a failing pack must fail the atomic raid: {result:?}"
+    );
+    assert!(
+        manifest_files(&den).is_empty(),
+        "a failed pack phase must not write a manifest"
+    );
+}
+
+#[test]
+fn dry_run_writes_no_manifest() {
+    let (temp, proj, den) = workspace();
+    let _ = temp;
+    full_fixture(&proj);
+    let ctx = ctx_for(&proj, &den, RunMode::DryRun);
+
+    let result = raid_once(&ctx, &raid_options(&proj));
+
+    assert!(result.success, "dry run must succeed: {result:?}");
+    assert!(result.dry_run);
+    assert!(!den.exists(), "dry run must not create the den");
+    assert!(
+        manifest_files(&den).is_empty(),
+        "a dry run must not write a manifest"
+    );
+}
