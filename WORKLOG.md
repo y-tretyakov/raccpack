@@ -18,8 +18,9 @@
 [x] A2.3 CLI racc rinse
 [x] A3.1 facade raid (stash→rinse→pack→move, fail-fast)
 [x] A3.2 ProgressSink + CLI progress
-[ ] A3.3 manifest JSON в den/manifests/
-[ ] A3.4 CLI racc raid --yes; E2E alpha
+[x] A3.3 atomic upgrade (default Atomic: staging + WAL + rollback, ORPHAN-1..4)
+[ ] A3.4 manifest JSON в den/manifests/ (после успешного Atomic commit)
+[ ] A3.5 CLI racc raid --fail-fast/toggles; exit 1 при !success; E2E alpha
 [ ] A4.1 GitClient (process) + status sensitive files в dig
 [ ] A4.2 Config migrate chain + racc init
 [ ] A4.3 tracing без секретов; --verbose
@@ -28,12 +29,12 @@
 
 ## Этапы
 
-### A3.3 — Atomic upgrade (PR1 + PR2) (IN PROGRESS)
+### A3.3 — Atomic upgrade (CLOSED)
 
 - **Дата:** 2026-08-19/2026-08-20
-- **Ветки:** `a3.3-atomic` (PR #78 → dev, squash, merged) · `a3.3-staging` (PR #79 → dev, squash, merged)
-- **Статус:** in progress — закрыты **PR1** (каркас API, green bridge) и **PR2** (единый `den/staging/{raid_id}/` + deferred destructive ops); далее **PR3** (WAL + rollback) → orphan-тесты.
-- **Роли:** Orchestrator; Dev + Test (последовательно; Test по merge-ready tip `aed4b3a` / `7d559b1`).
+- **Ветки:** `a3.3-atomic` (PR #78 → dev, squash, merged) · `a3.3-staging` (PR #79 → dev, squash, merged) · `a3.3-wal` (PR #80 → dev, squash, merged)
+- **Статус:** done — **PR1** (каркас API, green bridge) + **PR2** (единый `den/staging/{raid_id}/` + deferred destructive ops) + **PR3** (WAL + rollback). ORPHAN-1..4 покрыты тестами.
+- **Роли:** Orchestrator; Dev (PR2/PR3) + Test (последовательно; PR2/PR3 тесты — Orchestrator, субагент Test вернул пусто).
 
 #### Задача (из `docs/alpha/a3_new/a3.3-atomic-upgrade.md`)
 Default **Atomic**: `OrchestrationMode { Atomic, FailFast }` в `RaidOptions`; весь Commit-raid в `den/staging/{raid_id}/` + WAL; финальные `secrets/`/`packs/` только atomic rename; `Err` → reverse-WAL → `rolled_back`, staging удалён; FailFast ≡ старое A3.1-поведение; DryRun без WAL/FS; progress commit/rollback; orphan-регрессия (ORPHAN-1..4).
@@ -68,12 +69,20 @@ Default **Atomic**: `OrchestrationMode { Atomic, FailFast }` в `RaidOptions`; �
 - [x] Tests green, fmt/clippy clean
 
 #### Риски / follow-up
-- **PR2:** `app/raid/staging.rs` — единый `den/staging/{raid_id}/`; stash/pack пишут промежуточные артефакты туда (additive опция), placement/`remove_sources`/rinse-delete отложены в commit (иначе rollback нереализуем — решение человека).
-- **PR3:** `wal.rs` (WalOp JSONL, append+fsync до эффекта, iter_reverse) + `rollback.rs` + wire `atomic_raid` (rollback, `rolled_back`, remove staging) + progress commit/rollback + `tests/raid_atomic.rs` (ORPHAN-1..4; fault injection без test-hook в public API).
 - **A3.4:** manifest только после успешного Atomic commit (`den/manifest.rs`).
 - **A3.5:** CLI `--fail-fast`/toggles, exit 1 при `!success`, E2E, wiki — контракт A3.2 не трогать до этого этапа.
 - Wiki (user-facing) не обновляется до зелёного A3.5; dev-спеки `docs/alpha/a3_new/` — источник контракта.
-- **Открытый риск (из PR1):** default теперь Atomic, но настоящий rollback только в PR3. Пока `rolled_back` всегда `false`; CLI help однострочник про «rollback не реализован» — добавить в A3.5 вместе с полными toggles/exit 1.
+- **Закрыт (был из PR1):** «default Atomic, но rollback не реализован» — закрыт PR3 (WAL + reverse-rollback). CLI help однострочник про rollback — по желанию в A3.5.
+
+#### PR3 — сделано (commit WAL + rollback; PR #80)
+- **Дата:** 2026-08-20 · **Ветка:** `a3.3-wal` · **Коммит:** `b821dd3`.
+- `app/raid/wal.rs` (291 стр. с тестами): forward-effect `WalOp { CreateDir, CreateFile, Rename, DeleteFile, DeleteDir }` + `inverse()` (Rename → DeleteFile{to}; CreateDir/CreateFile → delete; DeleteFile/DeleteDir необратимы → warning); `Wal` — `record` (JSONL + `sync_all`) **до** эффекта, `read_reverse` (битая строка → Error::Other, fail-safe).
+- `app/raid/rollback.rs` (183): `rollback_from_wal` — reverse-WAL, никогда Err (всё в `RollbackReport{warnings}`); missing WAL → `applied:false`; NotFound при удалении → ок.
+- `atomic.rs` (395, ≤400): commit записывает в `staging/wal.jsonl` CreateDir/Rename перед placement, DeleteFile перед `remove_stash_sources`, DeleteDir перед `remove_trash_dirs`; Commit-Err → `rollback_from_wal` → `remove_raid_staging` → `den_artifacts` пуст, `rolled_back`/`rollback_warnings` из отчёта, events: failed "move" + новый `"rollback"`. ORPHAN-1 path не тронут (WAL не создавался → `rolled_back:false`). `commit` возвращает `Vec<PathBuf>` вместо `&mut Vec<PathBuf>` (clippy too_many_arguments) — эквивалентно, меньше аргументов. `needs_wal` guard: WAL только при размещении/деletes (все-выключено-commit → чистый "move" без WAL).
+- `progress.rs`: `emit_rollback_event` (phase `"rollback"`, index=phase_count → overall 100) — дополнительное событие только при откате; module-doc обновлён.
+- **Тесты `tests/raid_atomic.rs` +3 (13):** ORPHAN-2 (blocker-файл `den/packs/{yyyy}/{mm}` → `create_dir_all` падает в commit после stash-rename → reverse-WAL убирает `.age`, sources нетронуты, `rolled_back:true`, rollback-событие, warning про non-empty dir); успешный commit без rollback-события; irreversible source deletes → `rollback_warnings` (chmod 0555 на `node_modules/pkg` — scan читает, `remove_dir_all` падает после удаления `.env`; `rolled_back:true`, `.env` не восстановим — warning). Unit: wal.rs (inverse, append→read_reverse, corrupt line) + rollback.rs (remove placed + empty parent, NotFound no-op, irreversible warnings, corrupt WAL).
+- **Тесты:** `cargo test --workspace` — green, 0 failed (raid_atomic 13); fmt clean · clippy `-D warnings` clean.
+- **Отклонение Dev от брифа (принято):** `commit` → `Vec<PathBuf>` вместо `&mut Vec` (8 аргументов → clippy fail); нет `pub(crate) use rollback::…` в mod.rs (unused_import; atomic ходит `super::rollback::…`); `Wal::new` под `needs_wal` guard.
 
 #### PR2 — сделано (atomic staging + deferred destructive ops; PR #79)
 - **Дата:** 2026-08-20 · **Ветка:** `a3.3-staging` · **Коммиты:** `118ca05` (feat) + `7d559b1` (test).
