@@ -7,9 +7,10 @@
 //!   runner. Every intermediate artifact is written under one shared
 //!   `den/staging/{raid_id}/` and moved into the den (stash `secrets/`, pack
 //!   `packs/`) only in the commit phase; `remove_sources` and rinse deletes
-//!   also run in the commit. WAL + rollback land in PR3, so
-//!   [`RaidResult::rolled_back`] is always `false` and
-//!   [`RaidResult::rollback_warnings`] always empty on this PR.
+//!   also run in the commit. Every commit effect is first recorded in a
+//!   forward WAL (`staging/wal.jsonl`); a mid-commit failure rolls the effects
+//!   back and reports [`RaidResult::rolled_back`] with non-fatal
+//!   [`RaidResult::rollback_warnings`].
 //! - [`OrchestrationMode::FailFast`] (legacy A3.1): stops at the first failing
 //!   enabled phase; artifacts already placed stay in the den.
 //!
@@ -32,8 +33,9 @@
 //! - **Progress events**: exactly one `OperationKind::Raid` completion event
 //!   per planned phase (enabled stash/rinse/pack plus implicit `"move"`), with
 //!   coherent indices/percent via the spec formula. Disabled phases emit
-//!   nothing; fail-fast phases emit "not run due to prior failure". There is
-//!   no start event — completion events are the only raid emissions.
+//!   nothing; fail-fast phases emit "not run due to prior failure". A commit
+//!   failure adds one extra `"rollback"` completion event. There is no start
+//!   event — completion events are the only raid emissions.
 //! - **Raw-free**: stage and event messages carry summaries only (counts,
 //!   "disabled", "not run…", error `Display`), never raw secret material.
 
@@ -52,8 +54,10 @@ use super::stash::{AgeIdentity, StashResult};
 mod atomic;
 mod fail_fast;
 mod progress;
+mod rollback;
 mod stages;
 mod staging;
+mod wal;
 
 use atomic::atomic_raid;
 use fail_fast::fail_fast_raid;
@@ -61,11 +65,11 @@ use fail_fast::fail_fast_raid;
 /// Orchestration mode of a [`raid`] run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OrchestrationMode {
-    /// Staging + deferred destructive ops (default): every intermediate
-    /// artifact lives under `den/staging/{raid_id}/` and is finalized in the
-    /// commit phase; `remove_sources` and rinse deletes also happen in the
-    /// commit. WAL + rollback land in PR3, so `rolled_back` is always `false`
-    /// on this PR.
+    /// Atomic (default): staging + deferred destructive ops. Every
+    /// intermediate artifact lives under `den/staging/{raid_id}/` and is
+    /// finalized in the commit phase; `remove_sources` and rinse deletes also
+    /// happen in the commit. A mid-commit failure is rolled back via the
+    /// forward WAL (`rolled_back` set when the rollback applied anything).
     Atomic,
     /// Legacy A3.1 behavior: stop at the first failing enabled phase, keep
     /// artifacts already placed in the den, no rollback.
@@ -169,12 +173,14 @@ pub struct RaidResult {
     pub success: bool,
     /// Whether the run was a dry run (nothing written).
     pub dry_run: bool,
-    /// `true` iff a failed run was rolled back to the pre-raid state.
-    /// Always `false` on this PR — rollback logic lands in PR3.
+    /// `true` iff a failed commit was rolled back to the pre-raid state
+    /// (placed artifacts removed via the WAL). `false` for phase failures —
+    /// nothing reached the den — and on success.
     #[serde(default)]
     pub rolled_back: bool,
-    /// Non-fatal warnings collected while rolling back.
-    /// Always empty on this PR — rollback logic lands in PR3.
+    /// Non-fatal warnings collected while rolling back (irreversible deletes,
+    /// paths that could not be removed, unreadable log). Empty when no
+    /// rollback ran or when it completed cleanly.
     #[serde(default)]
     pub rollback_warnings: Vec<String>,
 }
@@ -183,8 +189,8 @@ pub struct RaidResult {
 ///
 /// Dispatches to the runner selected by [`RaidOptions::mode`]:
 /// [`OrchestrationMode::Atomic`] (default; shared staging + deferred
-/// destructive ops, rollback in PR3) or [`OrchestrationMode::FailFast`]
-/// (legacy A3.1 semantics).
+/// destructive ops, WAL rollback on commit failure) or
+/// [`OrchestrationMode::FailFast`] (legacy A3.1 semantics).
 ///
 /// # Errors (preconditions only)
 ///
