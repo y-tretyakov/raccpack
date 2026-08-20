@@ -3,10 +3,13 @@
 //! [`raid`] runs the enabled phases in fixed order — **stash → rinse → pack →
 //! move** — under the orchestration mode selected by [`RaidOptions::mode`]:
 //!
-//! - [`OrchestrationMode::Atomic`] (default): the rollback-aware runner. On
-//!   this PR it is a green bridge that delegates to [`super::fail_fast`] —
-//!   staging + WAL + rollback land in PR2/PR3, so [`RaidResult::rolled_back`]
-//!   is always `false`.
+//! - [`OrchestrationMode::Atomic`] (default): the staging + deferred-destructive
+//!   runner. Every intermediate artifact is written under one shared
+//!   `den/staging/{raid_id}/` and moved into the den (stash `secrets/`, pack
+//!   `packs/`) only in the commit phase; `remove_sources` and rinse deletes
+//!   also run in the commit. WAL + rollback land in PR3, so
+//!   [`RaidResult::rolled_back`] is always `false` and
+//!   [`RaidResult::rollback_warnings`] always empty on this PR.
 //! - [`OrchestrationMode::FailFast`] (legacy A3.1): stops at the first failing
 //!   enabled phase; artifacts already placed stay in the den.
 //!
@@ -17,8 +20,7 @@
 //! INVARIANTS:
 //!
 //! - **Fail-fast**: an `Err` from an enabled phase aborts the run; following
-//!   enabled phases are `skipped` ("not run due to prior failure"). Artifacts
-//!   already placed stay in [`RaidResult::den_artifacts`].
+//!   enabled phases are `skipped` ("not run due to prior failure").
 //!   [`crate::domain::Error::StashEmpty`] is a no-op ("nothing to stash") and
 //!   the run continues.
 //! - **Phase failure → `Ok(RaidResult { success: false, .. })`**, not `Err`:
@@ -47,18 +49,23 @@ use super::progress::ProgressSink;
 use super::rinse::RinseResult;
 use super::stash::{AgeIdentity, StashResult};
 
+mod atomic;
 mod fail_fast;
 mod progress;
 mod stages;
+mod staging;
 
+use atomic::atomic_raid;
 use fail_fast::fail_fast_raid;
 
 /// Orchestration mode of a [`raid`] run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OrchestrationMode {
-    /// Rollback-aware orchestration (default). On this PR it behaves exactly
-    /// like [`OrchestrationMode::FailFast`]; staging + WAL + rollback land in
-    /// PR2/PR3.
+    /// Staging + deferred destructive ops (default): every intermediate
+    /// artifact lives under `den/staging/{raid_id}/` and is finalized in the
+    /// commit phase; `remove_sources` and rinse deletes also happen in the
+    /// commit. WAL + rollback land in PR3, so `rolled_back` is always `false`
+    /// on this PR.
     Atomic,
     /// Legacy A3.1 behavior: stop at the first failing enabled phase, keep
     /// artifacts already placed in the den, no rollback.
@@ -175,9 +182,9 @@ pub struct RaidResult {
 /// Orchestrate `stash → rinse → pack → move` for `opts.project`.
 ///
 /// Dispatches to the runner selected by [`RaidOptions::mode`]:
-/// [`OrchestrationMode::Atomic`] (default; on this PR a green bridge to the
-/// fail-fast runner, rollback lands in PR2/PR3) or
-/// [`OrchestrationMode::FailFast`] (legacy A3.1 semantics).
+/// [`OrchestrationMode::Atomic`] (default; shared staging + deferred
+/// destructive ops, rollback in PR3) or [`OrchestrationMode::FailFast`]
+/// (legacy A3.1 semantics).
 ///
 /// # Errors (preconditions only)
 ///
@@ -195,20 +202,6 @@ pub fn raid(
         OrchestrationMode::Atomic => atomic_raid(ctx, opts, identity, progress),
         OrchestrationMode::FailFast => fail_fast_raid(ctx, opts, identity, progress),
     }
-}
-
-/// Atomic runner.
-///
-/// PR1 green bridge: staging + WAL + rollback land in PR2/PR3, so for now an
-/// atomic run behaves exactly like the fail-fast runner.
-fn atomic_raid(
-    ctx: &AppContext,
-    opts: &RaidOptions,
-    identity: Option<&AgeIdentity>,
-    progress: &mut dyn ProgressSink,
-) -> Result<RaidResult> {
-    // green bridge: staging+WAL+rollback land in PR2/PR3
-    fail_fast_raid(ctx, opts, identity, progress)
 }
 
 #[cfg(test)]
@@ -257,7 +250,7 @@ mod tests {
     }
 
     #[test]
-    fn raid_dispatch_atomic_and_fail_fast_are_identical_green_bridge() {
+    fn raid_dispatch_atomic_delegates_to_fail_fast_on_dry_run() {
         use std::fs;
 
         use tempfile::TempDir;
@@ -299,7 +292,7 @@ mod tests {
 
         assert_eq!(
             atomic, fail_fast,
-            "PR1 green bridge: modes must be identical"
+            "PR2 DryRun: atomic must delegate to the fail-fast runner"
         );
         assert!(atomic.success);
         assert!(!atomic.rolled_back);

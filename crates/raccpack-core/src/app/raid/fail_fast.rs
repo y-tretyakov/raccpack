@@ -163,7 +163,7 @@ pub(super) fn fail_fast_raid(
 }
 
 /// Validate the stash identity precondition (ignored when stash is disabled).
-fn resolve_stash_identity<'a>(
+pub(super) fn resolve_stash_identity<'a>(
     opts: &RaidOptions,
     identity: Option<&'a AgeIdentity>,
 ) -> Result<Option<&'a AgeIdentity>> {
@@ -194,6 +194,7 @@ fn run_stash_phase(
         min_risk: opts.stash.min_risk,
         remove_sources: opts.stash.remove_sources,
         batch_id: None,
+        staging_dir: None,
     };
     stash(ctx, &stash_opts, identity, progress)
 }
@@ -208,6 +209,7 @@ fn run_rinse_phase(
         target: opts.project.clone(),
         strategies: None,
         include_custom_patterns: false,
+        collect_only: false,
     };
     rinse(ctx, &rinse_opts, progress)
 }
@@ -223,6 +225,8 @@ fn run_pack_phase(
         output_name: None,
         deny_content_secrets: opts.pack.deny_content_secrets,
         zstd_level: None,
+        staging_dir: None,
+        exclude_files: Vec::new(),
     };
     pack(ctx, &pack_opts, progress)
 }

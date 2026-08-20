@@ -87,6 +87,7 @@ fn rinse_options(target: &Path, strategies: Option<Vec<String>>) -> RinseOptions
         target: target.to_path_buf(),
         strategies,
         include_custom_patterns: false,
+        collect_only: false,
     }
 }
 

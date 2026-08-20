@@ -63,6 +63,8 @@ fn pack_options(project: &Path, deny_content_secrets: bool) -> PackOptions {
         output_name: None,
         deny_content_secrets,
         zstd_level: None,
+        staging_dir: None,
+        exclude_files: Vec::new(),
     }
 }
 

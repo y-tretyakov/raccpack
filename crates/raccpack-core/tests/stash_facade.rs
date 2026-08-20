@@ -88,6 +88,7 @@ fn stash_options(project: &Path) -> StashOptions {
         min_risk: raccpack_core::SensitiveRisk::High,
         remove_sources: false,
         batch_id: None,
+        staging_dir: None,
     }
 }
 
