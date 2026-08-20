@@ -367,3 +367,348 @@ fn cli_raid_human_output_never_leaks_raw_secret() {
         "human output must never contain the raw secret value"
     );
 }
+
+// --- A3.5 — full `racc raid` flags, exit codes and E2E orphan checks ---------
+//
+// Spec: `docs/alpha/a3_new/a3.5-cli-e2e-wiki.md` §2 (flags), §4 (exit codes),
+// §5 (E2E). Exit 0 ⇔ `Ok` && `success`; exit 1 ⇔ `Err` or `Ok` && `!success`.
+
+/// Recursively collect all `*.json` files under `root` (missing root → empty).
+fn collect_json_files(root: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    if !root.exists() {
+        return files;
+    }
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        for entry in fs::read_dir(&dir).into_iter().flatten().flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.is_file() && path.extension().map(|e| e == "json") == Some(true) {
+                files.push(path);
+            }
+        }
+    }
+    files
+}
+
+/// Current UTC `yyyy`/`mm` (the same clock the den naming uses).
+fn current_den_year_month() -> (String, String) {
+    let ts = raccpack_core::utc_timestamp_now();
+    (ts[0..4].to_string(), ts[4..6].to_string())
+}
+
+/// Add a chmod-000 regular file that breaks `pack` (Unix only). `stash` skips
+/// it: the name matches no filename marker and content scan is best-effort.
+#[cfg(unix)]
+fn add_unreadable_file(app: &Path) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+
+    write(app, "src/chunk.bin", "binary payload\n");
+    let path = app.join("src/chunk.bin");
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o000)).expect("chmod 000");
+    path
+}
+
+// --- A3.5: E2E full commit writes .den-version + secrets + packs + manifests -
+
+#[test]
+fn cli_raid_commit_writes_den_version_archives_and_manifest() {
+    let h = harness();
+    let app = raid_project(&h.projects_root());
+    let den = h.den();
+
+    let assert = h
+        .cmd()
+        .env("RACCPACK_PASSPHRASE", PASSPHRASE)
+        .args(["raid", "--project"])
+        .arg(&app)
+        .args(["--den"])
+        .arg(&den)
+        .args(["--yes"])
+        .assert()
+        .success();
+
+    assert!(
+        den.join(".den-version").is_file(),
+        "E2E: den must be bootstrapped with .den-version"
+    );
+    assert_eq!(collect_age_files(&den).len(), 1, "E2E: one .age");
+    assert_eq!(collect_pack_files(&den).len(), 1, "E2E: one .tar.zst");
+    let manifests = collect_json_files(&den.join("manifests"));
+    assert_eq!(manifests.len(), 1, "E2E: one manifest JSON");
+    let json: Value =
+        serde_json::from_str(&fs::read_to_string(&manifests[0]).expect("read manifest"))
+            .expect("manifest must be valid JSON");
+    assert_eq!(json["schema_version"], 1);
+    assert_eq!(json["success"], true);
+    assert_eq!(json["dry_run"], false);
+
+    let stdout = stdout_str(&assert);
+    assert!(
+        stdout.contains("placed 2 artifact(s)"),
+        "human summary must list placed artifacts, got:\n{stdout}"
+    );
+}
+
+// --- A3.5: phase toggles -------------------------------------------------------
+
+#[test]
+fn cli_raid_no_stash_skips_secrets_and_keeps_sources() {
+    let h = harness();
+    let app = raid_project(&h.projects_root());
+    let den = h.den();
+
+    // stash disabled → no passphrase is required even in commit mode.
+    h.cmd()
+        .args(["raid", "--project"])
+        .arg(&app)
+        .args(["--den"])
+        .arg(&den)
+        .args(["--yes", "--no-stash"])
+        .assert()
+        .success();
+
+    assert!(
+        collect_age_files(&den).is_empty(),
+        "--no-stash must not write any .age"
+    );
+    assert_eq!(collect_pack_files(&den).len(), 1, "pack still runs");
+    assert!(
+        app.join(".env").is_file(),
+        "--no-stash must not remove source secrets"
+    );
+    assert!(
+        !app.join("node_modules").exists(),
+        "rinse still runs by default"
+    );
+}
+
+#[test]
+fn cli_raid_no_rinse_keeps_trash_dir() {
+    let h = harness();
+    let app = raid_project(&h.projects_root());
+    let den = h.den();
+
+    h.cmd()
+        .env("RACCPACK_PASSPHRASE", PASSPHRASE)
+        .args(["raid", "--project"])
+        .arg(&app)
+        .args(["--den"])
+        .arg(&den)
+        .args(["--yes", "--no-rinse"])
+        .assert()
+        .success();
+
+    assert_eq!(collect_age_files(&den).len(), 1, "stash still runs");
+    assert_eq!(collect_pack_files(&den).len(), 1, "pack still runs");
+    assert!(
+        app.join("node_modules/pkg/index.js").is_file(),
+        "--no-rinse must keep node_modules"
+    );
+    assert!(!app.join(".env").exists(), "stash still removes sources");
+}
+
+#[test]
+fn cli_raid_no_pack_skips_archive() {
+    let h = harness();
+    let app = raid_project(&h.projects_root());
+    let den = h.den();
+
+    h.cmd()
+        .env("RACCPACK_PASSPHRASE", PASSPHRASE)
+        .args(["raid", "--project"])
+        .arg(&app)
+        .args(["--den"])
+        .arg(&den)
+        .args(["--yes", "--no-pack"])
+        .assert()
+        .success();
+
+    assert_eq!(collect_age_files(&den).len(), 1, "stash still runs");
+    assert!(
+        collect_pack_files(&den).is_empty(),
+        "--no-pack must not write any .tar.zst"
+    );
+    assert!(!app.join(".env").exists(), "stash still removes sources");
+}
+
+#[test]
+fn cli_raid_keep_sources_keeps_env() {
+    let h = harness();
+    let app = raid_project(&h.projects_root());
+    let den = h.den();
+
+    h.cmd()
+        .env("RACCPACK_PASSPHRASE", PASSPHRASE)
+        .args(["raid", "--project"])
+        .arg(&app)
+        .args(["--den"])
+        .arg(&den)
+        .args(["--yes", "--keep-sources"])
+        .assert()
+        .success();
+
+    assert_eq!(collect_age_files(&den).len(), 1, "stash still archives");
+    assert!(
+        app.join(".env").is_file(),
+        "--keep-sources must keep .env on disk"
+    );
+    assert!(
+        !app.join("node_modules").exists(),
+        "rinse still runs by default"
+    );
+}
+
+#[test]
+fn cli_raid_min_risk_critical_skips_high_secret() {
+    let h = harness();
+    let app = raid_project(&h.projects_root());
+    let den = h.den();
+
+    // `.env` is High by name; `--min-risk critical` excludes it from stash, so
+    // the stash phase is an empty no-op (passphrase is read but never used).
+    let assert = h
+        .cmd()
+        .env("RACCPACK_PASSPHRASE", PASSPHRASE)
+        .args(["raid", "--project"])
+        .arg(&app)
+        .args(["--den"])
+        .arg(&den)
+        .args(["--yes", "--min-risk", "critical"])
+        .assert()
+        .success();
+
+    assert!(
+        collect_age_files(&den).is_empty(),
+        "critical floor must skip the High .env"
+    );
+    assert_eq!(
+        collect_pack_files(&den).len(),
+        1,
+        "pack still runs with an empty stash"
+    );
+    assert!(
+        app.join(".env").is_file(),
+        "nothing stashed → nothing removed"
+    );
+    let stdout = stdout_str(&assert);
+    assert!(stdout.contains("Success"));
+}
+
+// --- A3.5: exit codes + orphan green ------------------------------------------
+
+#[cfg(unix)]
+#[test]
+fn cli_raid_failed_atomic_commit_exits_one_and_writes_nothing() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let h = harness();
+    let app = raid_project(&h.projects_root());
+    let den = h.den();
+    let unreadable = add_unreadable_file(&app);
+
+    let assert = h
+        .cmd()
+        .env("RACCPACK_PASSPHRASE", PASSPHRASE)
+        .args(["raid", "--project"])
+        .arg(&app)
+        .args(["--den"])
+        .arg(&den)
+        .args(["--yes"])
+        .assert()
+        .failure()
+        .code(1);
+
+    fs::set_permissions(&unreadable, fs::Permissions::from_mode(0o644))
+        .expect("restore file permissions");
+
+    let stdout = stdout_str(&assert);
+    assert!(stdout.contains("Failed"), "human output must say Failed");
+
+    assert!(
+        collect_age_files(&den).is_empty(),
+        "atomic failure must leave no orphan .age"
+    );
+    assert!(
+        collect_pack_files(&den).is_empty(),
+        "atomic failure must leave no pack"
+    );
+    assert!(
+        app.join(".env").is_file(),
+        "deferred removal must never run on a failed commit"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn cli_raid_fail_fast_leaves_orphan_on_pack_failure() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let h = harness();
+    let app = raid_project(&h.projects_root());
+    let den = h.den();
+    let unreadable = add_unreadable_file(&app);
+
+    h.cmd()
+        .env("RACCPACK_PASSPHRASE", PASSPHRASE)
+        .args(["raid", "--project"])
+        .arg(&app)
+        .args(["--den"])
+        .arg(&den)
+        .args(["--yes", "--fail-fast"])
+        .assert()
+        .failure()
+        .code(1);
+
+    fs::set_permissions(&unreadable, fs::Permissions::from_mode(0o644))
+        .expect("restore file permissions");
+
+    assert!(
+        collect_age_files(&den).len() == 1,
+        "--fail-fast places artifacts before the pack failure and keeps them (orphan, documented)"
+    );
+    assert!(
+        collect_pack_files(&den).is_empty(),
+        "the failing pack places nothing"
+    );
+}
+
+#[test]
+fn cli_raid_rolled_back_commit_exits_one_and_reports_human_summary() {
+    let h = harness();
+    let app = raid_project(&h.projects_root());
+    let den = h.den();
+
+    // ORPHAN-2 blocker: `den/packs/{yyyy}/{mm}` is a regular file, so the
+    // pack's `create_dir_all` fails mid-commit after the stash `.age` placed.
+    let (year, month) = current_den_year_month();
+    write(&den, &format!("packs/{year}/{month}"), "blocker file\n");
+
+    let assert = h
+        .cmd()
+        .env("RACCPACK_PASSPHRASE", PASSPHRASE)
+        .args(["raid", "--project"])
+        .arg(&app)
+        .args(["--den"])
+        .arg(&den)
+        .args(["--yes"])
+        .assert()
+        .failure()
+        .code(1);
+
+    let stdout = stdout_str(&assert);
+    assert!(
+        stdout.contains("rolled back"),
+        "human output must surface the rollback, got:\n{stdout}"
+    );
+    assert!(
+        collect_age_files(&den).is_empty(),
+        "a rolled-back commit must leave no .age"
+    );
+    assert!(
+        app.join(".env").is_file(),
+        "deferred removal must never run on a rolled-back commit"
+    );
+}
