@@ -857,7 +857,7 @@ CLI `racc rinse`: DryRun default, `--yes` → Commit (удаление trash-dir
 **Тесты:** `cargo test --workspace` green; узкий набор `cargo test -p raccpack-cli --test tracing_logging` 7/7; fmt + clippy `-D warnings` core/cli чисто. Redaction-sweep Orchestrator'а: в `secrets/`/`archive/` ни одного log-event; grep значения passphrase в `-vv` выводе stash — пусто.
 **Процесс:** Dev + Test параллельно, оба приняты с попытки 1. Test стартовал в гонке до правок Dev (baseline), финальный прогон — по merge-ready дереву; Orchestrator перепроверил всё сам по финальному состоянию.
 **Решения:** логи всегда в stderr (спека §5 «JSON в stdout, логи в stderr»); ANSI только на TTY; пустой `RUST_LOG` считается unset.
-**Замечания (не блокеры):** P3 — `stash.rs` info! дублирует счётчик в поле и сообщении (`files = …` + `"encrypting {} files"`); pre-existing debt — `cli.rs` ~941 строка (тест-тяжёлый), кандидат на split args/tests отдельным hygiene-этапом.
+**Замечания (не блокеры):** P3 — `stash.rs` info! дублировал счётчик в поле и сообщении — **закрыт** (коммит 71f09f3, PR #88); pre-existing debt — `cli.rs` ~941 строка (тест-тяжёлый), кандидат на split args/tests отдельным hygiene-этапом — **отложено сознательно**; инструментация raid/rinse/pack info-событиями — позже, без отдельного этапа (для Alpha точечной stash/dig/sniff достаточно).
 **Синхронизация:** по чеклисту §3.9 — Cargo.toml/Cargo.lock 0.2.14, README (badge + Status-абзац), VERSION_ROADMAP (A4.3 ✅ 0.2.14, все точки), raccpack-roadmap-v1 (A4.3 ✅), wiki (`cli-usage.md` глобальный `-v/--verbose`, `roadmap.md`, `introduction.md`), бинарник переустановлен.
 
 ## Принятые решения (Alpha+)
