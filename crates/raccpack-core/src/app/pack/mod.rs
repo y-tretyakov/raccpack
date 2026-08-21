@@ -204,10 +204,8 @@ pub fn pack(
         },
         exclude_files: opts.exclude_files.clone(),
     };
-    let tree = pack_tree(&project, &staging, &tree_opts).map_err(|err| {
-        best_effort_staging_cleanup(&staging);
-        err
-    })?;
+    let tree = pack_tree(&project, &staging, &tree_opts)
+        .inspect_err(|_err| best_effort_staging_cleanup(&staging))?;
 
     if opts.staging_dir.is_some() {
         let output = den.join(artifact_rel(&slug, &ts, output_name.as_deref()));
@@ -237,10 +235,7 @@ pub fn pack(
         timestamp: Some(ts),
         output_name,
     })
-    .map_err(|err| {
-        best_effort_staging_cleanup(&staging);
-        err
-    })?;
+    .inspect_err(|_err| best_effort_staging_cleanup(&staging))?;
 
     if let Some(parent) = staging.parent() {
         let _ = fs::remove_dir(parent);

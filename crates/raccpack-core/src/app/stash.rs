@@ -259,10 +259,8 @@ pub fn stash(
     // Redaction invariant: log counts only — never the passphrase or file
     // contents.
     info!(target: "raccpack_core", files = entries.len(), "encrypting files");
-    let batch = write_stash_age(&entries, &staging, passphrase).map_err(|err| {
-        best_effort_staging_cleanup(&staging);
-        err
-    })?;
+    let batch = write_stash_age(&entries, &staging, passphrase)
+        .inspect_err(|_err| best_effort_staging_cleanup(&staging))?;
 
     progress.emit(stash_event(70, "Saving to den…", false));
 
@@ -285,10 +283,7 @@ pub fn stash(
         timestamp: Some(ts),
         batch_id: opts.batch_id.clone(),
     })
-    .map_err(|err| {
-        best_effort_staging_cleanup(&staging);
-        err
-    })?;
+    .inspect_err(|_err| best_effort_staging_cleanup(&staging))?;
 
     info!(target: "raccpack_core", path = %placed.absolute_path.display(), "stash archive placed in den");
 
