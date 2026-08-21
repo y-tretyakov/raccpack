@@ -1,84 +1,84 @@
 ---
-title: Добро пожаловать в raccpack
-description: Обзор raccpack — инструмента для поиска секретов и упаковки проектов в хранилище den.
+title: Welcome to raccpack
+description: An overview of raccpack — a tool for finding secrets and packing projects into the den storage.
 ---
 
-# Добро пожаловать в raccpack
+# Welcome to raccpack
 
-raccpack — инструмент для поддержания порядка в папке с вашими проектами. Он помогает:
+raccpack is a tool for keeping your projects folder in order. It helps you:
 
-- **Находить секреты** — ключи, токены, пароли и credential-файлы, случайно оказавшиеся в рабочих копиях.
-- **Упаковывать проекты** — каждый проект упаковывается в отдельный архив `tar.zst` без секретов и мусора и складывается в «den».
-- **Выносить секреты** — в зашифрованные архивы стандарта [age](https://age-encryption.org) в «den».
-- **Чистить мусор сборки** — `node_modules`, `target`, кэши — по стратегиям.
-- **Запускать весь цикл одной командой** — `racc raid` (stash → rinse → pack → move).
+- **Find secrets** — keys, tokens, passwords, and credential files that ended up in working copies by accident.
+- **Pack projects** — each project is packed into a separate `tar.zst` archive without secrets or trash and placed into the "den".
+- **Move secrets out** — into encrypted [age](https://age-encryption.org)-standard archives in the "den".
+- **Clean build trash** — `node_modules`, `target`, caches — according to strategies.
+- **Run the whole cycle with one command** — `racc raid` (stash → rinse → pack → move).
 
-Den — это ваше локальное защищённое хранилище (vault): чистые архивы проектов, зашифрованные секреты и JSON-манифесты каждой операции.
+The den is your local protected storage (vault): clean project archives, encrypted secrets, and JSON manifests of every operation.
 
-## Зачем это нужно
+## Why you need this
 
-Разработчики часто держат в рабочей папке десятки проектов. Среди них почти наверняка есть:
+Developers often keep dozens of projects in their working folder. Among them you will almost certainly find:
 
-- `.env` файлы с реальными ключами;
-- SSH-ключи и сертификаты;
-- файлы AWS/GitHub/Stripe-доступа;
-- каталоги сборки на десятки гигабайт.
+- `.env` files with real keys;
+- SSH keys and certificates;
+- AWS/GitHub/Stripe credential files;
+- build directories tens of gigabytes in size.
 
-Копировать такую папку «как есть» в бэкап или облако — значит утечь секреты и переслать тонны мусора. raccpack автоматизирует наведение порядка перед упаковкой.
+Copying such a folder "as is" to a backup or the cloud means leaking secrets and shipping tons of trash. raccpack automates tidying things up before packing.
 
-## Как это работает (коротко)
+## How it works (in short)
 
-![Пайплайн raccpack: sniff → dig → stash → rinse → pack → raid](/how-it-works__ru.webp)
+![raccpack pipeline: sniff → dig → stash → rinse → pack → raid](/how-it-works.webp)
 
-Вы указываете две папки:
+You specify two folders:
 
-- **`scan_root`** — где лежат ваши проекты (вход);
-- **`den_dir`** — куда складывать архивы (выход).
+- **`scan_root`** — where your projects live (input);
+- **`den_dir`** — where archives are stored (output).
 
-Всё остальное raccpack делает по конфигурации и встроенным правилам.
+Everything else raccpack does based on configuration and built-in rules.
 
-## Сейчас доступно / Скоро
+## Available now / Coming soon
 
-Что можно использовать уже сегодня, а что появится следом:
+What you can use today, and what follows next:
 
-**Доступно в CLI (`racc`):**
+**Available in the CLI (`racc`):**
 
-- `racc init` — стартовая конфигурация одной командой;
-- `racc sniff` — обзор проектов, их стека и размеров;
-- `racc dig` — поиск секретов с маскированием, оценкой риска и git-статусом файлов;
-- `racc stash` — вынос секретов в зашифрованные age-архивы;
-- `racc rinse` — очистка мусора сборки по стратегиям;
-- `racc pack` — упаковка проекта в `tar.zst` без секретов и мусора, в den;
-- `racc raid` — полный цикл одной командой (stash → rinse → pack → move);
-- `-v/--verbose` — подробные логи без секретов.
+- `racc init` — starter configuration with a single command;
+- `racc sniff` — an overview of projects, their stacks, and sizes;
+- `racc dig` — secret detection with masking, risk scoring, and per-file git status;
+- `racc stash` — moving secrets into encrypted age archives;
+- `racc rinse` — cleaning build trash according to strategies;
+- `racc pack` — packing a project into a `tar.zst` without secrets or trash, into the den;
+- `racc raid` — the full cycle in one command (stash → rinse → pack → move);
+- `-v/--verbose` — detailed logs without secrets.
 
-Полный каталог поддерживаемых маркеров, секретов и deny-правил — на странице [Что поддерживается](/supported).
+The full catalog of supported markers, secrets, and deny rules is on the [Supported](/supported) page.
 
-**Скоро (Detect v2):**
+**Coming soon (Detect v2):**
 
-- дерево стека для монорепозиториев и гибридных проектов.
+- a stack tree for monorepositories and hybrid projects.
 
-## Ключевые принципы безопасности
+## Key security principles
 
-- **Секреты скрыты по умолчанию.** В отчётах, логах и JSON-выводе вместо значений показываются маскированные превью и хеши. Показать исходное значение можно только явно.
-- **Dry-run по умолчанию.** Разрушающие операции (удаление источников, очистка мусора) сначала показывают, что произойдёт, и требуют явного подтверждения (`pack --yes`).
-- **Один код для всех интерфейсов.** Вся логика живёт в ядре `raccpack-core`; CLI, TUI и Desktop лишь вызывают один и тот же публичный контракт.
-- **Сырые секреты не покидают ядро.** При `stash`/`raid` значение живёт в памяти ядра только на время шифрования, после чего память затирается.
+- **Secrets are hidden by default.** Reports, logs, and JSON output show masked previews and hashes instead of values. Showing the original value requires an explicit action.
+- **Dry-run by default.** Destructive operations (deleting sources, cleaning trash) first show what will happen and require explicit confirmation (`pack --yes`).
+- **One codebase for every interface.** All logic lives in the `raccpack-core`; CLI, TUI, and Desktop merely call the same public contract.
+- **Raw secrets never leave the core.** During `stash`/`raid`, a value lives in core memory only while it is being encrypted; afterwards the memory is zeroed.
 
-## Интерфейсы
+## Interfaces
 
-| Интерфейс | Статус | Описание |
-|-----------|--------|----------|
-| **CLI** (`racc`) | Доступен | Командная строка, подходит для скриптов и CI |
-| **TUI** | Планируется | Терминальный интерфейс с интерактивной навигацией |
-| **Desktop** | Планируется | Настольное приложение на Tauri + React |
+| Interface | Status | Description |
+|-----------|--------|-------------|
+| **CLI** (`racc`) | Available | Command line, suitable for scripts and CI |
+| **TUI** | Planned | Terminal interface with interactive navigation |
+| **Desktop** | Planned | Desktop application on Tauri + React |
 
 ::: info
-Сейчас CLI умеет `sniff`, `dig`, `pack`, `stash`, `rinse` и `raid`, а `racc init` создаёт стартовую конфигурацию; дальше — `racc den`. См. [Дорожная карта](/roadmap).
+Currently the CLI supports `sniff`, `dig`, `pack`, `stash`, `rinse`, and `raid`, and `racc init` creates a starter configuration; next up — `racc den`. See the [Roadmap](/roadmap).
 :::
 
-## Что дальше
+## What next
 
-- [Установка](/installation) — собрать и проверить `racc`.
-- [Быстрый старт](/quick-start) — первый прогон за пять минут.
-- [Основные понятия](/concepts) — den, секреты, риски, фазы.
+- [Installation](/installation) — build and verify `racc`.
+- [Quick start](/quick-start) — your first run in five minutes.
+- [Core concepts](/concepts) — den, secrets, risks, phases.

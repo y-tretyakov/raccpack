@@ -1,167 +1,167 @@
 ---
-title: Raid — полный цикл одной командой
-description: "Команда racc raid — stash → rinse → pack → move за один вызов: секреты в age-архив, чистка мусора сборки, архив проекта и манифест в den."
+title: Raid — full cycle in one command
+description: "The racc raid command — stash → rinse → pack → move in one call: secrets into an age archive, build trash cleanup, project archive and a manifest in the den."
 ---
 
-# Raid - полный цикл одной командой
+# Raid - full cycle in one command
 
-Команда: `racc raid`  
-Статус: реализовано (Alpha).
+Command: `racc raid`  
+Status: implemented (Alpha).
 
-Эта страница описывает **ровно то поведение**, которое реализует `raccpack` сейчас. Если флаг или путь не указаны здесь — их нет в текущей версии.
+This page describes **exactly the behavior** that `raccpack` implements today. If a flag or path is not listed here, it does not exist in the current version.
 
-Вернуться к обзору команд: [Использование CLI](/cli-usage).
+Back to the command overview: [CLI usage](/cli-usage).
 
-## Что делает raid
+## What raid does
 
-`racc raid` запускает весь конвейер по проекту одной командой, в фиксированном порядке:
+`racc raid` runs the whole pipeline for a project in one command, in a fixed order:
 
 ```text
 stash  →  rinse  →  pack  →  move
 ```
 
-1. **stash** — находит чувствительные файлы (те же правила, что у `racc dig`) и шифрует их в age-архив в `den/secrets/…`, по умолчанию удаляя исходники;
-2. **rinse** — удаляет мусор сборки (`node_modules`, `target`, … по стратегиям);
-3. **pack** — упаковывает проект **без** секретов в `den/packs/…`;
-4. **move (commit)** — финализирует размещение и, после успеха, пишет манифест.
+1. **stash** — finds sensitive files (same rules as `racc dig`) and encrypts them into an age archive in `den/secrets/…`, deleting the originals by default;
+2. **rinse** — removes build trash (`node_modules`, `target`, … by strategies);
+3. **pack** — packs the project **without** secrets into `den/packs/…`;
+4. **move (commit)** — finalizes the placement and, after success, writes the manifest.
 
-Результат одного успешного запуска:
+Result of a single successful run:
 
 ```text
-{den}/secrets/{год}/{месяц}/{slug}__{время}__secrets.age
-{den}/packs/{год}/{месяц}/{slug}__{время}.tar.zst
-{den}/manifests/{год}/{месяц}/{slug}__{время}__{id}.json
+{den}/secrets/{year}/{month}/{slug}__{time}__secrets.age
+{den}/packs/{year}/{month}/{slug}__{time}.tar.zst
+{den}/manifests/{year}/{month}/{slug}__{time}__{id}.json
 ```
 
-Манифест — JSON-запись для аудита: стадии, пути артефактов (относительно den), raw-free stash-manifest, версия инструмента, `success`, `dry_run`, `created_at`. Пишется **только** после успешного commit и только если артефакты реально размещены.
+The manifest is a JSON record for auditing: stages, artifact paths (relative to the den), a raw-free stash manifest, the tool version, `success`, `dry_run`, `created_at`. It is written **only** after a successful commit and only if the artifacts were actually placed.
 
-По умолчанию `racc raid` работает в **dry-run**: ничего не пишет и не удаляет.
+By default `racc raid` runs in **dry-run**: nothing is written and nothing is deleted.
 
 ::: info
-По умолчанию используется **atomic** режим: все промежуточные файлы живут в `den/staging/{id}/`, удаление исходников и мусора откладывается в commit, а каждый шаг commit записывается в журнал (WAL). Если commit падает на середине — размещённые артефакты **откатываются** (`rolled_back`). См. [Orphan green](#orphan-green-и-флаги).
+The default mode is **atomic**: all intermediate files live in `den/staging/{id}/`, deletion of sources and trash is postponed to commit, and every commit step is recorded in a journal (WAL). If commit fails halfway, the placed artifacts are **rolled back** (`rolled_back`). See [Orphan green](#atomic-vs-fail-fast-orphan-green).
 :::
 
-## Быстрый старт
+## Quick start
 
 ```bash
-# 1) Посмотреть, что будет сделано (ничего не пишет и не удаляет)
+# 1) Preview what will be done (nothing is written or deleted)
 racc raid --project ~/DEV/PROJS/my-api --den ~/.raccpack/den
 
-# 2) Полный commit (stash + rinse + pack + manifest)
+# 2) Full commit (stash + rinse + pack + manifest)
 export RACCPACK_PASSPHRASE='your-strong-passphrase'
 racc raid --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes
 ```
 
 ::: warning
-По умолчанию `racc raid` работает в **dry-run**: не пишет в den, не удаляет исходники и мусор. Commit — только с `--yes`.
+By default `racc raid` runs in **dry-run**: it writes nothing to the den, deletes no sources and no trash. Commit happens only with `--yes`.
 :::
 
-## Синтаксис
+## Syntax
 
 ```text
 racc raid --project <PATH> [OPTIONS]
 ```
 
-`--project <PATH>` — **обязательный**: каталог проекта, над которым выполняется конвейер.
+`--project <PATH>` is **required**: the project directory the pipeline is executed against.
 
-## Параметры и флаги
+## Options and flags
 
-### Проект и den
+### Project and den
 
-| Параметр | Описание |
+| Option | Description |
 |----------|----------|
-| `--project <PATH>` | Каталог проекта (обязательно) |
-| `--den <PATH>` | Корень den. Если не указан — из config (`paths.den_dir`) |
+| `--project <PATH>` | Project directory (required) |
+| `--den <PATH>` | Den root. If omitted — taken from the config (`paths.den_dir`) |
 
-### Режим записи
+### Write mode
 
-| Параметр | Поведение |
+| Option | Behavior |
 |----------|-----------|
-| *(по умолчанию)* | **Dry-run**: только отчёт, файлы не создаются и не удаляются |
-| `--dry-run` | Явный dry-run |
-| `--yes` | **Commit**: записать артефакты в den, применить удаления |
+| *(default)* | **Dry-run**: report only, no files created or deleted |
+| `--dry-run` | Explicit dry-run |
+| `--yes` | **Commit**: write artifacts to the den, apply deletions |
 
-**Приоритет:** если указаны и `--dry-run`, и `--yes`, побеждает dry-run.
+**Precedence:** if both `--dry-run` and `--yes` are specified, dry-run wins.
 
-### Фазы
+### Phases
 
-| Параметр | По умолчанию | Описание |
+| Option | Default | Description |
 |----------|--------------|----------|
-| *(без флага)* | все фазы включены | stash → rinse → pack |
-| `--no-stash` | — | Выключить stash (не искать/шифровать секреты, не удалять исходники) |
-| `--no-rinse` | — | Выключить rinse (не чистить мусор сборки) |
-| `--no-pack` | — | Выключить pack (не создавать `tar.zst`) |
-| `--fail-fast` | — | Режим `FailFast` вместо atomic: остановиться на первой упавшей фазе (см. ниже) |
+| *(no flag)* | all phases enabled | stash → rinse → pack |
+| `--no-stash` | — | Disable stash (no secret search/encryption, no source deletion) |
+| `--no-rinse` | — | Disable rinse (no build trash cleanup) |
+| `--no-pack` | — | Disable pack (no `tar.zst` is created) |
+| `--fail-fast` | — | `FailFast` mode instead of atomic: stop at the first failing phase (see below) |
 
-### Stash / pack тонкая настройка
+### Stash / pack fine-tuning
 
-| Параметр | По умолчанию | Описание |
+| Option | Default | Description |
 |----------|--------------|----------|
-| `--min-risk <LEVEL>` | `high` | Минимальный уровень риска для stash: `low`, `medium`, `high`, `critical` |
-| `--keep-sources` | выкл. | Не удалять исходные секреты после успешного stash (`remove_sources` выключен) |
-| `--no-content-deny` | выкл. | Не исключать из pack файлы с секретом в содержимом (deny по имени остаётся) |
+| `--min-risk <LEVEL>` | `high` | Minimum risk level for stash: `low`, `medium`, `high`, `critical` |
+| `--keep-sources` | off | Do not delete the original secrets after a successful stash (`remove_sources` disabled) |
+| `--no-content-deny` | off | Do not exclude files with secret content from pack (name-based deny remains) |
 
-### Вывод
+### Output
 
-| Параметр | Описание |
+| Option | Description |
 |----------|----------|
-| `--json` | Печать `RaidResult` в JSON (стадии, `success`, `rolled_back`, артефакты) |
+| `--json` | Print `RaidResult` as JSON (stages, `success`, `rolled_back`, artifacts) |
 
-### Глобальные флаги
+### Global flags
 
-| Флаг | Описание |
+| Flag | Description |
 |------|----------|
-| `-c, --config <PATH>` | Файл конфигурации (переопределяет `RACCPACK_CONFIG`) |
-| `--root <PATH>` | Переопределить `scan_root` на этот запуск |
-| `--den <PATH>` | Переопределить `den_dir` на этот запуск |
-| `--json` | Машиночитаемый вывод JSON |
+| `-c, --config <PATH>` | Configuration file (overrides `RACCPACK_CONFIG`) |
+| `--root <PATH>` | Override `scan_root` for this run |
+| `--den <PATH>` | Override `den_dir` for this run |
+| `--json` | Machine-readable JSON output |
 
 ## Passphrase
 
-Нужна **только** если stash включён **и** выполняется Commit. Если задан `--no-stash`, passphrase не запрашивается даже с `--yes`.
+Needed **only** if stash is enabled **and** the run performs a Commit. With `--no-stash`, no passphrase is requested even with `--yes`.
 
-Порядок выбора (как у `racc stash`):
+Resolution order (same as `racc stash`):
 
-1. Переменная окружения **`RACCPACK_PASSPHRASE`** — если задана и не пустая.
-2. Иначе интерактивный ввод в TTY (два раза, без отображения символов).
-3. Если stdin — не терминал, берётся **одна строка из stdin**.
-4. Если нет ни env, ни TTY, ни stdin — ошибка с подсказкой задать `RACCPACK_PASSPHRASE`.
+1. The **`RACCPACK_PASSPHRASE`** environment variable — if set and non-empty.
+2. Otherwise interactive input on a TTY (twice, without echoing characters).
+3. If stdin is not a terminal, a **single line is read from stdin**.
+4. If neither env, nor TTY, nor stdin is available — an error suggesting you set `RACCPACK_PASSPHRASE`.
 
 ::: warning
-Не коммитьте `RACCPACK_PASSPHRASE` и не храните passphrase в открытых скриптах. В CI задавайте переменную через secrets store.
+Do not commit `RACCPACK_PASSPHRASE` and do not store the passphrase in plain scripts. In CI, provide the variable through a secrets store.
 :::
 
 ## Atomic vs fail-fast (orphan green)
 
-### Atomic (по умолчанию)
+### Atomic (default)
 
-- Все промежуточные артефакты живут в `den/staging/{id}/`.
-- Удаление исходников (`remove_sources`) и мусора (`rinse`) откладывается в **move (commit)**.
-- Каждый эффект commit записывается в журнал **до** применения; падение на середине откатывает размещённые артефакты.
-- При откате человекочитаемый вывод показывает `Failed` и `rolled back (N warnings)`; в JSON — `rolled_back: true`.
-- **Гарантия:** неудачный raid не оставляет `.age` / `.tar.zst` / манифест в den (только временный `staging/`, который очищается).
-- **Audit-policy:** если manifest записан, но сам commit уже прошёл успешно — это `success: false` без отката (артефакты остаются в den, откатывать нечего). Откат не восстанавливает удалённые исходники/мусор (эффекты move с `remove_sources` необратимы) — они попадают в `rollback_warnings`.
+- All intermediate artifacts live in `den/staging/{id}/`.
+- Deletion of sources (`remove_sources`) and trash (`rinse`) is postponed to **move (commit)**.
+- Every commit effect is recorded in the journal **before** it is applied; a failure halfway rolls back the placed artifacts.
+- On rollback the human-readable output shows `Failed` and `rolled back (N warnings)`; in JSON — `rolled_back: true`.
+- **Guarantee:** a failed raid leaves no `.age` / `.tar.zst` / manifest in the den (only a temporary `staging/`, which is cleaned up).
+- **Audit policy:** if the manifest write fails but the commit itself has already succeeded — this is `success: false` without a rollback (the artifacts stay in the den; there is nothing to roll back). Rollback does not restore deleted sources/trash (the effects of move with `remove_sources` are irreversible) — they end up in `rollback_warnings`.
 
 ### Fail-fast (`--fail-fast`)
 
-- Легаси-поведение: останавливается на первой упавшей фазе.
-- Уже размещённые артефакты **остаются** в den (это документированное отличие от atomic — «orphan»).
-- Используется для отладки; в обычной работе предпочтителен atomic.
+- Legacy behavior: stops at the first failing phase.
+- Already placed artifacts **remain** in the den (this is the documented difference from atomic — an "orphan").
+- Used for debugging; atomic is preferred in normal work.
 
-## Коды выхода
+## Exit codes
 
-| Код | Когда |
+| Code | When |
 |-----|--------|
-| 0 | `Ok` и `success == true` (в т.ч. dry-run) |
-| 1 | Ошибка CLI/конфига/фазы **или** `Ok` с `success == false` (вкл. откат commit) |
+| 0 | `Ok` and `success == true` (including dry-run) |
+| 1 | A CLI/config/phase error **or** `Ok` with `success == false` (incl. commit rollback) |
 
-Код `2` (как у dig для Critical) **не** используется для raid.
+Code `2` (as dig uses for Critical) is **not** used for raid.
 
-## Вывод
+## Output
 
-### Человекочитаемый (human)
+### Human-readable
 
-Во время работы печатаются строки фаз (`→ stash: …`, `→ rinse: …`, `→ pack: …`, `→ move: …`), затем итог:
+During the run, phase lines are printed (`→ stash: …`, `→ rinse: …`, `→ pack: …`, `→ move: …`), then the summary:
 
 ```text
 Success
@@ -170,7 +170,7 @@ Success
     /tmp/den/packs/2026/08/my-api__20260804T155230Z.tar.zst
 ```
 
-При откате:
+On rollback:
 
 ```text
 Failed
@@ -179,56 +179,56 @@ Failed
 
 ### JSON (`--json`)
 
-Поля `RaidResult`: `stages` (имя/успех/сообщение), `stash`/`rinse`/`pack` подрезультаты, `den_artifacts`, `success`, `dry_run`, `rolled_back`, `rollback_warnings`. Raw-секретов в JSON нет.
+Fields of `RaidResult`: `stages` (name/success/message), `stash`/`rinse`/`pack` sub-results, `den_artifacts`, `success`, `dry_run`, `rolled_back`, `rollback_warnings`. There are no raw secrets in the JSON.
 
-## Примеры
+## Examples
 
 ```bash
-# Dry-run: показать весь конвейер, ничего не писать
+# Dry-run: show the whole pipeline, write nothing
 racc raid --project ~/DEV/PROJS/my-api --den ~/.raccpack/den
 
-# Полный atomic commit
+# Full atomic commit
 export RACCPACK_PASSPHRASE='your-strong-passphrase'
 racc raid --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes
 
-# Без stash (не трогать секреты; passphrase не нужна)
+# Without stash (leave secrets alone; no passphrase needed)
 racc raid --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes --no-stash
 
-# Не удалять исходные секреты
+# Do not delete the original secrets
 racc raid --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes --keep-sources
 
-# Debug fail-fast (orphan возможен)
+# Debug fail-fast (an orphan is possible)
 racc raid --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes --fail-fast
 
-# JSON для CI + проверка rollback-полей
+# JSON for CI + checking the rollback fields
 racc raid --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes --json \
   | jq '{success, rolled_back, stages}'
 
-# Секреты только Critical
+# Critical-only secrets
 racc raid --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes --min-risk critical
 
 # Exit code: success=false → 1
 racc raid --project /bad --den /tmp/den --yes ; echo $?
 ```
 
-## Безопасность
+## Security
 
-- По умолчанию dry-run — сначала смотрите отчёт.
-- Удаление исходников и мусора — только в commit (`--yes`) и **после** успешного размещения артефактов.
-- В atomic-режиме неудачный commit откатывается: артефакты не остаются в den.
-- Passphrase не пишется в логи и JSON; материал ключа очищается (zeroize).
-- Файл манифеста и `.age` создаются с правами `0600` (best-effort на Unix).
-- Не коммитьте каталог den в git.
+- Dry-run by default — look at the report first.
+- Sources and trash are deleted only in commit (`--yes`) and **after** the artifacts have been placed successfully.
+- In atomic mode a failed commit is rolled back: no artifacts are left in the den.
+- The passphrase is never written to logs or JSON; key material is zeroized.
+- The manifest file and `.age` files are created with `0600` permissions (best-effort on Unix).
+- Do not commit the den directory to git.
 
-## Связанные команды
+## Related commands
 
-| Команда | Роль |
+| Command | Role |
 |---------|------|
-| `racc sniff` / `racc dig` | Найти проекты / секреты (read-only) |
-| `racc stash` | Только секреты → age-архив |
-| `racc rinse` | Только чистка мусора |
-| `racc pack` | Только архив проекта без секретов |
+| `racc sniff` / `racc dig` | Find projects / secrets (read-only) |
+| `racc stash` | Secrets only → age archive |
+| `racc rinse` | Trash cleanup only |
+| `racc pack` | Project archive without secrets only |
 
 ---
 
-*Документ соответствует реализации; при изменении флагов CLI обновляйте страницу в том же PR.*
+*The documentation matches the implementation; when CLI flags change, update this page in the same PR.*

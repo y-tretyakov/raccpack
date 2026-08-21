@@ -1,31 +1,31 @@
 ---
-title: Что поддерживается
-description: Языки, фреймворки, секреты, пропускаемые каталоги, стратегии очистки и правила упаковки — полный каталог возможностей raccpack.
+title: Supported catalog
+description: Languages, frameworks, secrets, skipped directories, cleanup strategies, and packing rules — the full raccpack capability catalog.
 ---
 
-# Что поддерживается
+# Supported catalog
 
-Страница описывает, **что умеет raccpack прямо сейчас**: как он находит проекты, какие секреты ищет, какие папки пропускает, как чистит мусор сборки и что исключает из архива. Включая возможности Alpha: `stash` (age), `rinse` (стратегии очистки) и `raid` (полный цикл).
+This page describes **what raccpack can do right now**: how it finds projects, which secrets it looks for, which folders it skips, how it cleans build trash, and what it excludes from archives. Including Alpha capabilities: `stash` (age), `rinse` (cleanup strategies), and `raid` (full cycle).
 
 ::: info
-Список соответствует встроенным правилам ядра. Когда в код добавляют новый язык или тип секрета, эту страницу обновляют в том же изменении.
+The list matches the core's built-in rules. When a new language or secret type is added to the code, this page is updated in the same change.
 :::
 
-## Обнаружение проектов
+## Project discovery
 
-Команда `racc sniff` обходит папку с проектами и ищет **маркеры** — характерные файлы в корне проекта.
+The `racc sniff` command walks the projects folder looking for **markers** — characteristic files in the project root.
 
-### Какие проекты находятся
+### Which projects are found
 
-Простое правило: **есть такой файл → это такой проект**.
+Simple rule: **such a file exists → it's such a project**.
 
-| Если в корне лежит… | Это проект |
-|---------------------|------------|
+| If the root contains… | It's a project |
+|------------------------|----------------|
 | `Cargo.toml` | **Rust** |
 | `package.json` | **JavaScript / TypeScript** |
 | `go.mod` | **Go** |
-| `pyproject.toml` | **Python** (современный) |
-| `setup.py` | **Python** (классический) |
+| `pyproject.toml` | **Python** (modern) |
+| `setup.py` | **Python** (classic) |
 | `requirements.txt` | **Python** (pip) |
 | `pom.xml` | **Java** (Maven) |
 | `build.gradle` | **Java** (Gradle) |
@@ -33,18 +33,18 @@ description: Языки, фреймворки, секреты, пропуска�
 | `Gemfile` | **Ruby** |
 | `composer.json` | **PHP** |
 | `CMakeLists.txt` | **C / C++** |
-| `Makefile` | есть Make (язык не указывается) |
-| `.git` *(каталог)* | git-репозиторий (не язык) |
+| `Makefile` | Make present (no language assigned) |
+| `.git` *(directory)* | git repository (not a language) |
 
-Всего **14 маркеров**.
+**14 markers** in total.
 
-### Если маркеров несколько
+### When there are several markers
 
-Бывает, что в одной папке и `package.json`, и `Cargo.toml`. Тогда язык выбирается по **приоритету** — сверху вниз:
+Sometimes one folder has both `package.json` and `Cargo.toml`. Then the language is chosen by **priority** — top to bottom:
 
-| Приоритет | Файл | Язык |
-|-----------|------|------|
-| 1 (выше всех) | `Cargo.toml` | Rust |
+| Priority | File | Language |
+|----------|------|----------|
+| 1 (highest) | `Cargo.toml` | Rust |
 | 2 | `go.mod` | Go |
 | 3 | `pom.xml`, `build.gradle`, `build.gradle.kts` | Java / Kotlin |
 | 4 | `package.json` | JavaScript |
@@ -52,16 +52,16 @@ description: Языки, фреймворки, секреты, пропуска�
 | 6 | `Gemfile` | Ruby |
 | 7 | `composer.json` | PHP |
 | 8 | `CMakeLists.txt` | C++ |
-| 9 | `Makefile` | — (язык не назначается) |
+| 9 | `Makefile` | — (no language assigned) |
 
-`.git` на выбор языка **не влияет**.
+`.git` has **no effect** on language choice.
 
-### Фреймворки
+### Frameworks
 
-Определяются **только по именам файлов в корне** (без чтения зависимостей).
+Detected **only by file names in the root** (no dependency reading).
 
-| Если в корне есть… | Фреймворк |
-|--------------------|-----------|
+| If the root contains… | Framework |
+|------------------------|-----------|
 | `next.config.js` / `.mjs` / `.ts` | **Next.js** |
 | `nuxt.config.*` | **Nuxt** |
 | `angular.json` | **Angular** |
@@ -69,53 +69,53 @@ description: Языки, фреймворки, секреты, пропуска�
 | `deno.json` | **Deno** |
 | `manage.py` | **Django** |
 | `build.sbt` | **Scala / sbt** |
-| `Gemfile` **и** `config/application.rb` | **Rails** |
+| `Gemfile` **and** `config/application.rb` | **Rails** |
 
-Для Go, PHP, C/C++, Make, Rust и «чистого» Git отдельных правил **пока нет** (например, Axum из `Cargo.toml` ещё не определяется).
+Go, PHP, C/C++, Make, Rust, and "pure" Git have no dedicated rules **yet** (e.g., Axum from `Cargo.toml` is not detected yet).
 
 ### Git
 
-| Есть… | В отчёте |
-|-------|----------|
-| каталог `.git` в корне | проект помечен как git-репозиторий |
+| Present… | In the report |
+|----------|---------------|
+| `.git` directory in the root | project marked as a git repository |
 
-Сам `.git` при обходе **не заходит внутрь** (он в списке пропускаемых), но наличие папки учитывается.
+The walk does **not enter** `.git` itself (it's on the skip list), but its presence is noted.
 
 ---
 
-## Секреты
+## Secrets
 
-Команда `racc dig` ищет чувствительные файлы **по имени** и, по желанию, **по содержимому**.
+The `racc dig` command searches for sensitive files **by name** and, optionally, **by content**.
 
-В отчётах и JSON **никогда нет сырых значений** — только маска, хеш и длина.
+Reports and JSON **never contain raw values** — only mask, hash, and length.
 
-### Уровни риска
+### Risk levels
 
-| | Уровень | Что значит | Пример |
-|---|---------|------------|--------|
-| 🔴 | **Critical** | Почти наверняка ключ | `.env.production`, `id_rsa`, `AKIA…` |
-| 🟠 | **High** | Похоже на секрет | `.env`, `*.pem`, `api_key = …` |
-| 🟡 | **Medium** | Стоит взглянуть | `config.json`, `sk_test_…`, JWT |
-| 🟢 | **Low** | Слабый сигнал | (в MVP почти не используется) |
+| | Level | Meaning | Example |
+|---|-------|---------|---------|
+| 🔴 | **Critical** | Almost certainly a key | `.env.production`, `id_rsa`, `AKIA…` |
+| 🟠 | **High** | Looks like a secret | `.env`, `*.pem`, `api_key = …` |
+| 🟡 | **Medium** | Worth a look | `config.json`, `sk_test_…`, JWT |
+| 🟢 | **Low** | Weak signal | (barely used in MVP) |
 
-При нескольких совпадениях на один файл берётся **самый высокий** риск.
+When multiple rules match one file, the **highest** risk wins.
 
-### По имени файла
+### By file name
 
-Сверяется **только имя** (содержимое не читается). Регистр букв важен.
+Only the **name** is checked (contents are not read). Letter case matters.
 
-#### 📁 Окружение
+#### 📁 Environment
 
-| Файл | Риск |
+| File | Risk |
 |------|------|
 | `.env` | 🟠 High |
 | `.env.local` | 🟠 High |
 | `.env.production` | 🔴 Critical |
-| любое `.env.…` | 🟠 High |
+| any `.env.…` | 🟠 High |
 
-#### 🔑 SSH и ключи
+#### 🔑 SSH and keys
 
-| Файл | Риск |
+| File | Risk |
 |------|------|
 | `id_rsa` | 🔴 Critical |
 | `id_ed25519` | 🔴 Critical |
@@ -124,180 +124,179 @@ description: Языки, фреймворки, секреты, пропуска�
 | `*.key` | 🟠 High |
 | `*.ppk` | 🟠 High |
 
-#### 🗄️ Хранилища сертификатов
+#### 🗄️ Keystores
 
-| Файл | Риск |
+| File | Risk |
 |------|------|
 | `*.p12` | 🟠 High |
 | `*.pfx` | 🟠 High |
 | `*.jks` | 🟠 High |
 
-#### 👤 Учётные данные
+#### 👤 Credentials
 
-| Файл | Риск |
+| File | Risk |
 |------|------|
 | `credentials` | 🟠 High |
-| имя содержит `service-account` | 🟠 High |
+| name contains `service-account` | 🟠 High |
 | `*-sa.json` | 🟠 High |
 | `.git-credentials` | 🔴 Critical |
 | `.netrc` | 🟠 High |
 | `.htpasswd` | 🟠 High |
 
-#### ⚙️ Реестры и Kubernetes
+#### ⚙️ Registries and Kubernetes
 
-| Файл | Риск |
+| File | Risk |
 |------|------|
 | `kubeconfig` | 🟠 High |
 | `config.json` | 🟡 Medium |
 | `.npmrc` | 🟠 High |
 | `.pypirc` | 🟠 High |
 
-#### 🔐 Файлы секретов и кошельки
+#### 🔐 Secret files and wallets
 
-| Файл | Риск |
+| File | Risk |
 |------|------|
 | `secrets.json` | 🟠 High |
 | `secrets.yaml` / `secrets.yml` | 🟠 High |
-| имя содержит `wallet.dat` | 🔴 Critical |
+| name contains `wallet.dat` | 🔴 Critical |
 
-Всего **28** правил по имени.
+**28** name rules in total.
 
-### По содержимому
+### By content
 
-Файл читается построчно. Ищутся типичные ключи и присваивания:
+The file is read line by line. Typical keys and assignments are searched:
 
-| Что внутри файла | Риск | Как выглядит |
-|------------------|------|--------------|
+| What's inside the file | Risk | What it looks like |
+|-------------------------|------|--------------------|
 | AWS access key | 🔴 Critical | `AKIA…` |
-| AWS secret key (присваивание) | 🔴 Critical | `aws_secret_access_key = …` |
-| API-ключ (присваивание) | 🟠 High | `api_key = …` (длинное значение) |
-| secret / password / token | 🟠 High | `password = …` (от 8 символов) |
-| Приватный ключ PEM | 🔴 Critical | `-----BEGIN … PRIVATE KEY-----` |
+| AWS secret key (assignment) | 🔴 Critical | `aws_secret_access_key = …` |
+| API key (assignment) | 🟠 High | `api_key = …` (long value) |
+| secret / password / token | 🟠 High | `password = …` (8+ characters) |
+| PEM private key | 🔴 Critical | `-----BEGIN … PRIVATE KEY-----` |
 | GitHub PAT | 🔴 Critical | `ghp_…` |
 | GitHub OAuth | 🔴 Critical | `gho_…` |
-| Slack-токен | 🟠 High | `xoxb-…` |
+| Slack token | 🟠 High | `xoxb-…` |
 | Stripe (live) | 🔴 Critical | `sk_live_…` |
 | Stripe (test) | 🟡 Medium | `sk_test_…` |
-| Строка подключения к БД | 🔴 Critical | `postgres://user:pass@…` |
-| JWT-подобный токен | 🟡 Medium | три части через точку |
+| DB connection string | 🔴 Critical | `postgres://user:pass@…` |
+| JWT-like token | 🟡 Medium | three dot-separated parts |
 
-Всего **12** правил по содержимому.
+**12** content rules in total.
 
-Флаг `--no-content` отключает чтение содержимого — остаются только совпадения по имени.
+The `--no-content` flag disables content reading — only name matches remain.
 
-### Ограничения при чтении
+### Reading limitations
 
-| Ситуация | Что происходит |
-|----------|----------------|
-| Файл больше **1 МиБ** | пропускается |
-| Бинарный файл | пропускается |
-| Пустой файл | находок нет |
-| Находка в отчёте | только **маска**, не оригинал |
+| Situation | What happens |
+|-----------|--------------|
+| File larger than **1 MiB** | skipped |
+| Binary file | skipped |
+| Empty file | no findings |
+| Finding in the report | only the **mask**, not the original |
 
-### Повторы и код выхода
+### Repeats and exit code
 
-| Флаг / условие | Результат |
-|----------------|-----------|
-| `--repeated` | одно и то же значение в **2+** файлах |
-| `--fail-on critical` *(по умолчанию)* | код **2**, если есть Critical |
-| `--fail-on high` | код **2** при High и выше |
-| `--fail-on ignore` | из‑за находок не падать |
+| Flag / condition | Result |
+|-------------------|--------|
+| `--repeated` | same value in **2+** files |
+| `--fail-on critical` *(default)* | code **2** if any Critical exists |
+| `--fail-on high` | code **2** on High and above |
+| `--fail-on ignore` | never fail because of findings |
 
-Код **2** бывает **только у `dig`**. У `sniff`, `pack`, `stash`, `rinse` и `raid` — только `0` (успех) и `1` (ошибка).
+Code **2** belongs to **`dig` only**. `sniff`, `pack`, `stash`, `rinse`, and `raid` use only `0` (success) and `1` (error).
 
 ---
 
-## Какие каталоги пропускаются
+## Skipped directories
 
-При обходе и при упаковке **не заходят** в эти папки:
+During walking and packing these folders are **not entered**:
 
-| Зачем пропускаем | Каталоги |
-|------------------|----------|
-| Зависимости | `node_modules` |
-| Сборка | `target` · `dist` · `build` |
-| Система контроля версий | `.git` · `.svn` · `.hg` |
+| Why skipped | Directories |
+|-------------|-------------|
+| Dependencies | `node_modules` |
+| Build output | `target` · `dist` · `build` |
+| Version control | `.git` · `.svn` · `.hg` |
 | Python | `__pycache__` · `*.egg-info` |
-| Виртуальные окружения | `.venv` · `venv` · `.tox` |
-| Кэши | `.mypy_cache` · `.pytest_cache` · `.cache` |
+| Virtual environments | `.venv` · `venv` · `.tox` |
+| Caches | `.mypy_cache` · `.pytest_cache` · `.cache` |
 | IDE | `.idea` · `.vscode` |
-| Хранилище raccpack | `.raccpack` |
+| raccpack storage | `.raccpack` |
 
-Всего **18** имён.
+**18** names in total.
 
-Опционально можно пропускать **все** скрытые каталоги (имена с точки). По умолчанию это **выключено**.
+Optionally, **all** hidden directories (dot-names) can be skipped too. This is **off** by default.
 
 ---
 
-## Очистка (`rinse`)
+## Cleanup (`rinse`)
 
-`racc rinse` удаляет из проекта **известные каталоги артефактов сборки** по **стратегиям** — наборам имён каталогов, считающихся мусором. По умолчанию команда работает в **dry-run**; реальное удаление — только с `--yes`.
+`racc rinse` removes **known build artifact directories** from the project according to **strategies** — rule sets of directory names considered trash. By default the command runs as **dry-run**; actual deletion requires `--yes`.
 
-### Стратегии
+### Strategies
 
-| Id | В defaults | Типовые каталоги |
-|----|------------|------------------|
-| `rust` | да | `target` |
-| `node` | да | `node_modules`, `.next`, `dist`, `.nuxt`, `coverage` |
-| `python` | да | `__pycache__`, `.venv`, `venv`, `.tox`, `.mypy_cache`, `.pytest_cache`, `*.egg-info`, `.ruff_cache` |
+| Id | In defaults | Typical directories |
+|----|-------------|---------------------|
+| `rust` | yes | `target` |
+| `node` | yes | `node_modules`, `.next`, `dist`, `.nuxt`, `coverage` |
+| `python` | yes | `__pycache__`, `.venv`, `venv`, `.tox`, `.mypy_cache`, `.pytest_cache`, `*.egg-info`, `.ruff_cache` |
 | `jvm` | opt-in | `build`, `.gradle`, `.m2` |
 | `go` | opt-in | `vendor` |
 | `generic` | opt-in | `.cache`, `tmp`, `temp` |
 
-По умолчанию включены только **`rust`**, **`node`** и **`python`**. `jvm`, `go` и `generic` — **opt-in**: их имена (`build`, `vendor`, `tmp`/`temp`, отчасти `dist`) могут оказаться настоящими исходниками или пользовательскими данными, поэтому они подключаются явно.
+Only **`rust`**, **`node`**, and **`python`** are enabled by default. `jvm`, `go`, and `generic` are **opt-in**: their names (`build`, `vendor`, `tmp`/`temp`, partly `dist`) may turn out to be real sources or user data, so they are enabled explicitly.
 
-Какие стратегии включены по умолчанию — задаётся в `config.cleanup.enabled_strategies` (см. [Конфигурация](/configuration)); флаг `--strategy` перекрывает конфигурацию на один запуск. Поведение команды и примеры — на странице [Rinse](/rinse).
-
----
-
-## Упаковка (`pack`)
-
-`racc pack` собирает проект в архив **tar.zst** и кладёт его в den.
-
-### Что не попадает в архив
-
-| Правило | Попадает в архив? |
-|---------|-------------------|
-| Файл с риском 🟠 **High** или 🔴 **Critical** **по имени** (`.env`, `id_rsa`…) | ❌ нет (всегда) |
-| Файл с 🔴 **Critical** **внутри** (ключ в тексте) | ❌ нет (по умолчанию) |
-| То же, но с флагом `--no-content-deny` | ✅ да (deny по имени остаётся) |
-| Симлинк | ❌ нет |
-| Служебный каталог из списка выше | ❌ нет |
-| Обычный исходник / `config.json` (Medium) | ✅ да |
-
-### Как устроен архив
-
-| Вопрос | Ответ |
-|--------|-------|
-| Что внутри? | Содержимое папки проекта (`src/…`, `Cargo.toml`), без лишней обёртки |
-| Формат | `tar` + сжатие `zstd` |
-| Куда кладётся? | `packs/ГГГГ/ММ/имя-проекта__время.tar.zst` |
-| Своё имя файла | `--output-name …` (без `.tar.zst`) |
-| Запись на диск | только с `--yes`; без него — dry-run |
+Which strategies are enabled by default is set in `config.cleanup.enabled_strategies` (see [Configuration](/configuration)); the `--strategy` flag overrides config for one run. Command behavior and examples are on the [Rinse](/rinse) page.
 
 ---
 
-## Чего пока нет
+## Packing (`pack`)
 
-Сейчас **ещё нет**:
+`racc pack` collects the project into a **tar.zst** archive and places it in the den.
 
-| Команда / возможность | Когда |
-|-----------------------|-------|
-| `racc init` — стартовая конфигурация | Alpha (A4) |
-| Свои маркеры и секреты в конфиге | позже |
-| Фреймворки по зависимостям (Axum и т.п.) | позже |
-| Отдельная оптимизация под Windows | позже |
+### What does not get into the archive
 
-Подробнее — в [дорожной карте](/roadmap).
+| Rule | Included in archive? |
+|------|-----------------------|
+| File with 🟠 **High** or 🔴 **Critical** risk **by name** (`.env`, `id_rsa`…) | ❌ no (always) |
+| File with 🔴 **Critical** content (a key in text) | ❌ no (default) |
+| Same, but with `--no-content-deny` | ✅ yes (name deny remains) |
+| Symlink | ❌ no |
+| Service directory from the list above | ❌ no |
+| Regular source / `config.json` (Medium) | ✅ yes |
+
+### Archive structure
+
+| Question | Answer |
+|----------|--------|
+| What's inside? | The contents of the project folder (`src/…`, `Cargo.toml`) without an extra wrapper |
+| Format | `tar` + `zstd` compression |
+| Where placed? | `packs/YYYY/MM/project-name__time.tar.zst` |
+| Custom file name | `--output-name …` (without `.tar.zst`) |
+| Writing to disk | only with `--yes`; otherwise dry-run |
 
 ---
 
-## Дальнейшее чтение
+## Not available yet
 
-| Страница | О чём |
-|----------|-------|
-| [Основные понятия](/concepts) | den, риски, маскирование |
-| [Использование CLI](/cli-usage) | флаги `sniff` / `dig` / `pack` / `stash` / `rinse` / `raid` |
-| [Rinse](/rinse) | стратегии очистки и примеры |
-| [Конфигурация](/configuration) | настройка через TOML |
-| [Facade API](/facade-api) | контракт для интеграций |
-| [Дорожная карта](/roadmap) | что будет в Alpha и дальше |
+Currently **missing**:
+
+| Command / capability | When |
+|-----------------------|------|
+| Custom markers and secrets in config | later |
+| Frameworks by dependencies (Axum etc.) | later |
+| Dedicated Windows optimization | later |
+
+More in the [roadmap](/roadmap).
+
+---
+
+## Further reading
+
+| Page | About |
+|------|-------|
+| [Concepts](/concepts) | den, risks, masking |
+| [CLI usage](/cli-usage) | flags of `sniff` / `dig` / `pack` / `stash` / `rinse` / `raid` |
+| [Rinse](/rinse) | cleanup strategies and examples |
+| [Configuration](/configuration) | TOML configuration |
+| [Facade API](/facade-api) | contract for integrations |
+| [Roadmap](/roadmap) | what's coming in Alpha and beyond |

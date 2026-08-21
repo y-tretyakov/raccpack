@@ -1,146 +1,146 @@
 ---
-title: Stash — вынос секретов в зашифрованный архив
-description: Команда racc stash — собрать чувствительные файлы проекта в зашифрованный age-архив в den, при необходимости удалив исходники.
+title: Stash — move secrets into an encrypted archive
+description: The racc stash command — collect a project's sensitive files into an encrypted age archive in the den, optionally removing the originals.
 ---
 
-# Stash - вынос секретов в зашифрованный архив (age)
+# Stash - move secrets into an encrypted archive (age)
 
-Команда: `racc stash`  
-Статус: реализовано (Alpha).
+Command: `racc stash`  
+Status: implemented (Alpha).
 
-Эта страница описывает **ровно то поведение**, которое реализует `raccpack` сейчас. Если флаг или путь не указаны здесь — их нет в текущей версии.
+This page describes **exactly the behavior** that `raccpack` implements today. If a flag or path is not listed here, it does not exist in the current version.
 
-Вернуться к обзору команд: [Использование CLI](/cli-usage).
+Back to the command overview: [CLI usage](/cli-usage).
 
-## Что делает stash (и чего не делает)
+## What stash does (and does not do)
 
-`racc stash` выносит чувствительные файлы проекта в зашифрованный архив:
+`racc stash` moves a project's sensitive files into an encrypted archive:
 
-1. Находит чувствительные файлы в проекте (по имени и, при необходимости, по содержимому — те же правила, что у `racc dig`).
-2. Упаковывает их в один архив **tar**, затем шифрует **age** с **passphrase**.
-3. Кладёт файл в **den**:
+1. Finds sensitive files in the project (by name and, optionally, by content — the same rules as `racc dig`).
+2. Packs them into a single **tar** archive, then encrypts it with **age** using a **passphrase**.
+3. Places the file in the **den**:
 
    ```text
-   {den}/secrets/{год}/{месяц}/{slug}__{UTC-время}__secrets.age
+   {den}/secrets/{year}/{month}/{slug}__{UTC-time}__secrets.age
    ```
 
-4. По желанию **удаляет** исходные файлы с диска (только после успешной записи архива и только с явным флагом).
+4. Optionally **deletes** the original files from disk (only after the archive is written successfully, and only with an explicit flag).
 
-Сырые секреты **не** печатаются в терминал и **не** попадают в JSON-отчёт.
+Raw secrets are **not** printed to the terminal and **do not** appear in the JSON report.
 
-Чего stash **не** делает:
+What stash does **not** do:
 
-- без `--yes` ничего не пишет и не удаляет (по умолчанию — **dry-run**);
-- не расшифровывает архивы — для этого вне `racc` используйте `age` (см. [Примеры](#расшифровка-вручную-age--d));
-- не использует код выхода `2` (это особенность только `dig`).
+- without `--yes` nothing is written or deleted (default is **dry-run**);
+- does not decrypt archives — use `age` outside of `racc` for that (see [Manual decryption (`age -d`)](#manual-decryption-age-d));
+- never uses exit code `2` (that is specific to `dig`).
 
-## Быстрый старт
+## Quick start
 
 ```bash
-# 1) Посмотреть, что будет сделано (ничего не пишет и не удаляет)
+# 1) See what would happen (nothing is written or deleted)
 racc stash --project ~/DEV/PROJS/my-api --den ~/.raccpack/den
 
-# 2) Реально создать .age в den (исходники НЕ удаляются)
+# 2) Actually create the .age in the den (sources are NOT removed)
 export RACCPACK_PASSPHRASE='your-strong-passphrase'
 racc stash --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes
 
-# 3) Создать .age и удалить исходные секретные файлы
+# 3) Create the .age and remove the original secret files
 racc stash --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes --remove-sources
 ```
 
 ::: warning
-По умолчанию `stash` работает в **dry-run**: не создаёт `.age`, не трогает den и не удаляет файлы. Запись в den — только с `--yes`.
+By default `stash` runs as **dry-run**: no `.age` is created, the den is untouched, no files are deleted. Writing to the den happens only with `--yes`.
 :::
 
 ::: danger
-`--remove-sources` **удаляет** исходные секретные файлы с диска после **успешного** Commit (`--yes`). Сначала выполните dry-run без `--yes`. В CI не передавайте `--remove-sources`, если файлы ещё нужны job'у.
+`--remove-sources` **deletes** the original secret files from disk after a **successful** Commit (`--yes`). Run a dry-run without `--yes` first. In CI, do not pass `--remove-sources` while the job still needs those files.
 :::
 
-Интерактивно (без env): запустите с `--yes` в терминале — CLI запросит passphrase дважды (без отображения символов).
+Interactive (no env): run with `--yes` in a terminal — the CLI asks for the passphrase twice (input hidden).
 
-## Синтаксис
+## Syntax
 
 ```text
 racc stash --project <PATH> [OPTIONS]
 ```
 
-`--project <PATH>` — **обязательный** параметр: каталог проекта (или поддерево), в котором ищем секреты.
+`--project <PATH>` is a **required** option: the project directory (or subtree) to search for secrets.
 
-## Параметры и флаги
+## Options and flags
 
-### Проект (обязательно)
+### Project (required)
 
-| Параметр | Описание |
-|----------|----------|
-| `--project <PATH>` | Каталог проекта (или поддерево), в котором ищем секреты |
+| Option | Description |
+|--------|-------------|
+| `--project <PATH>` | Project directory (or subtree) to search for secrets |
 
 ### Den
 
-| Параметр | Описание |
-|----------|----------|
-| `--den <PATH>` | Корень den. Если не указан — берётся из config (`paths.den_dir`), обычно `~/.raccpack/den` |
+| Option | Description |
+|--------|-------------|
+| `--den <PATH>` | Den root. If omitted — taken from config (`paths.den_dir`), usually `~/.raccpack/den` |
 
-### Режим записи
+### Write mode
 
-| Параметр | Поведение |
-|----------|-----------|
-| *(по умолчанию)* | **Dry-run**: только отчёт, файлы не создаются и не удаляются |
-| `--dry-run` | Явный dry-run |
-| `--yes` | **Commit**: записать `.age` в den |
+| Option | Behavior |
+|--------|----------|
+| *(default)* | **Dry-run**: report only; no files created or deleted |
+| `--dry-run` | Explicit dry-run |
+| `--yes` | **Commit**: write the `.age` into the den |
 
-**Приоритет:** если указаны и `--dry-run`, и `--yes`, побеждает dry-run — ничего не пишется и не удаляется.
+**Priority:** if both `--dry-run` and `--yes` are given, dry-run wins — nothing is written or deleted.
 
-### Секреты и удаление
+### Secrets and removal
 
-| Параметр | По умолчанию | Описание |
-|----------|--------------|----------|
-| `--min-risk <LEVEL>` | `high` | Минимальный уровень риска: `low`, `medium`, `high`, `critical` |
-| `--remove-sources` | выкл. | После **успешного** Commit удалить исходные файлы |
-| `--only <PATH>` | все найденные | Можно повторять: архивировать только перечисленные файлы (должны лежать внутри `--project`) |
-| `--batch-id <ID>` | нет | Заменяет UTC-временной токен в имени файла: `{slug}__{ID}__secrets.age` |
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--min-risk <LEVEL>` | `high` | Minimum risk level: `low`, `medium`, `high`, `critical` |
+| `--remove-sources` | off | After a **successful** Commit, delete the source files |
+| `--only <PATH>` | all found | Repeatable: archive only the listed files (must live inside `--project`) |
+| `--batch-id <ID>` | none | Replaces the UTC time token in the file name: `{slug}__{ID}__secrets.age` |
 
-`--remove-sources` в dry-run **игнорируется** (удаления не будет).
+`--remove-sources` is **ignored** in dry-run (nothing will be deleted).
 
-### Вывод
+### Output
 
-| Параметр | Описание |
-|----------|----------|
-| `--json` | Печать `StashResult` в JSON (пути, счётчики, manifest **без** содержимого секретов) |
+| Option | Description |
+|--------|-------------|
+| `--json` | Print `StashResult` as JSON (paths, counters, manifest **without** secret contents) |
 
-### Глобальные флаги
+### Global flags
 
-| Флаг | Описание |
-|------|----------|
-| `-c, --config <PATH>` | Файл конфигурации (переопределяет `RACCPACK_CONFIG`) |
-| `--root <PATH>` | Переопределить `scan_root` на этот запуск |
-| `--den <PATH>` | Переопределить `den_dir` на этот запуск |
-| `--json` | Машиночитаемый вывод JSON |
+| Flag | Description |
+|------|-------------|
+| `-c, --config <PATH>` | Config file (overrides `RACCPACK_CONFIG`) |
+| `--root <PATH>` | Override `scan_root` for this run |
+| `--den <PATH>` | Override `den_dir` for this run |
+| `--json` | Machine-readable JSON output |
 
-## Поведение
+## Behavior
 
-### Режимы: dry-run и commit
+### Modes: dry-run and commit
 
-- По умолчанию — **dry-run**: ничего не создаётся и не удаляется, `archive_path` в отчёте — ожидаемый путь.
-- **Commit** — только с `--yes`. Порядок операций fail-safe: шифрование → размещение в den → (опционально) удаление исходников. Ошибка шифрования или размещения **никогда** не приводит к удалению исходников.
+- The default is **dry-run**: nothing is created or deleted; `archive_path` in the report is the expected path.
+- **Commit** requires `--yes`. Fail-safe operation order: encryption → placement in den → (optionally) source removal. An encryption or placement error **never** removes sources.
 
 ### Passphrase
 
-Нужна только в **Commit**; в dry-run не запрашивается. Порядок выбора:
+Needed only in **Commit** mode; never asked for in dry-run. Resolution order:
 
-1. Переменная окружения **`RACCPACK_PASSPHRASE`** — если задана и не пустая.
-2. Иначе интерактивный ввод в TTY (два раза для подтверждения, без отображения символов).
-3. Если stdin — не терминал (например, пайп в CI), берётся **одна строка из stdin**.
-4. Если нет ни env, ни TTY, ни stdin — ошибка с подсказкой задать `RACCPACK_PASSPHRASE`.
+1. The **`RACCPACK_PASSPHRASE`** environment variable — if set and non-empty.
+2. Otherwise interactive input on a TTY (twice for confirmation, input hidden).
+3. If stdin is not a terminal (e.g., piped in CI), a **single line from stdin** is used.
+4. With no env, no TTY, and no stdin — error suggesting you set `RACCPACK_PASSPHRASE`.
 
-Рекомендации:
+Recommendations:
 
 ::: warning
-Не коммитьте `RACCPACK_PASSPHRASE` и не храните passphrase в открытых скриптах. В CI задавайте переменную через secrets store.
+Never commit `RACCPACK_PASSPHRASE` or store the passphrase in plain scripts. In CI, provide it via a secrets store.
 :::
 
-- После команды процесс не обязан хранить пароль; в core материал ключа очищается (zeroize). Значение не пишется в логи и JSON.
+- After the command, the process does not need to retain the password; core zeroizes the key material. The value is never logged or included in JSON.
 
-### Структура den после stash
+### Den structure after stash
 
 ```text
 ~/.raccpack/den/
@@ -150,36 +150,36 @@ racc stash --project <PATH> [OPTIONS]
 │   └── 2026/
 │       └── 08/
 │           └── my-api__20260804T155230Z__secrets.age
-├── packs/                # от racc pack
-├── staging/              # временное; после успеха очищается
+├── packs/                # from racc pack
+├── staging/              # temporary; cleaned after success
 └── …
 ```
 
-Имя файла:
+File name:
 
 ```text
 {project_slug}__{YYYYMMDDThhmmssZ}__secrets.age
 ```
 
-- `project_slug` — имя папки проекта, безопасные символы `[a-zA-Z0-9._-]`, пробелы → `-`, длина ≤ 80.
-- Время — **UTC**.
-- С `--batch-id <ID>` временной токен в имени заменяется на `ID`: `{slug}__{ID}__secrets.age`. Год/месяц каталога (`secrets/{yyyy}/{mm}`) при этом по-прежнему берутся из текущего UTC-времени.
+- `project_slug` — the project folder name, safe characters `[a-zA-Z0-9._-]`, spaces → `-`, length ≤ 80.
+- Time is **UTC**.
+- With `--batch-id <ID>` the time token in the name is replaced by `ID`: `{slug}__{ID}__secrets.age`. The year/month directories (`secrets/{yyyy}/{mm}`) still come from current UTC time.
 
-### Что попадает в архив
+### What goes into the archive
 
-- Файлы, которые нашёл бы `racc dig` с риском **≥ `--min-risk`** (по умолчанию High и Critical).
-- Типичные примеры имён: `.env`, `.env.*`, `id_rsa`, `*.pem`, `.npmrc`, `credentials`, …  
-  Точный набор совпадает с filename/content rules движка secrets (см. dig).
+- Files that `racc dig` would find with risk **≥ `--min-risk`** (by default High and Critical).
+- Typical name examples: `.env`, `.env.*`, `id_rsa`, `*.pem`, `.npmrc`, `credentials`, …  
+  The exact set matches the secrets engine's filename/content rules (see dig).
 
-Не попадает:
+Excluded:
 
-- каталоги вроде `node_modules`, `target` (skip policy);
-- файлы ниже порога risk;
-- при `--only` — всё, что не перечислено.
+- directories like `node_modules`, `target` (skip policy);
+- files below the risk threshold;
+- with `--only` — everything not listed.
 
-## Вывод
+## Output
 
-### Человекочитаемый (human)
+### Human-readable (human)
 
 Dry-run:
 
@@ -190,7 +190,7 @@ Stash (dry-run)
   (nothing written or deleted)
 ```
 
-Если задан `--remove-sources`, вторая строка меняется на `Would remove sources: yes (requires --yes)`.
+With `--remove-sources` set, the second line becomes `Would remove sources: yes (requires --yes)`.
 
 Commit:
 
@@ -203,16 +203,16 @@ Stash complete
 
 ### JSON (`--json`)
 
-| Поле | Смысл |
-|------|--------|
-| `archive_path` | Путь к `.age` (в dry-run — ожидаемый путь) |
-| `files_archived` | Число файлов |
-| `bytes_archived` | Суммарный размер plaintext |
-| `removed_sources` | Сколько исходников удалено (0 в dry-run) |
+| Field | Meaning |
+|-------|---------|
+| `archive_path` | Path to the `.age` (expected path in dry-run) |
+| `files_archived` | Number of files |
+| `bytes_archived` | Total plaintext size |
+| `removed_sources` | How many sources were removed (0 in dry-run) |
 | `dry_run` | `true` / `false` |
-| `manifest` | Список `{ original_path, risk, size_bytes }` **без** содержимого файлов |
+| `manifest` | List of `{ original_path, risk, size_bytes }` **without** file contents |
 
-Пример:
+Example:
 
 ```json
 {
@@ -227,77 +227,77 @@ Stash complete
 }
 ```
 
-## Коды выхода
+## Exit codes
 
-| Код | Когда |
-|-----|--------|
-| 0 | Успех (в т.ч. dry-run) |
-| 1 | Ошибка: нет project/den, пустой passphrase, нечего архивировать, IO, encrypt |
+| Code | When |
+|------|------|
+| 0 | Success (including dry-run) |
+| 1 | Error: missing project/den, empty passphrase, nothing to archive, IO, encrypt |
 
-Код `2` (как у dig для Critical) **не** используется для stash.
+Code `2` (as in dig for Critical) is **not** used by stash.
 
-## Примеры
+## Examples
 
 ```bash
-# Локально: dry-run — показать, что попадёт в архив (ничего не пишется)
+# Locally: dry-run — show what would be archived (nothing written)
 racc stash --project ~/DEV/PROJS/my-api
 
-# Commit: создать .age в den (исходники не удаляются)
+# Commit: create the .age in the den (sources are not removed)
 export RACCPACK_PASSPHRASE='your-strong-passphrase'
 racc stash --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes
 
-# Commit и удалить исходные секретные файлы
+# Commit and remove the original secret files
 racc stash --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes --remove-sources
 
-# JSON для скриптов и CI
+# JSON for scripts and CI
 racc stash --project ~/DEV/PROJS/my-api --yes --json
 
-# Архивировать только конкретные файлы (повторяемый флаг)
+# Archive only specific files (repeatable flag)
 racc stash --project ~/DEV/PROJS/my-api --yes --only ~/DEV/PROJS/my-api/.env --only ~/DEV/PROJS/my-api/id_rsa
 
-# Своё имя артефакта вместо timestamp
+# Custom artifact name instead of timestamp
 racc stash --project ~/DEV/PROJS/my-api --yes --batch-id release-42
 # → …/secrets/2026/08/my-api__release-42__secrets.age
 
-# Понизить порог риска (архивировать и Medium)
+# Lower the risk threshold (archive Medium too)
 racc stash --project ~/DEV/PROJS/my-api --min-risk medium --dry-run
 
-# --dry-run всегда побеждает --yes: ничего не пишется
+# --dry-run always wins over --yes: nothing is written
 racc stash --project ~/DEV/PROJS/my-api --yes --dry-run
 ```
 
-### Примеры для CI
+### CI examples
 
 ::: code-group
 
 ```bash [bash]
 # bash / zsh
-export RACCPACK_PASSPHRASE="$STASH_SECRET"   # из CI secrets
+export RACCPACK_PASSPHRASE="$STASH_SECRET"   # from CI secrets
 racc stash --project "$CI_PROJECT_DIR" --den "$DEN_PATH" --yes --json
-# исходники на CI-агенте обычно не удаляют:
-# не передавайте --remove-sources, если артефакты ещё нужны job'у
+# CI agents usually keep their sources:
+# don't pass --remove-sources while the job still needs its artifacts
 ```
 
 ```fish [fish]
-set -gx RACCPACK_PASSPHRASE $STASH_SECRET   # из CI secrets
+set -gx RACCPACK_PASSPHRASE $STASH_SECRET   # from CI secrets
 racc stash --project $CI_PROJECT_DIR --den $DEN_PATH --yes --json
 ```
 
 ```nu [nu]
-$env.RACCPACK_PASSPHRASE = $env.STASH_SECRET   # из CI secrets
+$env.RACCPACK_PASSPHRASE = $env.STASH_SECRET   # from CI secrets
 racc stash --project $env.CI_PROJECT_DIR --den $env.DEN_PATH --yes --json
 ```
 
 ```powershell [pwsh]
-$env:RACCPACK_PASSPHRASE = $env:STASH_SECRET   # из CI secrets
+$env:RACCPACK_PASSPHRASE = $env:STASH_SECRET   # from CI secrets
 racc stash --project $env:CI_PROJECT_DIR --den $env:DEN_PATH --yes --json
 ```
 
 :::
 
-### Расшифровка вручную (`age -d`)
+### Manual decryption (`age -d`)
 
-Расшифровка архива средствами `racc` в Alpha A1 **не** входит в CLI (используйте официальный инструмент [age](https://github.com/FiloSottile/age) при необходимости). Внутри архива после расшифровки — **tar** с относительными путями файлов.
+Decrypting archives via `racc` is **not** part of the CLI in Alpha A1 (use the official [age](https://github.com/FiloSottile/age) tool when needed). Inside the archive after decryption is a **tar** with relative file paths.
 
 ```bash
 age -d -o secrets.tar /path/to/…__secrets.age
@@ -305,33 +305,33 @@ tar -tf secrets.tar
 tar -xf secrets.tar -C /safe/restore/dir
 ```
 
-## Частые ошибки
+## Common errors
 
-| Ситуация | Что сделать |
-|----------|-------------|
-| `nothing to stash: no files matched the current min-risk threshold` | Понизьте `--min-risk` или проверьте `racc dig --project …` |
-| Нет passphrase | Задайте `RACCPACK_PASSPHRASE` или запустите в интерактивном терминале |
-| `--remove-sources` не удалило | Нужен `--yes` (Commit) и успешное завершение без ошибки |
-| Path outside project для `--only` | Укажите пути строго внутри `--project` |
+| Situation | What to do |
+|-----------|------------|
+| `nothing to stash: no files matched the current min-risk threshold` | Lower `--min-risk` or check `racc dig --project …` |
+| No passphrase | Set `RACCPACK_PASSPHRASE` or run in an interactive terminal |
+| `--remove-sources` did not remove anything | Requires `--yes` (Commit) and a successful completion without errors |
+| Path outside project for `--only` | Provide paths strictly inside `--project` |
 
-## Безопасность
+## Security
 
-- По умолчанию dry-run — сначала смотрите отчёт.
-- Удаление исходников только с `--yes --remove-sources`, причём строго **после** успешного размещения архива в den.
-- Passphrase не пишется в логи и JSON; в core материал ключа очищается (zeroize).
-- Файл `.age` создаётся с правами **`0600`** (best-effort на Unix).
-- Права den: при создании лучше `0700`.
-- Не коммитьте каталог den в git.
+- Dry-run by default — review the report first.
+- Sources are removed only with `--yes --remove-sources`, and strictly **after** the archive has been placed successfully in the den.
+- The passphrase is never logged or included in JSON; core zeroizes the key material.
+- The `.age` file is created with **`0600`** permissions (best-effort on Unix).
+- Recommended den permissions: `0700`.
+- Never commit the den directory to git.
 
-## Связанные команды
+## Related commands
 
-| Команда | Роль |
+| Command | Role |
 |---------|------|
-| `racc dig` | Найти секреты (read-only) |
-| `racc sniff` | Найти проекты под `scan_root` |
-| `racc pack` | Упаковать проект **без** секретов в `packs/` |
-| `racc raid` | Полный цикл одной командой: stash → rinse → pack → move |
+| `racc dig` | Find secrets (read-only) |
+| `racc sniff` | Find projects under `scan_root` |
+| `racc pack` | Pack a project **without** secrets into `packs/` |
+| `racc raid` | Full cycle in one command: stash → rinse → pack → move |
 
 ---
 
-*Документ соответствует реализации; при изменении флагов CLI обновляйте страницу в том же PR.*
+*This document matches the implementation; when CLI flags change, update the page in the same PR.*

@@ -1,41 +1,41 @@
 ---
-title: Основные понятия
-description: Ключевые термины raccpack — den, его структура и именование, секреты, риски, маскирование, фазы работы.
+title: Core concepts
+description: Key raccpack terms — the den, its structure and naming, secrets, risks, masking, and operation phases.
 ---
 
-# Основные понятия
+# Core concepts
 
-Здесь собраны ключевые термины raccpack: что такое den, секреты и риски, как устроены сканирование и упаковка.
+This page gathers the key raccpack terms: what den, secrets, and risks are, and how scanning and packing work.
 
 ## Den
 
-**Den** (англ. *den* — берлога, хранилище) — каталог, в который raccpack складывает результаты работы. Это ваше локальное защищённое хранилище, а не рабочая копия проектов.
+**Den** (English *den* — a lair, a storage place) is the directory where raccpack puts its results. It is your local protected storage, not a working copy of your projects.
 
-Den никогда не следует коммитить в git или синхронизировать в облако.
+The den should never be committed to git or synced to the cloud.
 
-### Структура den
+### Den structure
 
 ```
 {den_dir}/
-├── README.txt                 # краткое описание каталога
-├── .den-version               # версия формата ("1")
-├── manifests/{yyyy}/{mm}/     # JSON-манифесты каждого raid
-├── secrets/{yyyy}/{mm}/       # зашифрованные архивы секретов (.age)
-├── packs/{yyyy}/{mm}/         # архивы проектов (.tar.zst)
-└── staging/{short_id}/        # временные файлы (можно чистить)
+├── README.txt                 # brief description of the directory
+├── .den-version               # format version ("1")
+├── manifests/{yyyy}/{mm}/     # JSON manifests of every raid
+├── secrets/{yyyy}/{mm}/       # encrypted secret archives (.age)
+├── packs/{yyyy}/{mm}/         # project archives (.tar.zst)
+└── staging/{short_id}/        # temporary files (safe to clean)
 ```
 
-### Соглашения об именах
+### Naming conventions
 
-Каждый артефакт получает детерминированное имя:
+Every artifact gets a deterministic name:
 
-| Токен | Правило |
-|-------|---------|
-| `project_slug` | Имя папки проекта, очищенное от спецсимволов: `[a-zA-Z0-9._-]`, пробелы → `-`, длина ≤ 80 |
+| Token | Rule |
+|-------|------|
+| `project_slug` | The project folder name stripped of special characters: `[a-zA-Z0-9._-]`, spaces → `-`, length ≤ 80 |
 | `utc_timestamp` | `YYYYMMDDThhmmssZ` (UTC) |
-| `short_id` | 8 шестнадцатеричных символов для уникальности |
+| `short_id` | 8 hexadecimal characters for uniqueness |
 
-Примеры:
+Examples:
 
 ```text
 secrets/2026/08/my-api__20260804T155230Z__secrets.age
@@ -43,63 +43,63 @@ packs/2026/08/my-api__20260804T155230Z.tar.zst
 manifests/2026/08/my-api__20260804T155230Z__a1b2c3d4.json
 ```
 
-Один den обслуживает сколько угодно проектов — различие только в имени проекта и времени.
+A single den serves any number of projects — they differ only by project name and time.
 
-### Версия формата
+### Format version
 
-В корне den лежит файл `.den-version` (сейчас `1`). Если в будущем формат изменится несовместимым образом, raccpack откажется писать в старый den и предложит миграцию.
+A `.den-version` file (currently `1`) lives at the root of the den. If the format ever changes in an incompatible way, raccpack will refuse to write into an old den and will offer a migration.
 
-## Секреты
+## Secrets
 
-raccpack находит секреты двумя способами.
+raccpack finds secrets in two ways.
 
-### По имени файла
+### By file name
 
-Проверяется только имя файла — содержимое не читается. Примеры правил:
+Only the file name is checked — contents are not read. Example rules:
 
-- `.env`, `.env.local`, `.env.production` — файлы окружения;
-- `id_rsa`, `id_ed25519`, `*.pem`, `*.key`, `*.ppk`, `*.p12`, `*.jks` — ключи и хранилища;
-- `credentials`, `.netrc`, `.npmrc`, `.pypirc`, `.git-credentials` — credential-файлы;
+- `.env`, `.env.local`, `.env.production` — environment files;
+- `id_rsa`, `id_ed25519`, `*.pem`, `*.key`, `*.ppk`, `*.p12`, `*.jks` — keys and keystore files;
+- `credentials`, `.netrc`, `.npmrc`, `.pypirc`, `.git-credentials` — credential files;
 - `kubeconfig`, `secrets.json`, `secrets.yaml`, `service-account`, `wallet.dat`.
 
-> → полный список поддерживаемого по имени файла: [Что поддерживается](/supported)
+> → full list of what is supported by file name: [Supported](/supported)
 
-### По содержимому
+### By content
 
-Файл читается (в пределах лимитов) и проверяется на встроенные маркеры:
+The file is read (within limits) and checked against built-in markers:
 
-- AWS access key (`AKIA…`) и присваивания `aws_secret_access_key=…`;
-- заголовки `-----BEGIN … PRIVATE KEY-----`;
-- GitHub-токены (`ghp_`, `gho_`);
+- AWS access key (`AKIA…`) and `aws_secret_access_key=…` assignments;
+- `-----BEGIN … PRIVATE KEY-----` headers;
+- GitHub tokens (`ghp_`, `gho_`);
 - Slack (`xoxb-`), Stripe (`sk_live_`, `sk_test_`);
-- строки подключения к БД (`postgres://user:pass@…`, `mysql://`, `mongodb://`);
-- JWT-подобные токены;
-- общие присваивания вида `api_key=…`, `password=…`, `secret=…`.
+- database connection strings (`postgres://user:pass@…`, `mysql://`, `mongodb://`);
+- JWT-like tokens;
+- generic assignments like `api_key=…`, `password=…`, `secret=…`.
 
-Содержимое сканируется с ограничениями: файлы больше 1 МиБ и бинарные файлы пропускаются.
+Content scanning has limits: files larger than 1 MiB and binary files are skipped.
 
-> → полный список поддерживаемого по содержимому: [Что поддерживается](/supported)
+> → full list of what is supported by content: [Supported](/supported)
 
-### Риски
+### Risks
 
-Каждой находке присваивается уровень риска:
+Each finding gets a risk level:
 
-| Уровень | Значение |
-|---------|----------|
-| `Low` | Информационный, низкая уверенность |
-| `Medium` | Стоит проверить |
-| `High` | Вероятно, секрет |
-| `Critical` | Почти наверняка ключ/credential |
+| Level | Meaning |
+|-------|---------|
+| `Low` | Informational, low confidence |
+| `Medium` | Worth checking |
+| `High` | Probably a secret |
+| `Critical` | Almost certainly a key/credential |
 
-Риск используется для фильтров, минимального порога при выносе секретов и политики выхода (exit code).
+Risk is used for filters, the minimum threshold when moving secrets out, and the exit-code policy.
 
-### Маскирование
+### Masking
 
-В отчётах, логах и JSON вместо значений секретов показываются **маскированные превью**, стабильный blake3-хеш и длина значения. Сырые значения не покидают ядро и не попадают в вывод по умолчанию.
+In reports, logs, and JSON, **masked previews**, a stable blake3 hash, and the value's length are shown instead of secret values. Raw values never leave the core and do not appear in output by default.
 
-## Сканирование (sniff)
+## Scanning (sniff)
 
-`sniff` находит проекты под `scan_root`. Проект определяется по **маркерам** — характерным файлам:
+`sniff` finds projects under `scan_root`. A project is identified by **markers** — characteristic files:
 
 - Rust — `Cargo.toml`;
 - Node.js — `package.json`;
@@ -112,52 +112,52 @@ raccpack находит секреты двумя способами.
 - Make — `Makefile`;
 - Git — `.git`.
 
-Для каждого проекта определяется стек (язык + фреймворки), размер и признак git-репозитория. Результаты кэшируются; при повторном запуске без изменений `sniff` читает из кэша (`cache: hit`).
+For each project, the stack (language + frameworks), size, and git-repository flag are determined. Results are cached; on a repeated run without changes, `sniff` reads from the cache (`cache: hit`).
 
-> → полный список маркеров и фреймворков: [Что поддерживается](/supported)
+> → full list of markers and frameworks: [Supported](/supported)
 
-## Упаковка (pack)
+## Packing (pack)
 
-`pack` создаёт архив проекта в формате **tar + zstd** (`tar.zst`). При упаковке:
+`pack` creates a project archive in **tar + zstd** (`tar.zst`) format. When packing:
 
-- исключаются секреты по имени (риск ≥ `High`) — всегда; проверка содержимого файлов включена по умолчанию (риск ≥ `Critical`), отключается флагом `--no-content-deny`;
-- пропускаются служебные каталоги по правилам skip-политики;
-- символические ссылки не сохраняются;
-- архив содержит содержимое папки проекта, а не саму папку.
+- secrets are excluded by name (risk ≥ `High`) — always; file-content checks are enabled by default (risk ≥ `Critical`) and can be disabled with the `--no-content-deny` flag;
+- service directories are skipped according to skip-policy rules;
+- symbolic links are not preserved;
+- the archive contains the contents of the project folder, not the folder itself.
 
 ::: warning
-Секреты не «исправляются» в исходных файлах — они выносятся в зашифрованный архив отдельным шагом (`stash`), а источник при желании удаляется.
+Secrets are not "fixed" in the original files — they are moved into an encrypted archive in a separate step (`stash`), and the source can then be deleted if desired.
 :::
 
-## Очистка (rinse)
+## Cleaning (rinse)
 
-`rinse` удаляет из проекта каталоги артефактов сборки по **стратегиям** — наборам имён (`target`, `node_modules`, `__pycache__`, …). Какие стратегии активны по умолчанию, задаётся в `config.cleanup.enabled_strategies`; флаг `--strategy` перекрывает это на один запуск.
+`rinse` removes build artifact directories from a project according to **strategies** — sets of names (`target`, `node_modules`, `__pycache__`, …). Which strategies are active by default is set in `config.cleanup.enabled_strategies`; the `--strategy` flag overrides this for a single run.
 
-По умолчанию включены `rust`, `node`, `python`; `jvm`, `go`, `generic` — opt-in (осторожные имена вроде `build`, `vendor`, `tmp`). По умолчанию команда работает в dry-run; удаление — только с `--yes`.
+By default, `rust`, `node`, and `python` are enabled; `jvm`, `go`, and `generic` are opt-in (cautious names such as `build`, `vendor`, `tmp`). By default the command runs as a dry-run; deletion only happens with `--yes`.
 
-> → список стратегий: [Что поддерживается](/supported) · настройка: [Конфигурация](/configuration) · команда: [Rinse](/rinse)
+> → list of strategies: [Supported](/supported) · configuration: [Configuration](/configuration) · command: [Rinse](/rinse)
 
-## Полный цикл (raid)
+## Full cycle (raid)
 
-`raid` выполняет всё одним действием, строго по фазам:
+`raid` performs everything in one action, strictly phase by phase:
 
-1. **stash** — вынести секреты в `den/secrets/…/*.age` (шифрование age);
-2. **rinse** — удалить мусор сборки;
-3. **pack** — упаковать проект в `den/packs/…/*.tar.zst`;
-4. **move** — финализировать артефакты и записать JSON-манифест.
+1. **stash** — move secrets into `den/secrets/…/*.age` (age encryption);
+2. **rinse** — delete build trash;
+3. **pack** — pack the project into `den/packs/…/*.tar.zst`;
+4. **move** — finalize artifacts and write a JSON manifest.
 
-По умолчанию raid работает **атомарно**: артефакты пишутся во временный `den/staging/{id}/` и переносятся в den только в фазе commit; если commit не удался — эффект откатывается (в отчёте `rolled_back: true`). Флаг `--fail-fast` включает старый режим: остановиться на первой упавшей фазе, уже записанные артефакты остаются в den. Манифест пишется **только** после успешного commit и только если артефакты реально размещены в den — список артефактов и статус фаз, без сырых секретов.
+By default raid runs **atomically**: artifacts are written to a temporary `den/staging/{id}/` and only moved into the den during the commit phase; if commit fails, the effect is rolled back (`rolled_back: true` in the report). The `--fail-fast` flag enables the old mode: stop at the first failed phase, leaving already-written artifacts in the den. The manifest is written **only** after a successful commit and only if artifacts were actually placed in the den — it lists artifacts and phase statuses, with no raw secrets.
 
-## Коды выхода CLI
+## CLI exit codes
 
-| Код | Значение |
-|-----|----------|
-| `0` | Успех |
-| `1` | Ошибка выполнения |
-| `2` | Найдены секреты выше порога политики — **только у `dig`**. `pack`, `stash`, `rinse` и `raid` используют только `0`/`1` |
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | Runtime error |
+| `2` | Secrets above the policy threshold were found — **only for `dig`**. `pack`, `stash`, `rinse`, and `raid` use only `0`/`1` |
 
-## Дальнейшее чтение
+## Further reading
 
-- [Концепции архитектуры](/architecture) — как устроен raccpack изнутри.
-- [Facade API](/facade-api) — публичный контракт ядра.
-- [Дорожная карта](/roadmap) — что уже есть и что планируется.
+- [Architecture concepts](/architecture) — how raccpack is structured inside.
+- [Facade API](/facade-api) — the public contract of the core.
+- [Roadmap](/roadmap) — what exists already and what is planned.

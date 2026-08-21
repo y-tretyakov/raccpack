@@ -1,44 +1,44 @@
 ---
-title: Устранение неполадок
-description: Частые проблемы при работе с raccpack — установка, конфигурация, сканирование, den и производительность.
+title: Troubleshooting
+description: Common problems when working with raccpack — installation, configuration, scanning, den, and performance.
 ---
 
-# Устранение неполадок
+# Troubleshooting
 
-Частые вопросы и проблемы при работе с raccpack.
+Frequently asked questions and problems when working with raccpack.
 
-## Установка и запуск
+## Installation and running
 
 ### `racc: command not found`
 
-Бинарник не в `PATH`. Соберите и установите его (см. [Установка](/installation)):
+The binary is not in `PATH`. Build and install it (see [Installation](/installation)):
 
 ```bash
 cargo build --release
 install -m 0755 target/release/racc ~/.local/bin/racc
 ```
 
-Проверьте, что `~/.local/bin` есть в `PATH`.
+Check that `~/.local/bin` is in your `PATH`.
 
-### Сборка падает из-за версии Rust
+### Build fails due to the Rust version
 
-Workspace требует **Rust 1.75+**. Проверьте версию:
+The workspace requires **Rust 1.75+**. Check the version:
 
 ```bash
 rustc --version
 ```
 
-При необходимости обновите toolchain:
+If necessary, update the toolchain:
 
 ```bash
 rustup update stable
 ```
 
-## Конфигурация
+## Configuration
 
 ### `MissingScanRoot`
 
-`scan_root` не задан ни в конфигурации, ни через флаг. Задайте один из вариантов:
+`scan_root` is set neither in the configuration nor via a flag. Set one of the options:
 
 ```toml
 # ~/.config/raccpack/config.toml
@@ -46,7 +46,7 @@ rustup update stable
 scan_root = "~/DEV/PROJS"
 ```
 
-или:
+or:
 
 ```bash
 racc sniff --root ~/DEV/PROJS
@@ -54,7 +54,7 @@ racc sniff --root ~/DEV/PROJS
 
 ### `path not found` / `ScanRootMissing`
 
-Указанная папка не существует или недоступна. Проверьте путь:
+The specified folder does not exist or is not accessible. Check the path:
 
 ```bash
 ls -ld ~/DEV/PROJS
@@ -62,119 +62,119 @@ ls -ld ~/DEV/PROJS
 
 ### `NotADirectory`
 
-В `scan_root` указан файл, а не каталог. Укажите папку.
+A file, not a directory, is specified in `scan_root`. Specify a folder.
 
 ### `invalid configuration: max_depth`
 
-`scanner.max_depth` меньше 1. Поставьте значение ≥ 1:
+`scanner.max_depth` is less than 1. Set it to ≥ 1:
 
 ```toml
 [scanner]
 max_depth = 6
 ```
 
-### Файл конфигурации не читается
+### The configuration file cannot be read
 
-- Если задана `RACCPACK_CONFIG`, файл **обязан** существовать — проверьте переменную:
+- If `RACCPACK_CONFIG` is set, the file **must** exist — check the variable:
 
 ```bash
 echo "$RACCPACK_CONFIG"
 ```
 
-- Файл по умолчанию: `~/.config/raccpack/config.toml`. Создайте при необходимости.
-- Синтаксис — TOML. Проверьте, что секции и ключи написаны корректно.
+- The default file: `~/.config/raccpack/config.toml`. Create it if necessary.
+- The syntax is TOML. Check that sections and keys are written correctly.
 
-## Сканирование и поиск секретов
+## Scanning and secret detection
 
-### `sniff` не находит проекты
+### `sniff` finds no projects
 
-Возможные причины:
+Possible causes:
 
-- `scan_root` указан неверно или пуст.
-- Проекты лежат глубже `scanner.max_depth` (по умолчанию 6). Увеличьте глубину:
+- `scan_root` is wrong or empty.
+- Projects are deeper than `scanner.max_depth` (6 by default). Increase the depth:
 
 ```bash
 racc sniff --max-depth 10
 ```
 
-или в конфигурации:
+or in the configuration:
 
 ```toml
 [scanner]
 max_depth = 10
 ```
 
-- В проектах нет опознаваемых маркеров (`package.json`, `Cargo.toml`, `go.mod` и т.д.).
+- The projects contain no recognizable markers (`package.json`, `Cargo.toml`, `go.mod`, etc.).
 
-### Результаты `sniff` устарели
+### `sniff` results are stale
 
-Результаты кэшируются. Принудительное пересканирование:
+Results are cached. Force a rescan:
 
 ```bash
 racc sniff --force-refresh
 ```
 
-### `dig` не нашёл секрет, который я ожидаю
+### `dig` did not find a secret I expected
 
-- Файлы больше **1 МиБ** и **бинарные файлы** при сканировании содержимого пропускаются.
-- Сканирование содержимого можно отключить (`--no-content`) — тогда находки только по имени.
-- Уровень риска находки может быть ниже порога. По умолчанию выводятся все; порог влияет только на политику выхода.
-- Если значение выглядит как секрет, но не покрыто встроенными маркерами — добавьте проверку в свой процесс. Набор правил расширяется по мере развития проекта.
+- Files larger than **1 MiB** and **binary files** are skipped during content scanning.
+- Content scanning can be disabled (`--no-content`) — then findings come from file names only.
+- A finding's risk level may be below the threshold. By default everything is shown; the threshold only affects exit-code policy.
+- If a value looks like a secret but is not covered by built-in markers — add a check to your own process. The rule set grows as the project evolves.
 
-### `dig` вернул код выхода 2
+### `dig` returned exit code 2
 
-Это **не ошибка выполнения**: найдены секреты выше порога политики (по умолчанию `Critical`). Посмотрите отчёт, устраните находки или ослабьте политику:
+This is **not** a runtime error: secrets above the policy threshold were found (`Critical` by default). Look at the report, fix the findings, or relax the policy:
 
 ```bash
 racc dig --fail-on ignore
 ```
 
-Коды выхода:
+Exit codes:
 
-| Код | Значение |
-|-----|----------|
-| `0` | Успех |
-| `1` | Ошибка выполнения |
-| `2` | Найдены секреты выше порога политики |
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | Runtime error |
+| `2` | Secrets above the policy threshold were found |
 
-### В выводе нет «Repeated secrets»
+### No "Repeated secrets" in the output
 
-Блок повторяющихся секретов печатается только при флаге `--repeated`:
+The repeated secrets block is printed only with the `--repeated` flag:
 
 ```bash
 racc dig --repeated
 ```
 
-## Den и упаковка
+## Den and packing
 
 ### `incompatible den version`
 
-В `den_dir` лежит `.den-version` несовместимой версии. Варианты:
+The `den_dir` contains a `.den-version` of an incompatible version. Options:
 
-- Укажите другой (пустой) `den_dir` для новых артефактов.
-- При появлении инструмента миграции (`racc den migrate`) — используйте его.
+- Point to another (empty) `den_dir` for new artifacts.
+- When a migration tool appears (`racc den migrate`) — use it.
 
 ::: warning
-Не удаляйте `.den-version` вручную — вы потеряете информацию о формате хранилища.
+Do not delete `.den-version` manually — you will lose information about the storage format.
 :::
 
-### После прерванного raid остались файлы в `staging/`
+### Files remain in `staging/` after an interrupted raid
 
-Это ожидаемо: временные файлы могут пережить падение. Сейчас их можно удалить вручную. Команда `racc den gc` (очистка staging старше N дней) запланирована.
+This is expected: temporary files can outlive a crash. For now you can delete them manually. A `racc den gc` command (cleaning staging older than N days) is planned.
 
-## Производительность
+## Performance
 
-### Сканирование большого дерева идёт долго
+### Scanning a large tree takes long
 
-- Уменьшите глубину обхода (`--max-depth` / `scanner.max_depth`).
-- Для `dig` включите режим только по именам (`--no-content`) как первичную проверку.
-- Параллельное сканирование (`advanced.parallel_jobs`) планируется в Beta.
+- Reduce the traversal depth (`--max-depth` / `scanner.max_depth`).
+- For `dig`, enable name-only mode (`--no-content`) as a first pass.
+- Parallel scanning (`advanced.parallel_jobs`) is planned for Beta.
 
-## Сообщить об ошибке
+## Reporting an issue
 
-Репозиторий проекта: [github.com/y-tretyakov/raccpack](https://github.com/y-tretyakov/raccpack). При описании проблемы приложите:
+Project repository: [github.com/y-tretyakov/raccpack](https://github.com/y-tretyakov/raccpack). When describing a problem, attach:
 
-- версию `racc --version`;
-- платформу и версию Rust;
-- команду, которая не работает, и её вывод (без секретов);
-- минимальный пример, воспроизводящий проблему.
+- the output of `racc --version`;
+- platform and Rust version;
+- the command that fails and its output (without secrets);
+- a minimal example reproducing the problem.

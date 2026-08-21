@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { useData } from 'vitepress'
 import {
   lightboxState,
   requestClose,
   finishClose,
   resetLightboxLock,
 } from './lightbox-store'
+
+const { lang } = useData()
+const closeLabel = computed(() =>
+  lang.value.startsWith('en') ? 'Close' : 'Закрыть',
+)
 
 const MARGIN = 48
 
@@ -111,7 +117,7 @@ onBeforeUnmount(resetLightboxLock)
         class="iol-lightbox"
         role="dialog"
         aria-modal="true"
-        title="Закрыть"
+        :aria-label="closeLabel"
         @click="onOverlayClick"
       >
         <img

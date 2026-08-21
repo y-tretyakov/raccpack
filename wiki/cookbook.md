@@ -1,95 +1,94 @@
 ---
-title: Usage cookbook — сценарии и скрипты
-description: "Практические сценарии raccpack: onboarding, dry-run безопасность, полный raid, raid по всем проектам из config, JSON-пайплайны jq, отладка без утечки секретов — со скриптами для bash, fish, Nushell и PowerShell."
+title: Usage cookbook — scenarios and scripts
+description: "Practical raccpack scenarios: onboarding, dry-run safety, a full raid, raiding every project from config, jq JSON pipelines, debugging without leaking secrets — with scripts for bash, fish, Nushell and PowerShell."
 ---
 
-# Usage cookbook — сценарии и скрипты
+# Usage cookbook — scenarios and scripts
 
-Статус: актуально для **raccpack 0.3.0** (Alpha).
+Status: accurate for **raccpack 0.3.0** (Alpha).
 
-Готовые рецепты поверх командной поверхности. Если флаг не описан здесь или на
-странице команды — его нет в текущей версии.
+Ready-made recipes on top of the command surface. If a flag isn't described here or on
+the command's page, it doesn't exist in the current version.
 
-Обзор команд: [Использование CLI](/cli-usage) ·
-Отдельные команды: [Sniff](/sniff) · [Dig](/dig) · [Pack](/pack) ·
+Command overview: [CLI usage](/cli-usage) ·
+Individual commands: [Sniff](/sniff) · [Dig](/dig) · [Pack](/pack) ·
 [Stash](/stash) · [Rinse](/rinse) · [Raid](/raid) · [Init](/init) ·
-Конфиг: [Конфигурация](/configuration) · [Git, init и DX](/git-and-dx)
+Config: [Configuration](/configuration) · [Git, init and DX](/git-and-dx)
 
-::: warning Dry-run по умолчанию
-`pack`, `stash`, `rinse` и `raid` **ничего не пишут и не удаляют** без `--yes`.
-Если переданы и `--yes`, и `--dry-run` — побеждает `--dry-run`.
+::: warning Dry-run by default
+`pack`, `stash`, `rinse` and `raid` **write and delete nothing** without `--yes`.
+If both `--yes` and `--dry-run` are passed — `--dry-run` wins.
 :::
 
 ## 1. Onboarding: init → sniff → dig
 
-Первый запуск: создать конфиг, посмотреть, что нашлось, проверить утечки.
+First run: create a config, see what was found, check for leaks.
 
 ```bash
-racc init --scan-root ~/DEV/PROJS --ensure-den   # конфиг + den одним шагом
-racc sniff                                        # таблица проектов (кэш)
-racc sniff --force-refresh                        # пересканировать мимо кэша
-racc dig                                          # чувствительные файлы по всему scan_root
+racc init --scan-root ~/DEV/PROJS --ensure-den   # config + den in one step
+racc sniff                                        # project table (from cache)
+racc sniff --force-refresh                        # rescan, bypassing the cache
+racc dig                                          # sensitive files across the whole scan_root
 ```
 
-Ожидаемый эффект: `init` пишет `~/.config/raccpack/config.toml` (пути можно
-переопределить), создаёт den при `--ensure-den`. `sniff` показывает проекты,
-стек и размер; `dig` — список находок с рисками Critical…Low.
+Expected result: `init` writes `~/.config/raccpack/config.toml` (paths can be
+overridden) and creates the den with `--ensure-den`. `sniff` shows projects,
+stack and size; `dig` — a list of findings with risks Critical…Low.
 
-Подробнее: [Init](/init), [Sniff](/sniff), [Dig](/dig).
+More details: [Init](/init), [Sniff](/sniff), [Dig](/dig).
 
 ## 2. Dry-run safety
 
-Любая опасная операция сначала запускается «вхолостую» — это поведение по
-умолчанию:
+Any dangerous operation first runs as a rehearsal — this is the default behavior:
 
 ```bash
-racc pack  --project ~/DEV/PROJS/my-api     # покажет план архива, ничего не пишёт
-racc rinse --project ~/DEV/PROJS/my-api     # покажет, что удалил бы
-racc raid  --project ~/DEV/PROJS/my-api     # полный прогон без последствий
+racc pack  --project ~/DEV/PROJS/my-api     # shows the archive plan, writes nothing
+racc rinse --project ~/DEV/PROJS/my-api     # shows what it would delete
+racc raid  --project ~/DEV/PROJS/my-api     # a full run with no consequences
 ```
 
-Ожидаемый эффект: отчёт в stdout, den не меняется, файлы в проекте целы.
-Коммит — только явным `--yes`.
+Expected result: a report on stdout, the den unchanged, files in the project intact.
+Committing happens only with an explicit `--yes`.
 
-## 3. Полный raid одного проекта
+## 3. Full raid of a single project
 
-Passphrase нужна только если включён stash (по умолчанию включён) и идёт
-Commit. Из TTY она запрашивается дважды с подтверждением; в скриптах — через
-env `RACCPACK_PASSPHRASE`.
+A passphrase is needed only if stash is enabled (it is by default) and a Commit runs.
+From a TTY it is asked for twice with confirmation; in scripts — via the
+`RACCPACK_PASSPHRASE` env var.
 
 ```bash
-export RACCPACK_PASSPHRASE='…'   # placeholder — подставьте свой секрет
+export RACCPACK_PASSPHRASE='…'   # placeholder — substitute your own secret
 racc raid --project ~/DEV/PROJS/my-api --yes
 unset RACCPACK_PASSPHRASE
 ```
 
-Порядок фаз: stash → rinse → pack → move. Любая упавшая фаза откатывает
-операцию целиком (atomic по умолчанию; `--fail-fast` — режим отладки).
+Phase order: stash → rinse → pack → move. Any failed phase rolls back the entire
+operation (atomic by default; `--fail-fast` is a debugging mode).
 
 ::: danger Passphrase
-Passphrase не восстанавливается. Потеряли — age-архивы секретов не читаются.
-`racc` никогда не логирует и не сохраняет её; в примерах выше — placeholder.
+The passphrase cannot be recovered. Lose it — and the age secret archives become unreadable.
+`racc` never logs or stores it; the examples above use a placeholder.
 :::
 
-## 4. Raid всех проектов из scan_root
+## 4. Raid of all projects from scan_root
 
-Проекты читаются из `racc sniff --json --force-refresh` — пути берутся из
-config (`scan_root`), CLI-root указывать не нужно.
+Projects are read from `racc sniff --json --force-refresh` — paths come from the
+config (`scan_root`), so there's no need to pass a CLI root.
 
-Переменные окружения:
+Environment variables:
 
-| Переменная | Смысл | По умолчанию |
-|------------|-------|--------------|
-| `RACCPACK_PASSPHRASE` | passphrase для stash-фазы | пусто (обязательно, если не `--no-stash`) |
-| `DRY_RUN=1` | гонять без `--yes` | `0` (реальный Commit с `--yes`) |
-| `EXTRA_RAID_ARGS` | доп. аргументы raid, напр. `--no-stash --keep-sources` | пусто |
-| `CONTINUE_ON_ERROR=1` | не останавливаться на первой ошибке проекта | `1` |
+| Variable | Meaning | Default |
+|----------|---------|---------|
+| `RACCPACK_PASSPHRASE` | passphrase for the stash phase | empty (required unless `--no-stash`) |
+| `DRY_RUN=1` | run without `--yes` | `0` (a real Commit with `--yes`) |
+| `EXTRA_RAID_ARGS` | extra raid arguments, e.g. `--no-stash --keep-sources` | empty |
+| `CONTINUE_ON_ERROR=1` | don't stop at the first failing project | `1` |
 
 ### bash
 
 ```bash
 #!/usr/bin/env bash
-# raid-all.sh — raid по всем проектам из sniff (scan_root/den из config)
+# raid-all.sh — raid across all projects from sniff (scan_root/den from config)
 set -u
 
 command -v racc >/dev/null || { echo "need: racc" >&2; exit 1; }
@@ -128,14 +127,14 @@ echo "Done. ok=$ok fail=$fail total=${#PROJECTS[@]}"
 [ "$fail" -gt 0 ] && { printf 'Failed: %s\n' "${failed[@]}"; exit 1; }
 ```
 
-Запуск: `bash raid-all.sh`; репетиция: `DRY_RUN=1 bash raid-all.sh`;
-без секретов: `EXTRA_RAID_ARGS="--no-stash" bash raid-all.sh`.
+Run: `bash raid-all.sh`; rehearsal: `DRY_RUN=1 bash raid-all.sh`;
+without secrets: `EXTRA_RAID_ARGS="--no-stash" bash raid-all.sh`.
 
 ### fish
 
 ```fish
 #!/usr/bin/env fish
-# raid-all.fish — raid по всем проектам из sniff (scan_root/den из config)
+# raid-all.fish — raid across all projects from sniff (scan_root/den from config)
 
 set -q DRY_RUN; or set DRY_RUN 0
 set -q CONTINUE_ON_ERROR; or set CONTINUE_ON_ERROR 1
@@ -213,13 +212,13 @@ end
 
 ```nu
 #!/usr/bin/env nu
-# raid-all.nu — raid по всем проектам из sniff (scan_root/den из config)
-# Зависимости: racc в PATH; JSON парсится встроенными средствами nu (jq не нужен)
+# raid-all.nu — raid across all projects from sniff (scan_root/den from config)
+# Requirements: racc in PATH; JSON is parsed with built-in nu tooling (no jq needed)
 
 def main [
-  --dry-run   # гонять без --yes (аналог DRY_RUN=1)
+  --dry-run   # run without --yes (equivalent of DRY_RUN=1)
 ] {
-  # CONTINUE_ON_ERROR=0 останавливает цикл на первой ошибке (по умолчанию — продолжать)
+  # CONTINUE_ON_ERROR=0 stops the loop at the first error (the default is to continue)
   let stop_on_error = (($env | get -i CONTINUE_ON_ERROR | default '1') == '0')
   let extra = ($env | get -i EXTRA_RAID_ARGS | default '')
   let pass  = ($env | get -i RACCPACK_PASSPHRASE | default '')
@@ -267,10 +266,10 @@ def main [
 }
 ```
 
-Запуск: `nu raid-all.nu`; репетиция: `nu raid-all.nu --dry-run`;
-без секретов: `EXTRA_RAID_ARGS='--no-stash' nu raid-all.nu`.
+Run: `nu raid-all.nu`; rehearsal: `nu raid-all.nu --dry-run`;
+without secrets: `EXTRA_RAID_ARGS='--no-stash' nu raid-all.nu`.
 
-Однострочник nu (просто посмотреть проекты из config):
+A nu one-liner (just to look at the projects from config):
 
 ```nu
 racc sniff --json --force-refresh | from json | get report.projects | select name stack.language size_bytes path
@@ -280,7 +279,7 @@ racc sniff --json --force-refresh | from json | get report.projects | select nam
 
 ```powershell
 #!/usr/bin/env pwsh
-# raid-all.ps1 — raid по всем проектам из sniff (scan_root/den из config)
+# raid-all.ps1 — raid across all projects from sniff (scan_root/den from config)
 
 $ErrorActionPreference = 'Continue'
 
@@ -322,132 +321,132 @@ Write-Host "Done. ok=$ok fail=$fail total=$($projects.Count)"
 if ($fail -gt 0) { $failed | ForEach-Object { Write-Host "  - $_" }; exit 1 }
 ```
 
-::: info Про одинаковые env во всех вариантах
-Скрипты намеренно повторяют одну семантику: sniff из config → цикл raid →
-сводка. Отличается только синтаксис оболочки; в nu вместо `jq` — встроенный
-`from json`.
+::: info On the identical env vars across all variants
+The scripts deliberately repeat one semantics: sniff from config → raid loop →
+summary. Only the shell syntax differs; in nu the built-in `from json` replaces
+`jq`.
 :::
 
-## 5. Точечные операции: только stash / только rinse / только pack
+## 5. Targeted operations: stash only / rinse only / pack only
 
-Фазы raid доступны и по отдельности — когда нужен только один эффект:
+The raid phases are available individually too — when you need just one effect:
 
 ```bash
-# Только секреты в age-архив (+ удалить исходники после успешного commit)
+# Secrets into the age archive only (+ remove sources after a successful commit)
 racc stash --project ~/DEV/PROJS/my-api --yes --remove-sources
 
-# Только чистка мусора сборки
+# Build trash cleanup only
 racc rinse --project ~/DEV/PROJS/my-api --yes
 
-# Только архив проекта в den
+# Project archive into the den only
 racc pack --project ~/DEV/PROJS/my-api --yes
 ```
 
-Полезные уточнители stash: `--min-risk critical` (брать только критичные),
-`--only path/to/file` (конкретный файл, повторяемый), `--batch-id release-x`
-(имя артефакта вместо timestamp). Уточнители rinse: `--strategy ID`
-(повторяемый; по умолчанию стратегии из config).
+Handy stash qualifiers: `--min-risk critical` (take critical items only),
+`--only path/to/file` (a specific file, repeatable), `--batch-id release-x`
+(an artifact name instead of the timestamp). Rinse qualifiers: `--strategy ID`
+(repeatable; defaults to the strategies from config).
 
-Страницы: [Stash](/stash) · [Rinse](/rinse) · [Pack](/pack).
+Pages: [Stash](/stash) · [Rinse](/rinse) · [Pack](/pack).
 
-## 6. Raid без stash (--no-stash), когда нет passphrase
+## 6. Raid without stash (--no-stash), when there is no passphrase
 
-Архив и чистка работают без шифрования секретов:
+Archiving and cleanup work without encrypting secrets:
 
 ```bash
 racc raid --project ~/DEV/PROJS/my-api --yes --no-stash
 ```
 
-С passphrase не задаётся вовсе — stash-фаза выключена. Вариант для «холодных»
-проектов без чувствительных файлов или когда secrets-фаза будет отдельным
-проходом.
+No passphrase is set at all — the stash phase is switched off. An option for "cold"
+projects without sensitive files, or when the secrets phase will be a separate pass.
 
-## 7. JSON-пайплайны
+## 7. JSON pipelines
 
-`--json` у каждой команды; структура стабильна (`schema_version`).
+`--json` on every command; the structure is stable (`schema_version`).
 
 ```bash
-# Пути только Critical-находок
+# Paths of Critical findings only
 racc dig --project "$PROJ" --json | jq -r '.files[] | select(.risk=="Critical") | .path'
 
-# Находки High+ с git-статусом (git_status есть только в JSON)
+# High+ findings with git status (git_status exists only in JSON)
 racc dig --project "$PROJ" --json \
   | jq '.files[] | select(.risk=="Critical" or .risk=="High") | {path, risk, git_status}'
 
-# Повторяющиеся секреты (одинаковое значение в нескольких файлах)
+# Repeated secrets (the same value in several files)
 racc dig --project "$PROJ" --repeated --json | jq '.repeated'
 
-# Проекты больше 100 MiB
+# Projects larger than 100 MiB
 racc sniff --json | jq '.report.projects[] | select(.size_bytes > 104857600) | .path'
 
-# Git-репозитории без языка
+# Git repositories with no language
 racc sniff --json | jq '.report.projects[] | select(.is_git_repo and (.stack.language == null)) | .name'
 ```
 
-Коды выхода: `dig` возвращает `2` при срабатывании политики `--fail-on
-critical|high` — удобно для CI.
+Exit codes: `dig` returns `2` when the `--fail-on critical|high` policy triggers —
+handy for CI.
 
-## 8. Отладка без утечки секретов
+## 8. Debugging without leaking secrets
 
-Логи (`tracing`) всегда идут в **stderr**, машинный вывод (`--json`) — в
-**stdout**, поэтому пайпы не смешиваются, а логи не попадают в JSON:
+Logs (`tracing`) always go to **stderr**, machine output (`--json`) to **stdout**,
+so pipes don't get mixed and logs never end up inside the JSON:
 
 ```bash
-racc dig --project "$PROJ" --json 2>dig.log          # stdout чистый JSON, логи в файл
-racc raid --project "$PROJ" -vv --yes                # debug-логи в терминал
-racc pack --project "$PROJ" -v                       # info-логи
+racc dig --project "$PROJ" --json 2>dig.log          # stdout is pure JSON, logs go to the file
+racc raid --project "$PROJ" -vv --yes                # debug logs to the terminal
+racc pack --project "$PROJ" -v                       # info logs
 ```
 
-Уровни: `-v` info · `-vv` debug · `-vvv` trace. В логах нет raw-секретов,
-passphrase и содержимого файлов — это инвариант продукта.
+Levels: `-v` info · `-vv` debug · `-vvv` trace. Logs contain no raw secrets,
+passphrases or file contents — that is a product invariant.
 
-## 9. Кастомные config / den / root
+## 9. Custom config / den / root
 
 ```bash
-# Разовый override путей
+# One-off override of paths
 racc sniff --root ~/other/projects --den /mnt/vault/den
 
-# Альтернативный конфиг целиком
+# A fully alternative config
 RACCPACK_CONFIG=~/.config/raccpack/work.toml racc raid --project "$PROJ" --yes
 racc --config ~/.config/raccpack/work.toml sniff
 ```
 
-Пути с `~` и относительные резолвятся в абсолютные при загрузке конфига.
-Что внутри конфига — [Конфигурация](/configuration); миграция версий конфига —
-[Git, init и DX](/git-and-dx).
+Paths with `~` and relative paths are resolved to absolute ones when the config loads.
+What goes inside the config — [Configuration](/configuration); config version migration —
+[Git, init and DX](/git-and-dx).
 
 ## 10. Monorepo awareness
 
-`sniff` может показать и корень монорепо, и вложенные пакеты (у каждого свои
-маркеры). Перед массовым raid отфильтруйте «листья», чтобы не упаковать одно и
-то же дважды:
+`sniff` may show both the monorepo root and nested packages (each with its own
+markers). Before a mass raid, narrow the list down to the "leaves" so you don't
+pack the same thing twice:
 
 ```bash
-# Показать дерево кандидатов
+# Show the candidate tree
 racc sniff --json | jq '.report.projects[] | {name, path}'
 
-# Рейдить только вложенные пакеты, исключив корень
+# Raid only the nested packages, excluding the root
 racc sniff --json \
   | jq -r '.report.projects[].path' \
   | grep -v '/monorepo-root$' \
   | while read -r p; do racc raid --project "$p" --yes --no-stash; done
 ```
 
-::: warning Двойная упаковка монорепо
-Рейд корня и его подпапок даёт пересекающиеся архивы. Решите заранее уровень
-«единицы бэкапа»: обычно листья (пакеты/сервисы) или корень, но не оба.
+::: warning Double packing of a monorepo
+Raiding the root and its subfolders yields overlapping archives. Decide in advance
+what the "backup unit" level is: usually the leaves (packages/services) or the root,
+but not both.
 :::
 
-## 11. Проверка den после raid
+## 11. Checking the den after a raid
 
 ```text
 ~/.raccpack/den/
 ├── packs/{yyyy}/{mm}/      # {slug}__{UTC}__.tar.zst
 ├── secrets/{yyyy}/{mm}/    # {slug}__{UTC}__.age
-└── manifests/{yyyy}/{mm}/  # JSON-манифесты raid
+└── manifests/{yyyy}/{mm}/  # raid JSON manifests
 ```
 
-Быстрая сверка:
+Quick check:
 
 ```bash
 ls -lh ~/.raccpack/den/packs/*/* | tail
@@ -455,22 +454,22 @@ ls -lh ~/.raccpack/den/secrets/*/* | tail
 jq '{project, success, phases}' ~/.raccpack/den/manifests/*/*.json | tail -40
 ```
 
-Манифесты содержат метаданные операции (пути относительно den, фазы, счётчики)
-— без raw-секретов. Layout и соглашения имён: [Concepts](/concepts).
+Manifests contain operation metadata (paths relative to the den, phases, counters)
+— no raw secrets. Layout and naming conventions: [Concepts](/concepts).
 
-## 12. Проверка контрольных сумм и установка бинарника из Release
+## 12. Checksum verification and installing the binary from a Release
 
 ```bash
-# Скачать tarball и подпись суммы (см. GitHub Release v0.3.0)
+# Download the tarball and the checksum signature (see GitHub Release v0.3.0)
 curl -LO https://github.com/y-tretyakov/raccpack/releases/download/v0.3.0/raccpack-0.3.0-linux-x86_64.tar.gz
 curl -LO https://github.com/y-tretyakov/raccpack/releases/download/v0.3.0/raccpack-0.3.0-linux-x86_64.tar.gz.sha256
 
 sha256sum -c raccpack-0.3.0-linux-x86_64.tar.gz.sha256   # OK
-tar xzf raccpack-0.3.0-linux-x86_64.tar.gz               # внутри: racc (0755)
+tar xzf raccpack-0.3.0-linux-x86_64.tar.gz               # inside: racc (0755)
 ./racc --version                                         # racc 0.3.0
-install -m 0755 racc ~/.local/bin/racc                   # или ~/.cargo/bin
+install -m 0755 racc ~/.local/bin/racc                   # or ~/.cargo/bin
 racc init --scan-root ~/DEV/PROJS --ensure-den
 ```
 
-Для ARM64/Raspberry Pi/Graviton возьмите `linux-aarch64`; для Alpine — суффикс
-`-musl` (если сборка присутствует в релизе).
+For ARM64/Raspberry Pi/Graviton take `linux-aarch64`; for Alpine — the `-musl`
+suffix (if that build is present in the release).

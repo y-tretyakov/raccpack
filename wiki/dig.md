@@ -1,99 +1,99 @@
 ---
-title: Dig — поиск секретов
-description: Команда racc dig — поиск секретов и оценка рисков в проекте (read-only).
+title: Dig — find secrets
+description: The racc dig command — search for secrets and assess risks in a project (read-only).
 ---
 
-# Dig - поиск секретов
+# Dig - find secrets
 
-Команда: `racc dig`  
-Статус: реализовано.
+Command: `racc dig`  
+Status: implemented.
 
-Эта страница описывает **ровно то поведение**, которое реализует `raccpack` сейчас. Если флаг или путь не указаны здесь — их нет в текущей версии.
+This page describes **exactly the behavior** that `raccpack` implements today. If a flag or path is not listed here, it does not exist in the current version.
 
-> Вернуться к обзору команд: [Использование CLI](/cli-usage).
+> Back to the command overview: [CLI usage](/cli-usage).
 
-## Что делает
+## What it does
 
-1. Обходит `scan_root` (или один проект с `--project`) и находит чувствительные файлы.
-2. Классифицирует каждую находку по уровню риска: `Low`, `Medium`, `High`, `Critical`.
-3. По умолчанию проверяет и содержимое файлов; `--no-content` ограничивает поиск именами.
-4. По запросу (`--repeated`) находит значения, повторяющиеся в двух и более файлах.
-5. Определяет git-статус каждой находки (`git_status`, best-effort).
-6. Завершается кодом `2`, если находки превышают порог политики `--fail-on`.
+1. Walks `scan_root` (or a single project with `--project`) and finds sensitive files.
+2. Classifies each finding by risk level: `Low`, `Medium`, `High`, `Critical`.
+3. By default also checks file contents; `--no-content` limits the search to file names.
+4. On request (`--repeated`) finds values that repeat across two or more files.
+5. Determines the git status of each finding (`git_status`, best-effort).
+6. Exits with code `2` when findings exceed the `--fail-on` policy threshold.
 
-Чего **не** делает:
+What it does **not** do:
 
-- ничего не пишет и не удаляет (read-only) — ни в den, ни на диске;
-- не использует кэш `sniff` и не трогает den;
-- не печатает raw-значения секретов — только маскированные превью, blake3-хеш и длину.
+- writes and deletes nothing (read-only) — neither in the den nor on disk;
+- does not use the `sniff` cache and never touches the den;
+- never prints raw secret values — only masked previews, the blake3 hash, and the length.
 
 ::: info
-Код выхода **2** означает, что сработала политика `--fail-on` (по умолчанию — находки Critical), а не сбой CLI. Код **1** — ошибка выполнения (пути, IO, конфиг).
+Exit code **2** means the `--fail-on` policy triggered (by default — Critical findings), not a CLI failure. Code **1** is an execution error (paths, IO, config).
 :::
 
-## Быстрый старт
+## Quick start
 
 ```bash
-# Все проекты под scan_root
+# All projects under scan_root
 racc dig
 
-# Один проект
+# A single project
 racc dig --project ~/DEV/PROJS/my-api
 
-# JSON для скриптов и CI
+# JSON for scripts and CI
 racc dig --project ~/DEV/PROJS/my-api --json
 ```
 
-## Синтаксис
+## Syntax
 
 ```text
 racc dig [OPTIONS]
 ```
 
-`--project` не обязателен: без него сканируется `scan_root`.
+`--project` is optional: without it, `scan_root` is scanned.
 
-## Параметры и флаги
+## Options and flags
 
-### Флаги команды
+### Command flags
 
-| Флаг | По умолчанию | Описание |
-|------|--------------|----------|
-| `--project <PATH>` | `scan_root` | Ограничить сканирование одним каталогом (может лежать вне `scan_root`) |
-| `--no-content` | выкл. | Не читать содержимое — искать только по имени файла |
-| `--repeated` | выкл. | Найти значения, повторяющиеся в ≥ 2 файлах (группировка по blake3-хешу) |
-| `--fail-on <POLICY>` | `critical` | Политика выхода: `ignore` — никогда не падать из-за находок; `critical` — падать только на Critical; `high` — падать на High и выше |
-| `--max-depth <N>` | из конфига (`scanner.max_depth`, по умолчанию `6`) | Ограничить глубину обхода |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--project <PATH>` | `scan_root` | Limit scanning to one directory (may live outside `scan_root`) |
+| `--no-content` | off | Do not read contents — match file names only |
+| `--repeated` | off | Find values repeated across ≥ 2 files (grouped by blake3 hash) |
+| `--fail-on <POLICY>` | `critical` | Exit policy: `ignore` — never fail because of findings; `critical` — fail only on Critical; `high` — fail on High and above |
+| `--max-depth <N>` | from config (`scanner.max_depth`, default `6`) | Limit the walk depth |
 
-### Глобальные флаги
+### Global flags
 
-| Флаг | Описание |
-|------|----------|
-| `-c, --config <PATH>` | Файл конфигурации (переопределяет `RACCPACK_CONFIG`) |
-| `--root <PATH>` | Переопределить `scan_root` на текущий запуск |
-| `--den <PATH>` | Переопределить `den_dir` — принимается как глобальный флаг, для `dig` на результат не влияет |
-| `--json` | Вывод JSON вместо человекочитаемого отчёта |
+| Flag | Description |
+|------|-------------|
+| `-c, --config <PATH>` | Config file (overrides `RACCPACK_CONFIG`) |
+| `--root <PATH>` | Override `scan_root` for this run |
+| `--den <PATH>` | Override `den_dir` — accepted as a global flag, but has no effect on `dig` results |
+| `--json` | Print JSON instead of the human-readable report |
 
-Приоритеты:
+Priorities:
 
-- `--project` имеет приоритет над `scan_root`/`--root`;
-- `--max-depth` имеет приоритет над `scanner.max_depth` из конфига;
-- порог выхода задаёт `--fail-on` (по умолчанию `critical`).
+- `--project` takes precedence over `scan_root`/`--root`;
+- `--max-depth` takes precedence over `scanner.max_depth` from config;
+- the exit threshold is set by `--fail-on` (default `critical`).
 
-## Поведение
+## Behavior
 
-- **Read-only**: `dig` всегда работает в dry-run и никогда не создаёт/не удаляет файлы.
-- **Кэш**: кэш `sniff` не используется — сканирование всегда свежее.
-- **Содержимое**: файлы больше 1 МиБ и бинарные (null-байт в первых 8 КиБ) при контентном сканировании пропускаются — подробнее [Основные понятия](/concepts).
-- **Skip-политика**: каталоги `node_modules`, `target`, `.git`, `dist`, `build` и др. не обходятся.
-- **Находки**: включают все уровни риска от `Low`.
-- **Сортировка**: таблица находок — риск по убыванию, затем путь по возрастанию.
-- **`--repeated`**: группировка по стабильному blake3-хешу; в отчёт попадают только значения, встретившиеся не менее чем в двух файлах.
-- **CI/TTY**: команда полностью неинтерактивна — безопасна в скриптах и CI.
-- При ненулевом коде выхода в не-JSON-режиме в stderr печатается `Sensitive findings triggered exit policy (…)`.
+- **Read-only**: `dig` always runs as dry-run and never creates/deletes files.
+- **Cache**: the `sniff` cache is not used — scanning is always fresh.
+- **Contents**: files larger than 1 MiB and binary files (null byte within the first 8 KiB) are skipped during content scanning — see [Concepts](/concepts) for details.
+- **Skip policy**: directories such as `node_modules`, `target`, `.git`, `dist`, `build` are not walked.
+- **Findings**: include all risk levels starting from `Low`.
+- **Sorting**: the findings table sorts by risk descending, then by path ascending.
+- **`--repeated`**: grouping uses the stable blake3 hash; only values found in at least two files make it into the report.
+- **CI/TTY**: the command is fully non-interactive — safe in scripts and CI.
+- With a non-zero exit code in non-JSON mode, stderr prints `Sensitive findings triggered exit policy (…)`.
 
-## Вывод
+## Output
 
-### Человекочитаемый
+### Human-readable
 
 ```text
 Dig root: /tmp/projects
@@ -104,7 +104,7 @@ Critical  SSH private key (RSA)  /tmp/projects/app/id_rsa
 High      Environment file       /tmp/projects/app/.env
 ```
 
-Блок `Repeated secrets:` печатается только при `--repeated`, когда повторения есть:
+The `Repeated secrets:` block prints only with `--repeated`, and only when repeats exist:
 
 ```text
 Repeated secrets:
@@ -127,125 +127,125 @@ Repeated secrets:
 }
 ```
 
-Поля:
+Fields:
 
-| Поле | Смысл |
-|------|--------|
-| `root` | Сканируемый каталог |
-| `files` | Массив находок |
-| `files[].path` | Путь к файлу |
-| `files[].risk` | Уровень риска: `Low` / `Medium` / `High` / `Critical` |
-| `files[].labels` | Метки: правило по имени и/или по содержимому |
-| `files[].content_match` | `{ masked, value_hash, original_len }` или `null` |
-| `files[].git_status` | Git-статус файла: `"tracked"` / `"untracked"` / `"ignored"` / `"modified"` / `"staged"` / `"deleted"` / `"unknown"` или `null` — см. [ниже](#git_status) |
-| `repeated` | Повторяющиеся значения (заполняется только с `--repeated`) |
-| `repeated[].value_hash` | blake3-хеш значения (никогда само значение) |
-| `repeated[].masked` | Маскированное превью |
-| `repeated[].risk` | Максимальный риск среди вхождений |
-| `repeated[].paths` | Файлы, содержащие значение |
-| `repeated[].count` | Сколько файлов содержат значение |
-| `duration_ms` | Длительность сканирования, мс |
-| `files_scanned` | Всего обойдено файлов (с находкой или без) |
+| Field | Meaning |
+|-------|---------|
+| `root` | Scanned directory |
+| `files` | Array of findings |
+| `files[].path` | Path to the file |
+| `files[].risk` | Risk level: `Low` / `Medium` / `High` / `Critical` |
+| `files[].labels` | Labels: the name-based rule and/or content-based rule |
+| `files[].content_match` | `{ masked, value_hash, original_len }` or `null` |
+| `files[].git_status` | Git status of the file: `"tracked"` / `"untracked"` / `"ignored"` / `"modified"` / `"staged"` / `"deleted"` / `"unknown"`, or `null` — see [below](#git-status) |
+| `repeated` | Repeated values (populated only with `--repeated`) |
+| `repeated[].value_hash` | blake3 hash of the value (never the value itself) |
+| `repeated[].masked` | Masked preview |
+| `repeated[].risk` | Highest risk among occurrences |
+| `repeated[].paths` | Files containing the value |
+| `repeated[].count` | How many files contain the value |
+| `duration_ms` | Scan duration, ms |
+| `files_scanned` | Total files walked (with or without findings) |
 
-Правила маскирования: значение ≤ 8 байт → `"****"`; длиннее → первые 4 символа + `…` + последние 2. Raw-значения в вывод не попадают никогда.
+Masking rules: value ≤ 8 bytes → `"****"`; longer → first 4 characters + `…` + last 2. Raw values never appear in output.
 
 ::: tip
-В human- и JSON-выводе `dig` никогда нет сырых секретов — только маскированное превью, blake3-хеш и длина.
+Both human and JSON `dig` output never contain raw secrets — only a masked preview, the blake3 hash, and the length.
 :::
 
-`content_match` равен `null`, когда сработало только имя файла (например, при `--no-content`).
+`content_match` is `null` when only the file name matched (for example, with `--no-content`).
 
 ### git_status
 
-Поле `files[].git_status` — состояние файла в git на момент сканирования. Значения — стабильные snake_case строки:
+The `files[].git_status` field is the file's state in git at scan time. Values are stable snake_case strings:
 
-| Значение | Смысл |
-|----------|-------|
-| `tracked` | Файл отслеживается git, изменений нет |
-| `untracked` | Файл не отслеживается git |
-| `ignored` | Файл подходит под ignore-правила (`.gitignore` и др.) |
-| `modified` | Файл отслеживается и изменён (в рабочем дереве или индексе) |
-| `staged` | Изменения файла добавлены в индекс (новый, переименованный или скопированный) |
-| `deleted` | Файл удалён |
-| `unknown` | Статус не удалось определить |
+| Value | Meaning |
+|-------|---------|
+| `tracked` | File is tracked by git, no changes |
+| `untracked` | File is not tracked by git |
+| `ignored` | File matches ignore rules (`.gitignore` etc.) |
+| `modified` | File is tracked and modified (in the working tree or index) |
+| `staged` | File changes added to the index (new, renamed, or copied) |
+| `deleted` | File deleted |
+| `unknown` | Status could not be determined |
 
-Поле равно `null`, когда статуса нет: проект вне git-репозитория, `git` не установлен либо завершился с ошибкой или по таймауту. Git-статус — best-effort: сбой git **не** влияет на результат `dig` — отчёт и код выхода остаются прежними.
+The field is `null` when there is no status: the project is outside a git repository, `git` is not installed, or git failed or timed out. Git status is best-effort: a git failure does **not** affect the `dig` result — report and exit code stay the same.
 
 ::: tip
-В CI удобно смотреть только путь, риск и статус находок:
+In CI it is convenient to look only at path, risk, and status of findings:
 
 ```bash
 racc dig --project ~/DEV/PROJS/my-api --json | jq '.files[] | {path, risk, git_status}'
 ```
 :::
 
-## Коды выхода
+## Exit codes
 
-| Код | Когда |
-|-----|--------|
-| `0` | Находок выше порога политики нет |
-| `1` | Ошибка выполнения: нет `scan_root`, каталог не существует/не является каталогом, IO-ошибка |
-| `2` | Находки выше порога `--fail-on` (по умолчанию — Critical) |
+| Code | When |
+|------|------|
+| `0` | No findings above the policy threshold |
+| `1` | Execution error: missing `scan_root`, directory missing/not a directory, IO error |
+| `2` | Findings above the `--fail-on` threshold (default — Critical) |
 
-Код `2` срабатывает и в JSON-режиме (для CI проверяйте код выхода); при `--json` дополнительное сообщение в stderr не печатается.
+Code `2` fires in JSON mode too (in CI, check the exit code); with `--json` no extra message is printed to stderr.
 
-## Примеры
+## Examples
 
 ```bash
-# Полная проверка всех проектов под scan_root
+# Full check of all projects under scan_root
 racc dig
 
-# Один проект
+# A single project
 racc dig --project ~/DEV/PROJS/app-api
 
-# Только по именам файлов (быстрее, без чтения содержимого)
+# File names only (faster, no content reading)
 racc dig --project ~/DEV/PROJS/app-api --no-content
 
-# Повторяющиеся секреты между файлами
+# Secrets repeated across files
 racc dig --project ~/DEV/PROJS/app-api --repeated
 
-# JSON для CI
+# JSON for CI
 racc dig --project "$CI_PROJECT_DIR" --json
 
-# Никогда не падать из-за находок
+# Never fail because of findings
 racc dig --project ~/DEV/PROJS/app-api --fail-on ignore
 
-# Падать уже при High
+# Fail already at High
 racc dig --project ~/DEV/PROJS/app-api --fail-on high
 
-# Ограничить глубину обхода
+# Limit walk depth
 racc dig --project ~/DEV/PROJS/app-api --max-depth 3
 
-# Переопределить scan_root глобальным флагом
+# Override scan_root via global flag
 racc dig --root ~/DEV/PROJS
 ```
 
-## Частые ошибки
+## Common errors
 
-| Ситуация | Что сделать |
-|----------|-------------|
-| «нет scan_root» / ошибка каталога | Задайте `scan_root` в конфиге или используйте `--project`/`--root` |
-| Неожиданный код выхода `2` | Это политика `--fail-on` (по умолчанию Critical), а не сбой; при необходимости `--fail-on ignore` или `--fail-on high` |
-| В файле есть секрет, но по содержимому он не найден | Файл больше 1 МиБ или бинарный — контентное сканирование его пропускает; по имени файла он всё равно может быть найден |
-| `--repeated` ничего не показывает | Нужен контентный матч с одинаковым blake3-хешем минимум в двух файлах |
-| Каталог не обходится | Проверьте skip-политику (`node_modules`, `target`, `dist`, …) и `--max-depth` |
+| Situation | What to do |
+|-----------|------------|
+| "no scan_root" / directory error | Set `scan_root` in config or use `--project`/`--root` |
+| Unexpected exit code `2` | That's the `--fail-on` policy (default Critical), not a failure; if needed `--fail-on ignore` or `--fail-on high` |
+| A file has a secret but content scan missed it | The file is larger than 1 MiB or binary — content scanning skips it; it may still be found by file name |
+| `--repeated` shows nothing | Requires a content match with identical blake3 hash in at least two files |
+| Directory is not walked | Check the skip policy (`node_modules`, `target`, `dist`, …) and `--max-depth` |
 
-## Безопасность
+## Security
 
-- Команда read-only — её можно безопасно запускать в любой момент.
-- Сырые значения секретов не печатаются и не попадают в JSON: только маскированное превью, стабильный blake3-хеш и длина.
-- В CI удобно использовать `--json` + код выхода как gate, не выводя находки в логи без маскирования.
+- The command is read-only — safe to run at any time.
+- Raw secret values are neither printed nor included in JSON: only masked preview, stable blake3 hash, and length.
+- In CI, prefer `--json` + exit code as a gate instead of dumping unmasked findings into logs.
 
-## Связанные команды
+## Related commands
 
-| Команда | Роль |
+| Command | Role |
 |---------|------|
-| `racc sniff` | Найти проекты под `scan_root` |
-| `racc stash` | Вынести найденные секреты в зашифрованный age-архив в den |
-| `racc rinse` | Удалить мусор сборки по стратегиям |
-| `racc pack` | Упаковать проект **без** секретов в `packs/` |
-| `racc raid` | Полный цикл одной командой |
-| [Что поддерживается](/supported) | Полный список правил по имени и содержимому |
-| [Основные понятия](/concepts) | Риски, маскирование, skip-политика |
+| `racc sniff` | Find projects under `scan_root` |
+| `racc stash` | Move discovered secrets into an encrypted age archive in the den |
+| `racc rinse` | Delete build trash by strategies |
+| `racc pack` | Pack a project **without** secrets into `packs/` |
+| `racc raid` | Full cycle in one command |
+| [Supported catalog](/supported) | Full list of name-based and content-based rules |
+| [Concepts](/concepts) | Risks, masking, skip policy |
 
-*Документ соответствует реализации; при изменении флагов CLI обновляйте страницу в том же PR.*
+*This document matches the implementation; when CLI flags change, update the page in the same PR.*
