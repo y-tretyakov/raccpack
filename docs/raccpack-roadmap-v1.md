@@ -2,7 +2,7 @@
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
 **Текущая точка:** MVP 0.1.0 закрыт; Alpha A1–A3 закрыты (stash/rinse/raid доступны), идёт A4 (git/DX): A4.1–A4.2 закрыты.  
-**Текущая версия:** `0.2.14` — сверять `docs/VERSION_ROADMAP.md`.
+**Текущая версия:** `0.3.0` — сверять `docs/VERSION_ROADMAP.md`.
 
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
 
@@ -97,7 +97,7 @@
 - A4.1 — GitClient (process) + status sensitive files в dig. ✅
 - A4.2 — Config migrate chain + `racc init`. ✅
 - A4.3 — Логи tracing без секретов; `--verbose`. ✅
-- A4.4 — Интеграционные тесты core + CI job `cargo test`.
+- A4.4 — Интеграционные тесты core + CI job `cargo test`. ✅ **(Alpha exit 0.3.0)**
 
 **Alpha exit criteria:** одной командой `raid` секреты уезжают в `.age`, мусор чистится, pack в den, manifest на месте; при любой ошибке фазы — полный откат, нет orphan; только CLI.
 

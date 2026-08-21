@@ -6,7 +6,7 @@
 [`docs/archive/WORKLOG_MVP.md`](docs/archive/WORKLOG_MVP.md).
 Спеки закрытых этапов: [`docs/archive/mvp/`](docs/archive/mvp/).
 
-**Текущая версия: `0.2.14`** (закрыты A4.1–A4.3; следующий bump `0.3.0` при A4.4 — Alpha exit, см. `docs/VERSION_ROADMAP.md`).
+**Текущая версия: `0.3.0`** — **ALPHA EXIT** (A1–A4 закрыты; следующий bump `0.3.1` при D1.1 Detect v2, см. `docs/VERSION_ROADMAP.md`).
 
 ## Backlog (Alpha → 0.3.0)
 
@@ -26,7 +26,7 @@
 [x] A4.1 GitClient (process) + status sensitive files в dig
 [x] A4.2 Config migrate chain + racc init
 [x] A4.3 tracing без секретов; --verbose
-[ ] A4.4 integration tests core + CI cargo test
+[x] A4.4 integration tests core + CI cargo test
 ```
 
 ## Backlog (Detect v2 → 0.4.0)
@@ -859,6 +859,24 @@ CLI `racc rinse`: DryRun default, `--yes` → Commit (удаление trash-dir
 **Решения:** логи всегда в stderr (спека §5 «JSON в stdout, логи в stderr»); ANSI только на TTY; пустой `RUST_LOG` считается unset.
 **Замечания (не блокеры):** P3 — `stash.rs` info! дублировал счётчик в поле и сообщении — **закрыт** (коммит 71f09f3, PR #88); pre-existing debt — `cli.rs` ~941 строка (тест-тяжёлый), кандидат на split args/tests отдельным hygiene-этапом — **отложено сознательно**; инструментация raid/rinse/pack info-событиями — позже, без отдельного этапа (для Alpha точечной stash/dig/sniff достаточно).
 **Синхронизация:** по чеклисту §3.9 — Cargo.toml/Cargo.lock 0.2.14, README (badge + Status-абзац), VERSION_ROADMAP (A4.3 ✅ 0.2.14, все точки), raccpack-roadmap-v1 (A4.3 ✅), wiki (`cli-usage.md` глобальный `-v/--verbose`, `roadmap.md`, `introduction.md`), бинарник переустановлен.
+
+### 2026-08-21 — A4.4: integration + CI — **ALPHA EXIT 0.3.0**
+
+**Задача:** спека `docs/alpha/a4/a4.4-integration-ci.md`. Ветка `a4-integration-ci` от `dev`, PR #89 → `dev` (squash, merged, ветка удалена). Версия → **0.3.0** (exit вехи Alpha).
+
+**Сделано:**
+- `.github/workflows/ci.yml` (NEW): push+PR, ubuntu-latest, `cargo test --workspace` / `fmt --check` / `clippy --workspace --all-targets -- -D warnings`; toolchain пин ≡ workspace rust-version (F-CFG-2).
+- **MSRV 1.75 → 1.85** (`rust-version` + README badge): блокер экосистемы — транзитивный `cpufeatures 0.3` (blake3 1.8.6; sha2 0.11 ← age 0.12 → rust-embed-utils) требует edition2024-манифестов, Cargo 1.75 не парсит. Даунгрейд-пины проверены и отклонены: blake3↓ не спасает (sha2-цепочка age держит ^0.3), даунгрейд age — security-sensitive каскад. Решение зафиксировано в ci.yml-комментарии.
+- clippy 1.85: 4× `map_err(|err| { cleanup; err })` → `.inspect_err(|_| cleanup)?` (pack/mod.rs ×2, stash.rs ×2), семантика идентична.
+- Аудит Test: матрица покрытия §4 **8/8 ok** существующими сьютами (core/tests/* + cli/tests/cli_* + tracing_logging.rs); новые тестовые файлы сознательно не дублировались (§8.3.1). Спека допускает альтернативный split.
+- Alpha exit checklist (спека §7) — **pass**: sniff/dig/stash/rinse/pack/raid CLI ✅ · den secrets+packs+manifests ✅ · init+config_version ✅ · verbose без утечек ✅ (tracing_logging #6 + ручной grep) · git status на dig ✅ (staged/untracked/soft-null) · CI green ✅ (локально +1.85/stable; GitHub run на PR/dev).
+
+**Файлы:** `.github/workflows/ci.yml` (created), `Cargo.toml` (rust-version), `README.md` (badge MSRV), `core/src/app/{pack/mod,stash}.rs` (inspect_err)
+**Тесты:** `cargo +1.85 test --workspace` green; stable green (783/783, дважды — детерминированно); fmt/clippy `-D warnings` на обоих тулчейнах чисто; alpha-smoke §5 (init→sniff→dig→raid → .age/.tar.zst/manifest; redaction grep — OK).
+**Процесс:** Dev (ci.yml + MSRV-верификация + inspect_err) и Test (аудит матрицы + smoke) параллельно; оба приняты. Инцидент smoke: скрипт без изоляции HOME перезаписал реальный `~/.config/raccpack/config.toml` — восстановлен Orchestrator'ом (`~/DEV/PROJS` / `~/.raccpack/den`); harness'ы тестов изолированы корректно.
+**Решения:** MSRV 1.85 вместо пинов зависимостей (см. выше); покрытие матрицы — существующими сьютами без новых файлов.
+**Follow-up:** raid_atomic.rs (1036 строк) / cli_raid.rs (714) — тест-файлы сверх soft-limit, split при следующем касании; инструментация raid/rinse/pack info-событиями — без отдельного этапа.
+**Синхронизация:** по чеклисту §3.9 — Cargo.toml/Cargo.lock 0.3.0, README (badge + Status + roadmap-блок Alpha ✅), VERSION_ROADMAP (A4.4 ✅ 0.3.0, «ВЫ ЗДЕСЬ» на Alpha exit), raccpack-roadmap-v1 (A4.4 ✅), WORKLOG (шапка/бэклог/запись), wiki (страница Git/init/DX из прототипа, roadmap/introduction 0.3.0), бинарник переустановлен.
 
 ## Принятые решения (Alpha+)
 

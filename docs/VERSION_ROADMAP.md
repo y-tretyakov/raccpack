@@ -24,20 +24,20 @@
 
 ## Текущая позиция
 
-> **Сделано до A4.3 включительно** (A1–A3 + A4.1–A4.3).
+> **Сделано до A4.4 включительно** (A1–A4 полностью). **Alpha exit: 0.3.0.**
 
 | | |
 |--|--|
-| **Текущая версия workspace** | **`0.2.14`** |
-| Последний этап | **A4.3** — tracing без секретов + `--verbose` |
-| Следующий этап | **A4.4** → версия **`0.3.0`** (Alpha exit) |
-| Alpha exit | после **A4.4** → **`0.3.0`** |
+| **Текущая версия workspace** | **`0.3.0`** |
+| Последний этап | **A4.4** — integration + CI (Alpha exit) |
+| Следующий этап | **D1.1** → версия **`0.3.1`** (Detect v2) |
+| Detect v2 exit | после **D3.3** → **`0.4.0`** |
 
 ```text
 0.1.0  MVP
 0.2.0 … 0.2.11  Alpha A1–A3
-0.2.12 … 0.3.0  Alpha A4   ← ВЫ ЗДЕСЬ (0.2.14)
-0.4.0 …        Detect v2
+0.2.12 … 0.3.0  Alpha A4   ← ВЫ ЗДЕСЬ (0.3.0, Alpha exit)
+0.3.1 …        Detect v2
 0.5.0 …        Beta
 0.9.0 …        RC
 1.0.0          Stable
@@ -99,7 +99,7 @@
 | A4.1 | **0.2.12** | ✅ | GitClient + git_status в dig |
 | A4.2 | **0.2.13** | ✅ | config migrate + `racc init` |
 | A4.3 | **0.2.14** | ✅ | tracing + `--verbose` |
-| A4.4 | **0.3.0** | ⬜ | integration + CI = **Alpha exit** |
+| A4.4 | **0.3.0** | ✅ | integration + CI = **Alpha exit** |
 
 ---
 
@@ -194,7 +194,7 @@
 ```toml
 # Cargo.toml (workspace)
 [workspace.package]
-version = "0.2.14"
+version = "0.3.0"
 ```
 
 Все crates: `version.workspace = true`.
@@ -209,7 +209,7 @@ version = "0.2.14"
 
 ```bash
 cargo run -p raccpack-cli -- --version
-# raccpack-cli 0.2.14  →  последний этап A4.3
+# raccpack-cli 0.3.0   →  Alpha exit (A4.4)
 ```
 
 | Версия | Значит «есть» |
@@ -222,6 +222,7 @@ cargo run -p raccpack-cli -- --version
 | ≥ 0.2.12 | git_status в dig (GitClient) |
 | ≥ 0.2.13 | config migrate + `racc init` |
 | ≥ 0.2.14 | tracing-логи без секретов + глобальный `--verbose` |
+| ≥ 0.3.0 | **Alpha complete**: integration + CI, MSRV 1.85 |
 | ≥ 0.3.0 | Alpha complete (git, init, -v, CI) |
 | ≥ 0.4.0 | Detect DAG |
 | ≥ 0.5.0 | TUI + Desktop + reveal |
@@ -244,8 +245,7 @@ cargo run -p raccpack-cli -- --version
 ## Сводка «сейчас»
 
 ```text
-Текущая версия:  0.2.14
-Этап:            A4.3 (tracing без секретов + --verbose)
-Следующий bump:  0.3.0   при закрытии A4.4 (Alpha exit)
-Alpha exit:      0.3.0   при закрытии A4.4
+Текущая версия:  0.3.0
+Этап:            A4.4 (integration + CI) — ALPHA EXIT
+Следующий bump:  0.3.1   при закрытии D1.1 (Detect v2)
 ```
