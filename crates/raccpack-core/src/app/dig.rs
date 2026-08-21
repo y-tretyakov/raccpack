@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 use crate::domain::{Result, SensitiveRisk};
 use crate::git::{find_repo_root, GitClient, GitFileStatus, ProcessGitClient};
@@ -166,11 +167,23 @@ pub fn dig_with_git(
         true,
     ));
 
+    // Redaction invariant: counters and the scanned root only — never masked
+    // values or finding contents.
+    let duration = elapsed_ms(t0);
+    info!(
+        target: "raccpack_core",
+        root = %root.display(),
+        files_scanned,
+        findings = files.len(),
+        duration_ms = duration,
+        "dig complete"
+    );
+
     Ok(DigResult {
         root,
         files,
         repeated,
-        duration_ms: elapsed_ms(t0),
+        duration_ms: duration,
         files_scanned,
     })
 }

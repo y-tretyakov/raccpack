@@ -15,6 +15,8 @@ raccpack-core = { path = "../raccpack-core" }
 clap = { version = "4", features = ["derive"] }
 rpassword = "7"
 serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zeroize = { version = "1", features = ["derive"] }
 
 [dev-dependencies]

@@ -37,6 +37,10 @@ pub struct GlobalOpts {
     /// Emit machine-readable JSON instead of a human table
     #[arg(long, global = true)]
     pub json: bool,
+
+    /// Increase log verbosity on stderr (-v: info, -vv: debug, -vvv: trace)
+    #[arg(short = 'v', long, action = clap::ArgAction::Count, global = true)]
+    pub verbose: u8,
 }
 
 /// The operation to run.
@@ -311,6 +315,57 @@ mod tests {
         assert!(opts.root.is_none());
         assert!(opts.den.is_none());
         assert!(!opts.json);
+        assert_eq!(opts.verbose, 0);
+    }
+
+    #[test]
+    fn clap_parse_verbose_defaults_to_zero() {
+        let cli = Cli::try_parse_from(["racc", "sniff"]).expect("parse should succeed");
+        assert_eq!(cli.global.verbose, 0);
+    }
+
+    #[test]
+    fn clap_parse_verbose_counts_short_flags() {
+        for (input, expected) in [("-v", 1u8), ("-vv", 2), ("-vvv", 3)] {
+            let cli = Cli::try_parse_from(["racc", "sniff", input])
+                .unwrap_or_else(|err| panic!("parsing {input} should succeed: {err}"));
+            assert_eq!(
+                cli.global.verbose, expected,
+                "-v count mismatch for {input}"
+            );
+        }
+    }
+
+    #[test]
+    fn clap_parse_verbose_counts_long_flags() {
+        let cli = Cli::try_parse_from(["racc", "sniff", "--verbose", "--verbose"])
+            .expect("parse should succeed");
+        assert_eq!(cli.global.verbose, 2);
+    }
+
+    #[test]
+    fn clap_parse_verbose_is_global_before_subcommand() {
+        let cli =
+            Cli::try_parse_from(["racc", "-vv", "--json", "dig"]).expect("parse should succeed");
+        assert_eq!(cli.global.verbose, 2);
+        assert!(cli.global.json);
+        assert!(matches!(cli.command, Commands::Dig(_)));
+    }
+
+    #[test]
+    fn clap_parse_verbose_mixed_with_other_globals() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "--root",
+            "/tmp",
+            "stash",
+            "--project",
+            "/tmp/app",
+            "-vvv",
+        ])
+        .expect("parse should succeed");
+        assert_eq!(cli.global.root, Some(PathBuf::from("/tmp")));
+        assert_eq!(cli.global.verbose, 3);
     }
 
     #[test]
