@@ -13,7 +13,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use raccpack_core::{ConfigError, PathsConfig, RaccConfig, ScannerConfig};
+use raccpack_core::{CleanupConfig, ConfigError, PathsConfig, RaccConfig, ScannerConfig};
 use serial_test::serial;
 use tempfile::TempDir;
 
@@ -288,6 +288,8 @@ fn config_validate_rejects_zero_max_depth_manual_struct() {
             den_dir: None,
         },
         scanner: ScannerConfig { max_depth: 0 },
+        cleanup: CleanupConfig::default(),
+        ..RaccConfig::default()
     };
 
     let err = cfg

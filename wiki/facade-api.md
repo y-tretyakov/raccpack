@@ -77,7 +77,7 @@ pub struct AppContext {
 
 ## Операции
 
-### `sniff` — найти проекты
+### `sniff` - найти проекты
 
 ```rust
 pub struct SniffOptions {
@@ -97,7 +97,7 @@ pub fn sniff(ctx: &AppContext, opts: &SniffOptions,
 
 **Статус: реализовано.** CLI: `racc sniff`.
 
-### `dig` — найти секреты
+### `dig` - найти секреты
 
 ```rust
 pub struct DigOptions {
@@ -126,7 +126,7 @@ pub fn exit_code_for_secrets(files: &[SensitiveFile], policy: SecretExitPolicy) 
 
 **Статус: реализовано.** CLI: `racc dig`.
 
-### `stash` — вынести секреты в age-архив
+### `stash` - вынести секреты в age-архив
 
 ```rust
 pub enum AgeIdentity {
@@ -152,9 +152,9 @@ pub fn stash(ctx: &AppContext, opts: &StashOptions, identity: &AgeIdentity,
 - `Commit` — пишет `.age`-архив в `den/secrets/…`, при `remove_sources: true` удаляет исходники.
 - Passphrase не возвращается и не попадает в тексты ошибок.
 
-**Статус: планируется (Alpha, фаза A1).**
+**Статус: реализовано.** CLI: `racc stash`.
 
-### `rinse` — очистить мусор сборки
+### `rinse` - очистить мусор сборки
 
 ```rust
 pub struct RinseOptions {
@@ -169,9 +169,9 @@ pub fn rinse(ctx: &AppContext, opts: &RinseOptions,
 
 `DryRun` только перечисляет удаляемое; `Commit` удаляет каталоги. Файлы секретов `rinse` не трогает — это забота `stash`.
 
-**Статус: планируется (Alpha, фаза A2).**
+**Статус: реализовано.** CLI: `racc rinse`.
 
-### `pack` — упаковать проект
+### `pack` - упаковать проект
 
 ```rust
 pub struct PackOptions {
@@ -198,14 +198,20 @@ pub fn pack(ctx: &AppContext, opts: &PackOptions,
 
 **Статус: ядро и CLI реализованы (MVP 0.1).**
 
-### `raid` — полный цикл
+### `raid` - полный цикл
 
 ```rust
+pub enum OrchestrationMode {
+    Atomic,     // по умолчанию: staging + отложенные удаления, откат через WAL
+    FailFast,   // legacy A3.1: остановиться на первой упавшей фазе
+}
+
 pub struct RaidOptions {
     pub project: PathBuf,
-    pub stash: StashPhaseOpts,   // { enabled, min_risk, remove_sources }
-    pub rinse: RinsePhaseOpts,   // { enabled }
-    pub pack: PackPhaseOpts,     // { enabled, deny_content_secrets }
+    pub mode: OrchestrationMode,   // по умолчанию Atomic
+    pub stash: StashPhaseOpts,     // { enabled, min_risk, remove_sources }
+    pub rinse: RinsePhaseOpts,     // { enabled }
+    pub pack: PackPhaseOpts,       // { enabled, deny_content_secrets }
 }
 
 pub struct RaidResult {
@@ -217,15 +223,17 @@ pub struct RaidResult {
     pub den_artifacts: Vec<PathBuf>,   // итоговые пути в den
     pub success: bool,
     pub dry_run: bool,
+    pub rolled_back: bool,             // неудачный commit откачен к pre-raid
+    pub rollback_warnings: Vec<String>,// нефатальные проблемы при откате
 }
 
 pub fn raid(ctx: &AppContext, opts: &RaidOptions, identity: Option<&AgeIdentity>,
             progress: &mut dyn ProgressSink) -> Result<RaidResult>;
 ```
 
-Фиксированный порядок фаз: **stash → rinse → pack → move**. Если stash (или любая включённая фаза) не удалась — следующие не выполняются (fail-fast). Уже записанные артефакты не откатываются автоматически; их пути возвращаются в `den_artifacts`.
+Фиксированный порядок фаз: **stash → rinse → pack → move**. По умолчанию (`OrchestrationMode::Atomic`) артефакты пишутся во временный `den/staging/{id}/`, а в den переносятся только в commit; неудачный commit откатывается через WAL — отчёт получает `rolled_back: true`. В режиме `FailFast` (флаг `--fail-fast`) после первой упавшей фазы следующие не выполняются, а уже записанные артефакты остаются в den.
 
-**Статус: планируется (Alpha, фаза A3).**
+**Статус: реализовано.** CLI: `racc raid`.
 
 ## Отчёты и данные
 
@@ -265,7 +273,7 @@ pub fn raid(ctx: &AppContext, opts: &RaidOptions, identity: Option<&AgeIdentity>
   "stash_manifest": [
     { "original_path": "/home/user/DEV/PROJS/my-api/.env", "risk": "High", "size_bytes": 412 }
   ],
-  "tool": { "name": "raccpack", "core_version": "0.1.0" }
+  "tool": { "name": "raccpack", "core_version": "0.3.0" }
 }
 ```
 
@@ -277,7 +285,7 @@ pub fn raid(ctx: &AppContext, opts: &RaidOptions, identity: Option<&AgeIdentity>
 2. `DryRun` не создаёт файлов в `secrets/` и `packs/` и не удаляет источники.
 3. Имена в den уникальны за счёт timestamp + short_id.
 4. Пути в манифестах — относительно корня den.
-5. Fail-fast raid не удаляет уже записанные архивы автоматически.
+5. В режиме `Atomic` (по умолчанию) неудачный commit откатывается через WAL (`rolled_back`); в режиме `FailFast` уже записанные артефакты остаются в den.
 6. Все пути в API — `PathBuf`; интерфейсы нормализуют их до вызова.
 
 ## См. также

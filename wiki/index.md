@@ -26,11 +26,11 @@ features:
   - title: tar.zst
     details: Каждый проект пакуется в чистый tar.zst без секретов и мусора сборки.
   - title: CLI · TUI · Desktop
-    details: Одна бизнес-логика, три интерфейса. Сейчас в CLI доступны sniff, dig и pack, остальные команды — по roadmap.
+    details: Одна бизнес-логика, три интерфейса. Сейчас в CLI доступны sniff, dig, stash, rinse, pack и raid.
   - title: Безопасность по умолчанию
     details: Секреты маскируются в отчётах, dry-run перед разрушающими операциями.
   - title: Den — хранилище
-    details: Архивы проектов, а позже — зашифрованные секреты и JSON-манифесты операций.
+    details: Архивы проектов (tar.zst) — в packs/, зашифрованные секреты (age) — в secrets/, JSON-манифесты — в manifests/.
 ---
 
 ## Зачем это нужно
@@ -39,9 +39,7 @@ features:
 
 ## Пайплайн
 
-```
-sniff  →  dig  →  stash  →  rinse  →  pack  →  raid
-```
+<DenPipeline />
 
 ## Что дальше
 

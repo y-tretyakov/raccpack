@@ -19,6 +19,12 @@ pub enum Error {
         #[source]
         source: std::io::Error,
     },
+    /// Encryption/decryption failure in the age backend.
+    ///
+    /// The `message` never contains the passphrase (see
+    /// [`crate::archive::age_vault`] invariants).
+    #[error("encryption failed: {message}")]
+    Encrypt { message: String },
     /// Invalid configuration input.
     #[error("invalid configuration: {message}")]
     Config { message: String },
@@ -28,6 +34,24 @@ pub enum Error {
         found: String,
         expected: &'static str,
     },
+    /// Nothing to archive (empty selection).
+    #[error("nothing to stash: {message}")]
+    StashEmpty { message: String },
+    /// A path escapes the target root.
+    #[error("path outside target root: {path}")]
+    PathOutsideTarget { path: PathBuf },
+    /// A path exists but is not a regular file (directory, symlink, device…).
+    #[error("not a file: {path}")]
+    NotAFile { path: PathBuf },
+    /// A requested feature is not implemented in this version.
+    #[error("unsupported: {feature}")]
+    Unsupported { feature: String },
+    /// A git subprocess failed (missing binary, timeout, non-zero exit).
+    ///
+    /// The `message` carries git diagnostics only — never file contents or
+    /// secrets (see [`crate::git`] invariants).
+    #[error("git failed: {message}")]
+    Git { message: String },
     /// Catch-all for errors without a dedicated variant.
     #[error("{message}")]
     Other { message: String },
@@ -42,7 +66,37 @@ impl Error {
             Error::DenVersion { .. } => {
                 Some("Point den_dir at a compatible den, or migrate it with a future `racc den migrate` command.")
             }
+            Error::Encrypt { .. } => {
+                Some("Check that the passphrase is non-empty and the output path is writable.")
+            }
+            Error::StashEmpty { .. } => Some(
+                "No sensitive files matched the min-risk threshold; lower --min-risk or check `racc dig` output.",
+            ),
+            Error::PathOutsideTarget { .. } => {
+                Some("Provide paths strictly inside the project root.")
+            }
+            Error::NotAFile { .. } => Some("Provide regular file paths."),
+            Error::Unsupported { .. } => Some(
+                "This version supports passphrase identities only; recipient keys arrive in a later release.",
+            ),
+            Error::Git { .. } => Some(
+                "Ensure git is installed and on PATH; git status is best-effort and never fails the command.",
+            ),
             _ => None,
+        }
+    }
+}
+
+impl From<crate::config::ConfigError> for Error {
+    fn from(err: crate::config::ConfigError) -> Self {
+        match err {
+            crate::config::ConfigError::FileNotFound { path } => Error::PathNotFound { path },
+            crate::config::ConfigError::ScanRootMissing { path } => Error::PathNotFound { path },
+            crate::config::ConfigError::Read { path, source } => Error::Io { path, source },
+            crate::config::ConfigError::Write { path, source } => Error::Io { path, source },
+            other => Error::Config {
+                message: other.to_string(),
+            },
         }
     }
 }
@@ -72,6 +126,11 @@ mod tests {
         assert!(err.to_string().contains("io error at /tmp"));
         let dyn_err: &dyn std::error::Error = &err;
         assert!(dyn_err.source().is_some());
+
+        let empty = Error::StashEmpty {
+            message: "no files".into(),
+        };
+        assert_eq!(empty.to_string(), "nothing to stash: no files");
     }
 
     #[test]
@@ -89,6 +148,70 @@ mod tests {
             }
             .suggestion(),
             Some("Provide a directory path, not a file.")
+        );
+        assert_eq!(
+            Error::DenVersion {
+                found: "9".into(),
+                expected: "1"
+            }
+            .suggestion(),
+            Some("Point den_dir at a compatible den, or migrate it with a future `racc den migrate` command.")
+        );
+        assert_eq!(
+            Error::Encrypt {
+                message: "x".into()
+            }
+            .suggestion(),
+            Some("Check that the passphrase is non-empty and the output path is writable.")
+        );
+        assert_eq!(
+            Error::StashEmpty {
+                message: "x".into()
+            }
+            .suggestion(),
+            Some("No sensitive files matched the min-risk threshold; lower --min-risk or check `racc dig` output.")
+        );
+        assert_eq!(
+            Error::PathOutsideTarget {
+                path: PathBuf::from("/tmp/x")
+            }
+            .suggestion(),
+            Some("Provide paths strictly inside the project root.")
+        );
+        assert_eq!(
+            Error::NotAFile {
+                path: PathBuf::from("/tmp/x")
+            }
+            .suggestion(),
+            Some("Provide regular file paths.")
+        );
+        assert_eq!(
+            Error::PathOutsideTarget {
+                path: PathBuf::from("/tmp/x")
+            }
+            .to_string(),
+            "path outside target root: /tmp/x"
+        );
+        assert_eq!(
+            Error::NotAFile {
+                path: PathBuf::from("/tmp/x")
+            }
+            .to_string(),
+            "not a file: /tmp/x"
+        );
+        assert_eq!(
+            Error::Unsupported {
+                feature: "age recipient identities".into()
+            }
+            .to_string(),
+            "unsupported: age recipient identities"
+        );
+        assert_eq!(
+            Error::Unsupported {
+                feature: "x".into()
+            }
+            .suggestion(),
+            Some("This version supports passphrase identities only; recipient keys arrive in a later release.")
         );
         assert_eq!(
             Error::Config {
@@ -112,5 +235,31 @@ mod tests {
             message: "x".into(),
         });
         assert!(r.is_err());
+    }
+
+    #[test]
+    fn config_error_converts_to_domain_error() {
+        let not_found = crate::config::ConfigError::FileNotFound {
+            path: PathBuf::from("/nonexistent/config.toml"),
+        };
+        let err: Error = not_found.into();
+        match err {
+            Error::PathNotFound { path } => {
+                assert_eq!(path, PathBuf::from("/nonexistent/config.toml"))
+            }
+            other => panic!("expected PathNotFound, got {other:?}"),
+        }
+
+        let bad_ver = crate::config::ConfigError::IncompatibleVersion {
+            found: 9,
+            current: 1,
+        };
+        let err: Error = bad_ver.into();
+        match err {
+            Error::Config { message } => {
+                assert!(message.contains("incompatible config version"))
+            }
+            other => panic!("expected Config error, got {other:?}"),
+        }
     }
 }

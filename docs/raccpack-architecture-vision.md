@@ -1,20 +1,22 @@
 # Raccpack — видение архитектуры
 
-**Статус:** vision / target architecture  
-**Контекст:** зелёный старт на основе идей `raccpack-core` (сканирование проектов, секреты, очистка, упаковка в den).  
+**Статус:** vision / target architecture (обновлено с учётом атомарной оркестрации, композитных детекторов и эфемерной верификации секретов)  
+**Контекст:** развитие поверх текущего `dev` (MVP 0.1.0 закрыт; Alpha: stash + rinse доступны, raid в работе).  
 **Не цель документа:** API каждой функции или UI-макеты. Цель — **что за системы, границы, потоки данных и кто чем владеет**.
 
 ---
 
 ## 1. Продукт в одном абзаце
 
-Пользователь указывает **корневую папку с проектами** и **папку вывода (den)**. Система обходит дерево, определяет стек каждого проекта, находит секреты (ключи, токены, connection strings, credential-файлы), **убирает их из рабочих копий** в зашифрованные age-архивы, **чистит** мусор сборки, **упаковывает** каждый проект отдельно и складывает артефакты в den. Управление — через CLI, терминальный TUI или Desktop (Tauri).
+Пользователь указывает **корневую папку с проектами** и **папку вывода (den)**. Система обходит дерево, определяет стек каждого проекта (включая гибридные и монорепозитории), находит секреты (ключи, токены, connection strings, credential-файлы), **убирает их из рабочих копий** в зашифрованные age-архивы, **чистит** мусор сборки по релевантным поддеревьям, **упаковывает** каждый проект отдельно и складывает артефакты в den. Управление — через CLI, терминальный TUI или Desktop (Tauri).
 
 **Инварианты безопасности:**
 
 - Сырые секреты не пишутся в логи, отчёты по умолчанию и IPC без явного opt-in.
 - Шифрование секретов — **age** (passphrase или recipients); 7z и прочее — опциональные backend’ы, не ядро доверия.
 - «Очистка» и «упаковка» по умолчанию **dry-run / confirm**, пока пользователь не подтвердит destructive-режим.
+- Оркестрация `raid` по умолчанию **атомарна**: либо полный успех, либо откат к исходному состоянию (нет orphan-артефактов).
+- Сырые значения секретов могут быть показаны только через **эфемерный reveal** (opt-in, zeroize, без persistence).
 
 ---
 
@@ -35,20 +37,21 @@
 │       └────────────────┼──────────────────────┘                 │
 │                        ▼                                        │
 │              Application services (facade)                        │
-│         snif / dig / stash / rinse / pack / raid / report         │
+│   sniff / dig / stash / rinse / pack / raid / report / reveal    │
 └────────────────────────┬────────────────────────────────────────┘
                          ▼
 ┌────────────────────────────────────────────────────────────────┐
 │                     raccpack-core (library)                      │
 │  domain │ scan │ detect │ secrets │ clean │ archive │ config     │
-│  policy │ git  │ cache  │ report  │ error │ skip                 │
+│  policy │ git  │ cache  │ report  │ error │ skip │ orchestration │
+│  wal    │ rollback                                                │
 └────────┬───────────────┬─────────────────────┬──────────────────┘
          ▼               ▼                     ▼
    filesystem         git (opt)            age / tar+zstd
    (walk, IO)         subprocess           (encrypt, pack)
 ```
 
-**Правило:** вся **бизнес-логика** живёт в `raccpack-core`. CLI / TUI / Desktop **не** дублируют эвристики секретов, правила skip и формат отчётов — только adapt UI ↔ core API.
+**Правило:** вся **бизнес-логика** живёт в `raccpack-core`. CLI / TUI / Desktop **не** дублируют эвристики секретов, правила skip, логику детекции стека и формат отчётов — только adapt UI ↔ core API.
 
 ---
 
@@ -56,16 +59,17 @@
 
 ### 3.1. `raccpack-core` — ядро
 
-Чистая library-crate (или workspace-crate без binary).
+Чистая library-crate (workspace-crate без binary).
 
 | Подсистема | Ответственность |
 |------------|-----------------|
-| **config** | Схема TOML, load/validate/migrate, пути den / scan root, feature flags (groups секретов, dry-run, parallel_jobs). |
+| **config** | Схема TOML, load/validate/migrate, пути den / scan root, feature flags (groups секретов, dry-run, parallel_jobs, detect_mode, orchestration_mode). |
 | **scan** | Обход дерева, политики skip, кандидаты проектов (markers, `.git`, wrapper-логика). |
-| **detect** | Языки и фреймворки → `Stack` / `Project`. |
-| **secrets** | Filename patterns, content markers, heuristics, risk model, repeated secrets, git status файла. |
-| **clean (rinse)** | Известный «мусор» (`node_modules`, `target`, caches…) по стратегиям и конфигу. |
-| **archive** | Pack проекта (tar+zstd и т.п.), stash секретов (age), перемещение в den. |
+| **detect** | Языки и фреймворки → `Stack` / `Project`. Поддерживает **PriorityTable** (legacy) и **CompositeDag** (монорепо / гибриды). |
+| **secrets** | Filename patterns, content markers, heuristics, risk model, repeated secrets, git status файла. Masked-by-default + ephemeral reveal. |
+| **clean (rinse)** | Известный «мусор» (`node_modules`, `target`, caches…) по стратегиям; учитывает DAG стека (чистит только релевантные поддеревья). |
+| **archive** | Pack проекта (tar+zstd), stash секретов (age), перемещение в den. |
+| **orchestration** | `raid`: фазы, progress, **WAL**, атомарный commit через rename, rollback. |
 | **git** | Опционально: dirty state, tracked/untracked/ignored для sensitive files. За интерфейсом `GitClient`. |
 | **cache** | Кэш результатов sniff (версия схемы, инвалидация). |
 | **report** | Стабильные DTO: `ScanReport`, `SensitiveFile`, `RaidResult`… serde-friendly. |
@@ -73,28 +77,30 @@
 
 **Ядро не знает** про Ratatui, Tauri, React, stdin prompts (кроме возврата данных для UI). Прогресс длинных операций — через callback / channel / `Iterator` событий, который UI подписывает.
 
-### 3.2. Application facade (может быть частью core или тонкий `raccpack-app`)
+### 3.2. Application facade (часть core или тонкий `raccpack-app`)
 
 Операции уровня use-case:
 
 | Операция | Смысл |
 |----------|--------|
-| **sniff** | Найти проекты + стек + размеры (+ git summary). |
-| **dig** | Найти секреты в root или в одном проекте. |
+| **sniff** | Найти проекты + стек (плоский или дерево/DAG) + размеры (+ git summary). |
+| **dig** | Найти секреты в root или в одном проекте (masked). |
 | **stash** | Вынести секреты в age-архив, опционально удалить/заменить в дереве. |
-| **rinse** | Удалить trash dirs по стратегиям. |
+| **rinse** | Удалить trash dirs по стратегиям (с учётом DAG). |
 | **pack** | Упаковать проект без секретов/мусора в архив. |
-| **raid** | Оркестрация: stash → rinse → pack → move to den (с фазами и progress). |
+| **raid** | Оркестрация: stash → rinse → pack → commit в den. По умолчанию **атомарно** (WAL + rollback). |
+| **reveal** | Эфемерный просмотр сырого значения конкретной находки (opt-in, zeroize). |
 | **report** | Экспорт JSON/текст для CI. |
 
-Facade принимает `RaccConfig` + paths + `dry_run` + progress sink. Возвращает typed `Result`.
+Facade принимает `RaccConfig` + paths + `dry_run` + progress sink + orchestration/detect mode. Возвращает typed `Result`.
 
 ### 3.3. CLI
 
 - Парсинг args (`clap`), глобальные флаги: `--config`, `--dry-run`, `--json`, `--den`, `--root`.
 - Вызов facade, human или JSON output.
-- Exit codes: 0 ok, 1 ошибка, 2 найдены CRITICAL секреты (политика настраивается).
+- Exit codes: 0 ok, 1 ошибка (в т.ч. после успешного rollback), 2 найдены CRITICAL секреты (политика настраивается).
 - Без собственного «ума» про паттерны секретов.
+- Интерактивный reveal через защищённый терминальный ввод (не пишет в history).
 
 ### 3.4. TUI (Ratatui)
 
@@ -102,6 +108,7 @@ Facade принимает `RaccConfig` + paths + `dry_run` + progress sink. Во
 - Подписка на progress events от `raid` / long scan.
 - Те же facade-вызовы, что CLI; состояние экрана — локально в TUI.
 - Не ходит в FS в обход core.
+- Reveal — модальный безопасный просмотр с немедленным стиранием.
 
 ### 3.5. Desktop (Tauri + React + Zustand + BFF)
 
@@ -109,6 +116,7 @@ Facade принимает `RaccConfig` + paths + `dry_run` + progress sink. Во
 ┌──────────── React (UI) ────────────┐
 │  Zustand stores: scan, secrets,    │
 │  raid progress, settings           │
+│  (только masked DTO)               │
 └──────────────┬─────────────────────┘
                │ invoke / events
 ┌──────────────▼─────────────────────┐
@@ -117,6 +125,7 @@ Facade принимает `RaccConfig` + paths + `dry_run` + progress sink. Во
 │  - validate paths                  │
 │  - map DTO ↔ frontend types        │
 │  - spawn long jobs, emit events    │
+│  - reveal_secret_ephemeral         │
 │  - never expose raw secrets by def │
 └──────────────┬─────────────────────┘
                │
@@ -124,13 +133,12 @@ Facade принимает `RaccConfig` + paths + `dry_run` + progress sink. Во
          raccpack-core
 ```
 
-**BFF (Backend-for-Frontend)** здесь — **Rust-команды Tauri**, не отдельный HTTP-сервер по умолчанию:
+**BFF (Backend-for-Frontend)** — **Rust-команды Tauri**:
 
 - Тонкая адаптация: пути, ошибки → UI-friendly messages, streaming progress через Tauri events.
-- React **не** содержит эвристик секретов и не читает произвольные файлы с диска напрямую (только через commands).
+- React **не** содержит эвристик секретов и не читает произвольные файлы с диска напрямую.
 - Zustand хранит **уже отфильтрованные** отчёты (masked secrets), не raw values.
-
-Опционально позже: headless BFF (HTTP localhost) для remote UI — не требуется в v1.
+- Reveal: сырая строка передаётся напрямую в изолированный React-компонент, минуя глобальный store; при закрытии модалки — zeroize на стороне Rust.
 
 ---
 
@@ -138,15 +146,17 @@ Facade принимает `RaccConfig` + paths + `dry_run` + progress sink. Во
 
 ```
 1. Выбрать scan_root + den_dir
-2. sniff(scan_root)  →  список Project + Stack + size
-3. dig(scan_root | project)  →  SensitiveFile[] + RepeatedSecret[]
-4. [UI] пользователь смотрит risk, git status, подтверждает
-5. raid(project, den, dry_run=false):
-     a. stash  →  age archive с секретами в den/secrets/…
-     b. rinse  →  удаление trash
-     c. pack   →  project archive без секретов
-     d. move   →  финальное размещение в den
-6. Отчёт: что убрано, куда легли архивы, success per stage
+2. sniff(scan_root)  →  список Project + Stack (или дерево/DAG) + size
+3. dig(scan_root | project)  →  SensitiveFile[] + RepeatedSecret[] (masked)
+4. [UI] пользователь смотрит risk, при необходимости reveal конкретной находки
+5. raid(project, den, dry_run=false, mode=Atomic):
+     a. создать staging/{raid_id}/ + WAL
+     b. stash  →  age archive во staging
+     c. rinse  →  удаление trash (с учётом DAG)
+     d. pack   →  project archive во staging
+     e. commit →  атомарный rename в den/secrets, den/packs, den/manifests
+     f. при любой ошибке → rollback по WAL, очистка staging
+6. Отчёт: что убрано, куда легли архивы, success, rolled_back?
 ```
 
 Пакетный режим CLI: `racc raid --root ~/DEV/PROJS --den ~/.raccpack/den --yes`.
@@ -170,9 +180,10 @@ Facade принимает `RaccConfig` + paths + `dry_run` + progress sink. Во
 |-------|--------|----------------|
 | ScanReport, dig results | struct / JSON | CLI, TUI, Desktop |
 | Progress events | phase, %, message | TUI, Desktop, CLI spinner |
-| Secret archives | `.age` (или chosen backend) | den |
+| Secret archives | `.age` | den |
 | Project archives | `.tar.zst` | den |
 | Logs | tracing, **без raw secrets** | все frontends |
+| Ephemeral reveal | одноразовый in-memory | CLI / TUI / Desktop (opt-in) |
 
 ### 5.3. Секреты
 
@@ -180,27 +191,102 @@ Facade принимает `RaccConfig` + paths + `dry_run` + progress sink. Во
 disk file  →  secrets engine (match)  →  Risk + masked preview
                  │
                  ├─ report (masked / hash only)
-                 └─ stash path: read bytes → age encrypt → write archive
-                                  → optional delete/redact source
+                 ├─ stash path: read bytes → age encrypt → write archive
+                 │                → optional delete/redact source
+                 └─ reveal (opt-in): EphemeralSecret → UI → Drop/zeroize
 ```
 
-Frontend получает `masked`, `value_hash`, `path`, `risk`. Raw — только внутри core на время encrypt и только при explicit reveal в trusted UI flow.
+Frontend получает `masked`, `value_hash`, `path`, `risk`. Raw — только внутри core на время encrypt/reveal и только при explicit opt-in.
 
 ---
 
-## 6. Границы доверия
+## 6. Оркестрация raid и атомарность
+
+### 6.1. Проблема fail-fast без отката
+
+При ошибке одной фазы (например, pack после успешного stash) классический fail-fast оставляет orphan-артефакты в `staging/` / `secrets/`. Это перекладывает уборку на пользователя и нарушает обещание надёжности.
+
+### 6.2. Целевое поведение (Atomic)
+
+1. Весь `raid` работает в одном `staging/{raid_id}/`.
+2. Каждый побочный эффект записывается в **Write-Ahead Log** (WAL) **до** выполнения.
+3. Финальные пути в den появляются **только** через атомарный `rename` при 100 % успехе всех фаз.
+4. При любом `Err`:
+   - WAL читается в обратном порядке;
+   - действия откатываются;
+   - `staging/{raid_id}/` удаляется.
+5. После rollback система гарантированно в исходном состоянии.
+
+### 6.3. Режимы
+
+| Режим | Поведение | Когда |
+|-------|-----------|--------|
+| **Atomic** (default) | WAL + rollback | production, `--yes` |
+| **FailFast** | прерывание без отката (legacy/debug) | `--fail-fast` |
+
+Dry-run не создаёт WAL и не трогает FS.
+
+### 6.4. Resume
+
+Полноценный resume (продолжение с места остановки без повторного шифрования) **вне scope** первой реализации атомарности. WAL достаточно богат, чтобы добавить resume позже как опциональный режим.
+
+---
+
+## 7. Детекция стека: от PriorityTable к CompositeDag
+
+### 7.1. Текущее ограничение
+
+«Один язык ≈ один файл + статическая таблица приоритетов» хорошо работает для простых проектов, но слепнет на монорепозиториях и гибридах (Rust backend + React frontend). Контекст вложенности теряется; rinse может оставить гигабайты нерелевантного мусора или удалить не то.
+
+### 7.2. Целевая модель
+
+- Детекторы остаются модульными (один язык / экосистема ≈ один модуль).
+- Появляется **WorkspaceDetector / CompositeDetector**:
+  - опрашивает все модули реестра;
+  - строит **DAG** технологий внутри дерева;
+  - не выбирает «одного победителя», а сливает экспертные мнения в богатое дерево проекта.
+- Фаза разрешения конфликтов: вложенность и confidence учитываются явно.
+
+### 7.3. Режимы
+
+| Режим | Описание | Default |
+|-------|----------|---------|
+| `PriorityTable` | текущее поведение (обратная совместимость) | да, до стабилизации DAG |
+| `CompositeDag` | дерево/DAG стека | включается конфигом / флагом |
+
+`rinse` и `pack` выигрывают от DAG: чистят и упаковывают только релевантные поддеревья.
+
+---
+
+## 8. Эфемерная верификация секретов (Safe Reveal)
+
+### 8.1. Проблема masked-by-default
+
+Абсолютное маскирование без безопасного просмотра создаёт слепую зону: пользователь не может отличить false-positive (тестовый токен) от реальной утечки. Итог — либо игнор шума, либо случайное удаление нужного кода.
+
+### 8.2. Целевое поведение
+
+- По умолчанию всё masked.
+- Opt-in **ephemeral reveal**:
+  - CLI: интерактивный флаг / подкоманда, защищённый терминальный ввод, стирание из history.
+  - Desktop: IPC `reveal_secret_ephemeral` → изолированный React-компонент (минуя Zustand) → zeroize при закрытии модалки.
+  - TUI: аналогичный безопасный modal.
+- Сырое значение **никогда** не попадает в глобальный store, логи, JSON-отчёты, clipboard (без отдельного явного подтверждения).
+- Опциональный audit-log факта запроса (без значения).
+
+### 8.3. Границы доверия (уточнение)
 
 | Зона | Доверие | Правило |
 |------|---------|---------|
 | **core** | highest | Единственное место, где raw secret в памяти допустим; zeroize после use. |
 | **CLI/TUI** | high (local user) | Могут запросить reveal; по умолчанию masked. |
-| **Desktop renderer (React)** | lower | Не получает raw; только DTO через BFF. XSS/plugins не должны читать passphrase из store. |
+| **Desktop renderer (React)** | lower | Не получает raw в store; только через изолированный ephemeral path. |
 | **den на диске** | user-managed | age-файлы; права FS на пользователе. |
 | **CI mode** | machine | JSON report + fail on CRITICAL; обычно без reveal. |
 
 ---
 
-## 7. Workspace (рекомендуемая структура репо)
+## 9. Workspace (рекомендуемая структура репо)
 
 ```
 raccpack/
@@ -214,80 +300,42 @@ raccpack/
     desktop-ui/              # React + Zustand (Vite)
   docs/
     architecture-vision.md   # этот документ
+    roadmap-v1.md            # дорожная карта
     ...
+  wiki/                      # пользовательская документация (VitePress)
 ```
 
 Зависимости:
 
 - `cli` / `tui` / `tauri` → `raccpack-core`
-- `desktop-ui` → только через Tauri IPC, не через npm-копию логики
+- `desktop-ui` → только через Tauri IPC
 - `core` **не** зависит от clap / ratatui / tauri / react
 
 ---
 
-## 8. Контракты между UI и core
+## 10. Контракты между UI и core
 
-### 8.1. Стабильные DTO (serde)
+### 10.1. Стабильные DTO (serde)
 
-Примеры (имена ориентировочные):
-
-- `ScanReport { root, projects: [Project], total_size_bytes }`
-- `Project { path, name, stack, size_bytes, is_git_repo, git_state?, … }`
-- `SensitiveFile { path, risk, git_status, content_match? }`
+- `ScanReport { root, projects: [Project], total_size_bytes, schema_version }`
+- `Project { path, name, stack, stack_tree?, size_bytes, is_git_repo, git_state?, … }`
+- `SensitiveFile { path, risk, git_status, content_match?, value_hash, masked }`
 - `RaidProgress { phase, progress, message, phase_complete }`
-- `RaidResult { stages, success, paths to artefacts }`
+- `RaidResult { stages, success, rolled_back, paths_to_artefacts }`
+- `EphemeralSecret` — не serde в отчёты; только in-memory, `Drop + zeroize`
 
-Версионирование: поле `schema_version` в JSON-отчётах для CI.
+### 10.2. Progress
 
-### 8.2. Progress
+UI подписывается → core шлёт события по фазам → UI не блокирует event loop.
 
-```text
-UI подписывается → core шлёт события по фазам raid/sniff
-                 → UI не блокирует event loop (async или thread + channel)
-```
-
-CLI: progress bar / тихие логи.  
-TUI: redraw по event.  
-Desktop: `app.emit("raid-progress", payload)`.
-
-### 8.3. Ошибки
+### 10.3. Ошибки
 
 Один тип `raccpack_core::Error` (+ `ConfigError`) с `suggestion()` для UX.  
 UI мапит в строки; не парсит текст ошибок regex’ом.
 
 ---
 
-## 9. Ключевые сценарии взаимодействия
-
-### CLI only
-
-```
-user → clap → facade.sniff/dig/raid → stdout/JSON → exit code
-```
-
-### TUI
-
-```
-user keypress → tui state machine → facade (background thread)
-             ← progress + report ← core
-             → panels update
-```
-
-### Desktop
-
-```
-React action → Zustand → invoke("raid", { root, den, dryRun })
-                      → Tauri command (BFF)
-                      → core::raid + emit progress events
-                      → Zustand listener updates UI
-                      → result in store (masked)
-```
-
-Passphrase: отдельный secure prompt (Tauri dialog / system), в React store не класть длинноживущей строкой; передать в command и забыть.
-
----
-
-## 10. Конфигурация и пути
+## 11. Конфигурация и пути
 
 ```
 RACCPACK_CONFIG  →  override config path
@@ -295,65 +343,75 @@ RACCPACK_CONFIG  →  override config path
 
 scan_root   — где лежат проекты (вход)
 den_dir     — куда складывать архивы (выход)
+
+[detect]
+mode = "priority_table" | "composite_dag"
+
+[orchestration]
+mode = "atomic" | "fail_fast"
 ```
 
-UI (все три) умеют override через flags / settings screen; core резолвит relative paths от HOME и **ошибется**, если HOME/XDG недоступны и путь не абсолютный.
+UI (все три) умеют override через flags / settings; core резолвит relative paths от HOME.
 
 ---
 
-## 11. Расширяемость
+## 12. Расширяемость
 
 | Что | Как |
 |-----|-----|
-| Новые языки | markers + detect rules в core |
+| Новые языки | markers + detect rules / модули в core |
 | Новые secret patterns | groups + tables в secrets; toggle в config |
-| Другой encrypt backend | trait `SecretVault` / `EncryptionBackend` в archive |
+| Другой encrypt backend | trait `SecretVault` / `EncryptionBackend` |
 | Другой UI | только новый frontend на том же facade |
 | CI | CLI `--json` + exit policy |
+| Атомарность | WAL + rollback в orchestration (уже в core) |
 
-Плагины v1 **не** нужны: данные tables + config groups достаточно.
+Плагины сторонних pattern-pack’ов до 1.0.0 **не** нужны.
 
 ---
 
-## 12. Нефункциональные требования (архитектурные)
+## 13. Нефункциональные требования (архитектурные)
 
-- **Безопасность:** masked by default; age; zeroize; no secrets in traces.
+- **Безопасность:** masked by default; age; zeroize; no secrets in traces; ephemeral reveal only.
+- **Атомарность:** raid либо полностью успешен, либо оставляет систему чистой.
 - **Производительность:** один проход walk где возможно; parallel sniff с лимитом jobs; cache sniff.
 - **Предсказуемость:** dry-run по умолчанию для destructive ops; явный `--yes` / confirm в UI.
-- **Тестируемость:** core без UI; `GitClient` mock; tempfile fixtures.
-- **Портативность:** Linux primary; macOS/Windows — через те же crate, FS paths через `Path`.
+- **Тестируемость:** core без UI; `GitClient` mock; tempfile fixtures; orphan/rollback regression suite.
+- **Портативность:** Linux primary; macOS/Windows — через те же crate.
 
 ---
 
-## 13. Что сознательно вне scope v1
+## 14. Что сознательно вне scope v1 / до 1.0.0
 
 - Облачный sync den
 - Автоматический PR «удали секреты»
 - Полноценный secret manager (Vault/KMS) как primary store
 - HTTP multi-user server
-- Редактирование файлов проекта «умным» redact (достаточно delete/stash)
+- Редактирование файлов проекта «умным» redact
+- Resume после сбоя raid (можно добавить позже поверх WAL)
+- Плагины сторонних детекторов
 
 ---
 
-## 14. Карта решений (коротко)
+## 15. Карта решений (коротко)
 
 | Вопрос | Решение |
 |--------|---------|
 | Где бизнес-логика? | Только `raccpack-core` |
-| Кто оркестрирует raid? | Facade в core (или app-crate), UI только триггерит |
+| Кто оркестрирует raid? | Facade + orchestration в core; UI только триггерит |
+| Как обеспечить отсутствие orphan? | Staging + WAL + atomic rename + rollback |
+| Как определять стек в monorepo? | CompositeDag (опционально), PriorityTable для совместимости |
+| Как не светить секреты? | DTO masked; reveal opt-in ephemeral; zeroize в core |
 | Как Desktop говорит с core? | Tauri commands = BFF, React ↔ IPC |
-| Где state UI? | TUI local; Desktop Zustand; CLI stateless |
-| Как не светить секреты? | DTO masked; reveal opt-in; zeroize в core |
-| Откуда берётся стек? | detect по markers/файлам, не по shebang alone |
+| Где state UI? | TUI local; Desktop Zustand (masked only); CLI stateless |
 | Куда артефакты? | `den_dir`, структура подпроектов/даты — policy core |
 
 ---
 
-## 15. Следующий шаг после этого документа
+## 16. Следующий шаг
 
-1. Зафиксировать **workspace + пустой core API surface** (DTO + facade signatures).  
-2. Перенести/реализовать scan → detect → secrets → archive по приоритету.  
-3. Тонкий CLI как первый consumer.  
-4. TUI и Desktop — когда facade стабилен (не раньше).
+1. Зафиксировать обновлённый roadmap (см. `raccpack-roadmap-v1.md`).
+2. Для каждого нового/изменённого этапа написать отдельную спеку в `docs/`.
+3. Начать с атомарности внутри A3 (raid) — это закрывает самый острый риск надёжности.
 
-Документ можно уточнять, но **правило границы core / UI** менять не стоит: иначе эвристики и политики разъедутся между CLI, TUI и React.
+Документ можно уточнять, но **правило границы core / UI** и **инварианты безопасности + атомарности** менять не стоит.

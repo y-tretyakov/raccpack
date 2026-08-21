@@ -18,6 +18,8 @@ pub enum CliError {
     Core(Error),
     /// The output could not be serialized.
     Json(serde_json::Error),
+    /// The stash passphrase could not be read or confirmed.
+    Passphrase { message: String },
 }
 
 impl fmt::Display for CliError {
@@ -26,6 +28,7 @@ impl fmt::Display for CliError {
             Self::Config(err) => write!(f, "{err}"),
             Self::Core(err) => write!(f, "{err}"),
             Self::Json(err) => write!(f, "failed to serialize output: {err}"),
+            Self::Passphrase { message } => write!(f, "{message}"),
         }
     }
 }
@@ -69,6 +72,9 @@ impl CliError {
             Self::Config(err) => err.suggestion(),
             Self::Core(err) => err.suggestion(),
             Self::Json(_) => None,
+            Self::Passphrase { message: _ } => {
+                Some("set RACCPACK_PASSPHRASE or run `racc stash --yes` in an interactive terminal")
+            }
         }
     }
 }

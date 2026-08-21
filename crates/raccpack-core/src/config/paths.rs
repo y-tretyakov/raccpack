@@ -22,11 +22,11 @@ use std::path::{Path, PathBuf};
 use super::ConfigError;
 
 /// Default output directory when `paths.den_dir` is not configured.
-pub(super) const DEFAULT_DEN_DIR: &str = "~/.raccpack/den";
+pub const DEFAULT_DEN_DIR: &str = "~/.raccpack/den";
 
 /// Expand `~`/`~/…` to `$HOME`, join relative paths with `current_dir()`, and
 /// leave absolute paths untouched.
-pub(super) fn resolve_path(raw: &str) -> Result<PathBuf, ConfigError> {
+pub fn resolve_path(raw: &str) -> Result<PathBuf, ConfigError> {
     if let Some(rest) = raw.strip_prefix('~') {
         let home = std::env::var_os("HOME").ok_or_else(|| ConfigError::PathResolve {
             raw: raw.to_string(),
@@ -59,7 +59,7 @@ pub(super) fn non_empty(raw: &Option<String>) -> Option<&str> {
 ///
 /// `$XDG_CONFIG_HOME/raccpack/config.toml`, or `~/.config/raccpack/config.toml`
 /// when `XDG_CONFIG_HOME` is not set.
-pub(super) fn default_config_path() -> Result<PathBuf, ConfigError> {
+pub fn default_config_path() -> Result<PathBuf, ConfigError> {
     if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME") {
         return Ok(PathBuf::from(xdg).join("raccpack").join("config.toml"));
     }

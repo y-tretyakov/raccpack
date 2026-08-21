@@ -3,29 +3,47 @@
 pub mod app;
 pub mod archive;
 pub mod cache;
+pub mod clean;
 pub mod config;
 pub mod den;
 pub mod detect;
 pub mod domain;
+pub mod git;
 pub mod scan;
 pub mod secrets;
 
 pub use app::{
-    dig, exit_code_for_secrets, pack, sniff, AppContext, DigOptions, DigResult, NullProgress,
-    OperationKind, PackOptions, PackResult, ProgressEvent, ProgressSink, RepeatedSecret, RunMode,
-    SecretExitPolicy, SensitiveFile, SniffOptions, SniffResult, WorkspacePaths,
+    dig, dig_with_git, exit_code_for_secrets, pack, raid, rinse, sniff, stash, AgeIdentity,
+    AppContext, DigOptions, DigResult, NullProgress, OperationKind, OrchestrationMode, PackOptions,
+    PackPhaseOpts, PackResult, ProgressEvent, ProgressSink, RaidOptions, RaidResult,
+    RaidStageResult, RepeatedSecret, RinseOptions, RinsePhaseOpts, RinseResult, RunMode,
+    SecretExitPolicy, SensitiveFile, SniffOptions, SniffResult, StashOptions, StashPhaseOpts,
+    StashResult, WorkspacePaths,
 };
 pub use archive::{
     pack_tree, should_deny_file_in_pack, ContentDenyOptions, PackTreeOptions, PackTreeResult,
 };
 pub use cache::{store_sniff_cache, try_load_sniff_cache};
-pub use config::{ConfigError, PathsConfig, RaccConfig, ScannerConfig};
+pub use clean::{
+    find_trash_dirs, remove_trash_dir, DetectTrashOptions, StrategyDef, StrategyId, TrashDir,
+    TrashMatchKind, TrashPattern, DEFAULT_STRATEGIES,
+};
+pub use config::{
+    default_config_path, default_config_version, default_toml, init_config, migrate_to_current,
+    CleanupConfig, ConfigError, InitOptions, InitResult, PathsConfig, RaccConfig, ScannerConfig,
+    CURRENT_CONFIG_VERSION, DEFAULT_DEN_DIR,
+};
 pub use den::{
-    ensure_den, pack_relative_path, place_pack, project_slug, short_id, staging_pack_path,
-    utc_timestamp_now, DenPaths, PlacePackRequest, PlacePackResult, DEN_VERSION,
+    ensure_den, manifest_relative_path, pack_relative_path, place_pack, place_secrets_archive,
+    project_slug, secrets_relative_path, short_id, staging_pack_path, utc_timestamp_now,
+    write_manifest, DenManifest, DenPaths, ManifestArtifacts, ManifestStage, PlacePackRequest,
+    PlacePackResult, PlaceSecretsRequest, PlaceSecretsResult, DEN_VERSION, MANIFEST_SCHEMA_VERSION,
 };
 pub use detect::{candidate_to_project, detect_stack, detect_stacks, stack_from_candidate};
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};
+pub use git::{
+    find_repo_root, GitClient, GitFileStatus, GitState, MockGitClient, ProcessGitClient,
+};
 pub use scan::{
     default_markers, ensure_scan_root, find_candidates, project_size_bytes, skip::SkipPolicy,
     skip::SkipReason, walk::WalkOptions, walk_tree, CandidateOptions, MarkerDef, MarkerHit,

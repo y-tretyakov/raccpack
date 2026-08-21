@@ -5,17 +5,30 @@ use clap::Parser;
 mod cli;
 mod commands;
 mod error;
+mod logging;
 mod output;
 mod output_pack;
+mod output_raid;
+mod output_rinse;
+mod output_stash;
+mod passphrase;
+mod progress;
 
 use crate::cli::{Cli, Commands};
 use crate::commands::run_dig;
+use crate::commands::run_init;
 use crate::commands::run_pack;
+use crate::commands::run_raid;
+use crate::commands::run_rinse;
 use crate::commands::run_sniff;
+use crate::commands::run_stash;
 use crate::error::CliError;
+use tracing::debug;
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    logging::init_tracing(cli.global.verbose);
+    debug!(verbose = cli.global.verbose, "racc starting");
     match run(cli) {
         Ok(code) => code,
         Err(err) => {
@@ -35,6 +48,19 @@ fn run(cli: Cli) -> Result<ExitCode, CliError> {
         Commands::Dig(args) => run_dig(global, args),
         Commands::Pack(args) => {
             run_pack(global, args)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        Commands::Stash(args) => {
+            run_stash(global, args)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        Commands::Rinse(args) => {
+            run_rinse(global, args)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        Commands::Raid(args) => run_raid(global, args),
+        Commands::Init(args) => {
+            run_init(global, args)?;
             Ok(ExitCode::SUCCESS)
         }
     }

@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::archive::{pack_tree, ContentDenyOptions, PackTreeOptions};
 use crate::den::{
-    create_dir_all, ensure_den, pack_relative_path, place_pack_ensured, project_slug, short_id,
-    staging_pack_path, utc_timestamp_now, validate_output_name, PlacePackRequest,
+    create_dir_all, ensure_den, place_pack_ensured, project_slug, short_id, staging_pack_path,
+    utc_timestamp_now, validate_output_name, PlacePackRequest,
 };
 use crate::domain::{Error, Result, SensitiveRisk};
 use crate::scan::skip::SkipPolicy;
@@ -24,6 +24,10 @@ use crate::scan::walk::ensure_scan_root;
 
 use super::context::AppContext;
 use super::progress::{OperationKind, ProgressEvent, ProgressSink};
+
+mod naming;
+
+use naming::{artifact_rel, resolve_artifact_name};
 
 /// Options controlling [`pack`].
 #[derive(Debug, Clone)]
@@ -44,6 +48,16 @@ pub struct PackOptions {
     /// config field does not exist yet on MVP; this stage self-hosts a default
     /// of 3.
     pub zstd_level: Option<u32>,
+    /// Stage-only mode for atomic raid: write `{dir}/pack.tar.zst` without
+    /// placement into the den; `output` reports the final expected path and
+    /// `size_bytes` is read from the staged archive. `None` → normal Commit
+    /// placement.
+    pub staging_dir: Option<PathBuf>,
+    /// Paths omitted from the archive silently (not counted as secret denies).
+    ///
+    /// Used by the atomic raid to exclude files already stashed, mirroring the
+    /// fail-fast commit where stash removed them before pack ran.
+    pub exclude_files: Vec<PathBuf>,
 }
 
 impl Default for PackOptions {
@@ -54,6 +68,8 @@ impl Default for PackOptions {
             output_name: None,
             deny_content_secrets: true,
             zstd_level: None,
+            staging_dir: None,
+            exclude_files: Vec::new(),
         }
     }
 }
@@ -90,6 +106,13 @@ pub struct PackResult {
 /// `packs/{yyyy}/{mm}/{slug}__{ts}.tar.zst`. With
 /// [`PackOptions::output_name`] set the filename becomes `{name}.tar.zst`
 /// (still under `packs/{yyyy}/{mm}`).
+///
+/// With [`PackOptions::staging_dir`] set, Commit is stage-only: the archive is
+/// written to `{staging_dir}/pack.tar.zst` without placement, and
+/// [`PackResult::output`] reports the final expected path while
+/// [`PackResult::size_bytes`] is read from the staged file (used by the atomic
+/// raid, which defers placement to its commit phase). `ensure_den` is skipped
+/// and the containment check still runs.
 ///
 /// # Uniqueness
 ///
@@ -146,12 +169,16 @@ pub fn pack(
         });
     }
 
-    ensure_den(&den)?;
+    if opts.staging_dir.is_none() {
+        ensure_den(&den)?;
+    }
 
     let (ts, output_name) = resolve_artifact_name(&den, &slug, &ts, opts.output_name.as_deref())?;
 
-    let short = short_id();
-    let staging = staging_pack_path(&den, &short);
+    let staging = match &opts.staging_dir {
+        Some(dir) => dir.join("pack.tar.zst"),
+        None => staging_pack_path(&den, &short_id()),
+    };
     create_dir_all(staging.parent().ok_or_else(|| Error::Other {
         message: "invalid den staging path".to_string(),
     })?)?;
@@ -175,11 +202,29 @@ pub fn pack(
             enabled: opts.deny_content_secrets,
             min_risk: SensitiveRisk::Critical,
         },
+        exclude_files: opts.exclude_files.clone(),
     };
-    let tree = pack_tree(&project, &staging, &tree_opts).map_err(|err| {
-        best_effort_staging_cleanup(&staging);
-        err
-    })?;
+    let tree = pack_tree(&project, &staging, &tree_opts)
+        .inspect_err(|_err| best_effort_staging_cleanup(&staging))?;
+
+    if opts.staging_dir.is_some() {
+        let output = den.join(artifact_rel(&slug, &ts, output_name.as_deref()));
+        let size_bytes = fs::metadata(&staging)
+            .map_err(|source| Error::Io {
+                path: staging.clone(),
+                source,
+            })?
+            .len();
+        progress.emit(pack_event(100, "Done", true));
+        return Ok(PackResult {
+            source: project,
+            output,
+            size_bytes,
+            file_count: tree.file_count,
+            skipped_secret_files: tree.skipped_secret_files,
+            dry_run: false,
+        });
+    }
 
     progress.emit(pack_event(80, "Moving to den…", false));
 
@@ -190,10 +235,7 @@ pub fn pack(
         timestamp: Some(ts),
         output_name,
     })
-    .map_err(|err| {
-        best_effort_staging_cleanup(&staging);
-        err
-    })?;
+    .inspect_err(|_err| best_effort_staging_cleanup(&staging))?;
 
     if let Some(parent) = staging.parent() {
         let _ = fs::remove_dir(parent);
@@ -209,46 +251,6 @@ pub fn pack(
         skipped_secret_files: tree.skipped_secret_files,
         dry_run: false,
     })
-}
-
-/// Final relative den path for a pack, honoring a custom output name.
-///
-/// `packs/{yyyy}/{mm}/{slug}__{ts}.tar.zst`, or `packs/{yyyy}/{mm}/{name}.tar.zst`
-/// when `output_name` is set (year/month still derived from `ts`).
-fn artifact_rel(slug: &str, ts: &str, output_name: Option<&str>) -> PathBuf {
-    let rel = pack_relative_path(slug, ts);
-    match output_name {
-        Some(name) => rel.with_file_name(format!("{name}.tar.zst")),
-        None => rel,
-    }
-}
-
-/// Resolve the final artifact naming, appending a short-id suffix on collision.
-///
-/// Returns `(final_ts, final_output_name)`. When the expected target already
-/// exists, the short-id suffix is appended to the timestamp (auto-name) or to
-/// the custom name; an existing target after that (astronomically unlikely)
-/// fails with [`Error::Other`].
-fn resolve_artifact_name(
-    den: &Path,
-    slug: &str,
-    ts: &str,
-    output_name: Option<&str>,
-) -> Result<(String, Option<String>)> {
-    if !den.join(artifact_rel(slug, ts, output_name)).exists() {
-        return Ok((ts.to_string(), output_name.map(str::to_string)));
-    }
-    let (final_ts, final_name) = match output_name {
-        Some(name) => (ts.to_string(), Some(format!("{name}__{}", short_id()))),
-        None => (format!("{ts}__{}", short_id()), None),
-    };
-    let rel = artifact_rel(slug, &final_ts, final_name.as_deref());
-    if den.join(rel).exists() {
-        return Err(Error::Other {
-            message: "pack artifact name collision under den".to_string(),
-        });
-    }
-    Ok((final_ts, final_name))
 }
 
 /// Build a progress event for the single `"pack"` phase.
@@ -286,6 +288,7 @@ mod tests {
         assert!(opts.deny_content_secrets, "content deny must default to on");
         assert!(opts.output_name.is_none());
         assert!(opts.zstd_level.is_none());
+        assert!(opts.staging_dir.is_none());
         assert!(opts.project.as_os_str().is_empty());
     }
 
@@ -320,63 +323,5 @@ mod tests {
                 "{good:?} must be accepted"
             );
         }
-    }
-
-    #[test]
-    fn artifact_rel_honors_custom_name() {
-        assert_eq!(
-            artifact_rel("my-api", "20260804T155230Z", None),
-            PathBuf::from("packs/2026/08/my-api__20260804T155230Z.tar.zst")
-        );
-        assert_eq!(
-            artifact_rel("my-api", "20260804T155230Z", Some("snapshot")),
-            PathBuf::from("packs/2026/08/snapshot.tar.zst")
-        );
-    }
-
-    #[test]
-    fn resolve_keeps_name_when_target_is_free() {
-        let den = tempfile::TempDir::new().unwrap();
-        let (ts, name) =
-            resolve_artifact_name(den.path(), "my-api", "20260804T155230Z", Some("snapshot"))
-                .unwrap();
-        assert_eq!(ts, "20260804T155230Z");
-        assert_eq!(name.as_deref(), Some("snapshot"));
-    }
-
-    #[test]
-    fn resolve_appends_suffix_on_auto_name_collision() {
-        let den = tempfile::TempDir::new().unwrap();
-        let target = den
-            .path()
-            .join(artifact_rel("my-api", "20260804T155230Z", None));
-        fs::create_dir_all(target.parent().unwrap()).unwrap();
-        fs::write(&target, b"existing").unwrap();
-
-        let (ts, name) =
-            resolve_artifact_name(den.path(), "my-api", "20260804T155230Z", None).unwrap();
-        assert_ne!(ts, "20260804T155230Z");
-        assert!(ts.contains("Z__"), "suffix must trail the Z: {ts}");
-        assert!(name.is_none());
-    }
-
-    #[test]
-    fn resolve_appends_suffix_on_custom_name_collision() {
-        let den = tempfile::TempDir::new().unwrap();
-        let target = den
-            .path()
-            .join(artifact_rel("my-api", "20260804T155230Z", Some("snapshot")));
-        fs::create_dir_all(target.parent().unwrap()).unwrap();
-        fs::write(&target, b"existing").unwrap();
-
-        let (ts, name) =
-            resolve_artifact_name(den.path(), "my-api", "20260804T155230Z", Some("snapshot"))
-                .unwrap();
-        assert_eq!(ts, "20260804T155230Z");
-        let name = name.expect("custom name survives the suffix");
-        assert!(
-            name.starts_with("snapshot__"),
-            "name must gain a suffix: {name}"
-        );
     }
 }

@@ -1,0 +1,17 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # F-CFG-2: pinned to workspace rust-version (= 1.85); 1.75 impossible — cpufeatures 0.3 (via blake3/sha2/age) requires edition2024 manifests
+      - uses: dtolnay/rust-toolchain@1.85
+      - name: test
+        run: cargo test --workspace
+      - name: fmt
+        run: cargo fmt --check
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings

@@ -11,3 +11,15 @@ pub(super) fn validate_max_depth(max_depth: usize) -> Result<(), ConfigError> {
         Ok(())
     }
 }
+
+/// Every `cleanup.enabled_strategies` entry must be a known strategy id
+/// (case-insensitive). An unknown id is a strict error (spec §4 recommends
+/// Error over silently ignoring).
+pub(super) fn validate_enabled_strategies(ids: &[String]) -> Result<(), ConfigError> {
+    for id in ids {
+        if crate::clean::strategy::StrategyId::from_str_ignore_case(id).is_none() {
+            return Err(ConfigError::UnknownCleanupStrategy { id: id.clone() });
+        }
+    }
+    Ok(())
+}

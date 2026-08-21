@@ -5,10 +5,10 @@
 </p>
 
 <p align="center">
-  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.75-orange?style=flat-square&logo=rust" alt="Rust"/></a>
+  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.85-orange?style=flat-square&logo=rust" alt="Rust"/></a>
   <a href="https://doc.rust-lang.org/cargo/"><img src="https://img.shields.io/badge/Cargo-workspace-blue?style=flat-square&logo=cargo" alt="Cargo"/></a>
-  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.1.0-blue?style=flat-square" alt="version"/></a>
-  <a href="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml"><img src="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml/badge.svg?style=flat-square" alt="CI"/></a>
+  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.3.0-blue?style=flat-square" alt="version"/></a>
+  <a href="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml"><img src="https://img.shields.io/badge/CI-wiki-success?style=flat-square" alt="CI"/></a>
   <a href="https://github.com/y-tretyakov/raccpack"><img src="https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-success?style=flat-square" alt="Windows | Linux | macOS"/></a>
   <a href="https://tauri.app"><img src="https://img.shields.io/badge/Tauri-Desktop-purple?style=flat-square&logo=tauri" alt="Tauri"/></a>
   <a href="https://clap.rs"><img src="https://img.shields.io/badge/CLI-clap-ee4b2b?style=flat-square" alt="CLI"/></a>
@@ -17,113 +17,160 @@
   <a href="LICENSE-MIT"><img src="https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue?style=flat-square" alt="License"/></a>
 </p>
 
-CLI / TUI / Desktop tool for scanning projects, finding secrets, cleaning build trash, and packing each project into a "den" — a store of age-encrypted secrets and `tar.zst` archives.
+CLI / TUI / Desktop tool for scanning project trees, finding secrets, cleaning build trash, and packing each project into a **den** — a store of age-encrypted secret archives and `tar.zst` project packs.
+
+**User documentation:** [https://y-tretyakov.github.io/raccpack/](https://y-tretyakov.github.io/raccpack/)
 
 ## Status
 
-Core is in the **pack milestone (M4)**. Implemented so far:
+**Version `0.3.0`** — MVP `0.1.0` closed; **Alpha `0.3.0` closed** (stash / rinse / raid / git+DX: git status in dig, config migrate + `init`, tracing logs with global `--verbose`, CI). Next: Detect v2 toward `0.4.0`.
 
-- **sniff** — project discovery by markers, language/framework detection, size, versioned XDG cache.
-- **dig** — secret scan (filename risk model + content markers with size/binary limits), masked values, repeated-secret aggregation.
-- **pack** — `tar.zst` archives with name/content deny + SkipPolicy, den layout (`.den-version`, `packs/…`, `staging/…`) with atomic placement, facade `pack` with DryRun/Commit.
+| Command | Status | Role |
+|---------|--------|------|
+| **sniff** | Available | Discover projects by markers, stack, sizes, versioned cache |
+| **dig** | Available | Secret scan (filename + content), masked values, risk levels, exit policy, git status per finding |
+| **pack** | Available | `tar.zst` into den (`packs/…`), name/content deny, DryRun default / `--yes` |
+| **stash** | Available (Alpha) | Age-encrypted secret archives into den (`secrets/…`), optional source removal |
+| **rinse** | Available (Alpha) | Build-trash cleanup by strategies (`rust`/`node`/`python` default, more opt-in), DryRun default / `--yes` |
+| **raid** | Available (Alpha) | Orchestrated stash → rinse → pack → move in one command; atomic default (staging + WAL + rollback), manifest JSON in den, `--fail-fast` mode, exit 1 on `!success` |
+| **init** | Available (Alpha) | Create default config (`config_version = 1`) with prefilled paths; optional den skeleton (`--ensure-den`), `--force` to overwrite |
+| **TUI / Desktop** | Planned (Beta) | Ratatui / Tauri + React |
 
-CLI (`racc`): `sniff`, `dig` and `pack` subcommands implemented (text + `--json`; `pack` dry-run default, commit with `--yes`). Not implemented yet: **stash** (age encryption), **rinse** (build-trash cleanup), **raid** (orchestration).
+Details and exact flags: [wiki · CLI](https://y-tretyakov.github.io/raccpack/cli-usage.html).
 
-## Status at MVP 0.1.0
+## Quick start
 
-The M4.4 milestone closed the **MVP 0.1.0** exit criteria: workspace + core + CLI, `sniff` projects + stack, `dig` secrets masked, `pack` tar.zst into the den layout. Next milestone: **Alpha — A1 `stash` (age encryption), A2 `rinse`, A3 `raid`, A4 git + DX** (→ 0.3.0).
+```bash
+git clone https://github.com/y-tretyakov/raccpack.git
+cd raccpack
+cargo build --release
+# optional: install -m 0755 target/release/racc ~/.local/bin/racc
 
-## Supported (MVP 0.1.0)
+mkdir -p ~/.config/raccpack
+cat > ~/.config/raccpack/config.toml <<'EOF'
+[paths]
+scan_root = "~/DEV/PROJS"
+den_dir = "~/.raccpack/den"
+EOF
 
-What is implemented on current `dev` (exact tables the full supported catalog lives in the wiki):
+racc sniff
+racc dig --project ~/DEV/PROJS/my-app
+racc pack --project ~/DEV/PROJS/my-app          # dry-run
+racc pack --project ~/DEV/PROJS/my-app --yes    # write pack to den
 
-- **Project markers (14):** `Cargo.toml`, `package.json`, `go.mod`, `pyproject.toml`, `setup.py`, `requirements.txt`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `Gemfile`, `composer.json`, `CMakeLists.txt`, `Makefile`, `.git`.
-- **Framework hints (shallow, top-level only):** Next.js, Nuxt, Angular, Vite, Deno (Node); Django (Python); Scala/sbt (JVM); Rails (Ruby).
-- **Secret filename patterns (28):** env files (`.env` family), SSH/private keys (`id_rsa`, `*.pem`, `*.key`, `*.ppk`), keystores (`.p12`, `.pfx`, `.jks`), credentials, registry configs (`kubeconfig`, `.npmrc`, `.pypirc`, `config.json`), `secrets.*`, `-sa.json`, `wallet.dat`.
-- **Content markers (12):** AWS access/secret, GitHub (`ghp_`, `gho_`), Slack, Stripe (live/test), PEM headers, connection strings, JWT-like, generic `api_key`/`secret` assignments.
-- **Skip dirs (18):** `node_modules`, `target`, VCS (`.git`/`.svn`/`.hg`), Python caches, virtualenvs, build outputs, IDE dirs, `.raccpack`, `*.egg-info`.
+# stash (Alpha): passphrase via env or interactive prompt
+export RACCPACK_PASSPHRASE='your-strong-passphrase'
+racc stash --project ~/DEV/PROJS/my-app --yes
 
-Full catalog (risk levels, deny thresholds, ContentScanLimits, pack deny rules): **[Что поддерживается](wiki/supported.md)**.
+# rinse (Alpha): clean build-trash dirs by strategies (defaults: rust, node, python)
+racc rinse --project ~/DEV/PROJS/my-app          # dry-run
+racc rinse --project ~/DEV/PROJS/my-app --yes    # actually remove
+```
 
-## Workspace structure
+JSON output: add `--json` to any command.
+
+## What is supported
+
+Exact tables live in the wiki: **[Что поддерживается](https://y-tretyakov.github.io/raccpack/supported.html)**.
+
+Summary:
+
+- **Project markers (14):** `Cargo.toml`, `package.json`, `go.mod`, `pyproject.toml`, `setup.py`, `requirements.txt`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `Gemfile`, `composer.json`, `CMakeLists.txt`, `Makefile`, `.git`
+- **Framework hints (root files only):** Next.js, Nuxt, Angular, Vite, Deno; Django; Scala/sbt; Rails
+- **Secret filename patterns (28):** `.env` family, SSH/private keys, keystores, credentials, registry configs, `secrets.*`, service-account JSON, etc.
+- **Content markers (12):** AWS, GitHub tokens, Slack, Stripe, PEM headers, connection strings, JWT-like, generic `api_key` / `secret` assignments
+- **Skip dirs (18):** `node_modules`, `target`, `dist`, `build`, VCS, Python caches/venvs, IDE, `.raccpack`, `*.egg-info`, …
+- **Cleanup strategies (6):** `rust`, `node`, `python` (enabled by default) plus opt-in `jvm`, `go`, `generic` for `rinse`
+
+## Workspace
 
 ```
 raccpack/
-  Cargo.toml                  # workspace manifest (resolver 2)
+  Cargo.toml                 # workspace (resolver 2)
   crates/
-    raccpack-core/            # library: domain + use-cases, no UI/CLI deps
-    raccpack-cli/             # binary: `racc` (sniff/dig/pack), links raccpack-core
-  LICENSE-MIT                 # MIT license
-  LICENSE-APACHE              # Apache-2.0 license
+    raccpack-core/           # library: domain + use-cases (no UI deps)
+    raccpack-cli/            # binary `racc`
+  wiki/                      # VitePress user docs (RU-first)
+  docs/                      # development specs (not published)
+  LICENSE-MIT
+  LICENSE-APACHE
 ```
 
-The workspace is dual-licensed **MIT OR Apache-2.0**. `Cargo.lock` is committed (binary workspace policy) so builds are reproducible.
+Dual-licensed **MIT OR Apache-2.0**. `Cargo.lock` is committed for reproducible builds. MSRV **1.75**.
 
-## Build
+## Build & test
 
 ```bash
 cargo build
 cargo test
-cargo run -p raccpack-cli
+cargo test -p raccpack-core
+cargo fmt --check
+cargo clippy -p raccpack-core --all-targets -- -D warnings
 ```
+
+## Documentation
+
+**User wiki** (`wiki/`, VitePress) → [GitHub Pages](https://y-tretyakov.github.io/raccpack/):
+
+```bash
+pnpm install
+pnpm run wiki:dev
+pnpm run wiki:build
+pnpm run wiki:preview
+```
+
+Primary locale is Russian; English skeleton under `wiki/en/`.
+
+**Development docs** under `docs/` (roadmap, architecture, stage specs) are not part of the published wiki.
+
+## Den layout
+
+```text
+{den}/
+├── .den-version
+├── README.txt
+├── packs/{yyyy}/{mm}/{slug}__{utc_timestamp}.tar.zst
+├── secrets/{yyyy}/{mm}/{slug}__{utc_timestamp}__secrets.age
+├── manifests/{yyyy}/{mm}/…
+└── staging/                 # temporary; safe to clean
+```
+
+Do not commit a den to git. Keep passphrases offline.
+
+## Git workflow
+
+| Branch | Role |
+|--------|------|
+| `main` | Milestone releases only (protected) |
+| `dev` | Main integration branch |
+| stage branches | Short-lived from `dev` (e.g. `a2-rinse`, `a3-raid`) |
+
+1. Work on stage branches created from `dev`.
+2. Open PR **into `dev`**; squash merge; delete the stage branch.
+3. Merge `dev` → `main` + tag + GitHub Release **only** on milestones:
+   - MVP `v0.1.0` · Alpha `v0.3.0` · Beta `v0.5.0` · RC `v0.9.0` · Stable `v1.0.0`
+4. Hotfixes after a release: branch from `main` (or tag) → PR to `main` → backport to `dev`.
+
+Branch protection: squash-only; `main` requires PR + 1 approval; no force push / no deletions on `main` and `dev` (maintainers may bypass).
+
+## Roadmap (high level)
+
+```text
+MVP     sniff → dig → pack + den                ✅ 0.1.0
+Alpha   stash ✅ → rinse ✅ → raid ✅ → git+CI  ✅ 0.3.0
+Detect v2  composite DAG for monorepos         → 0.4.x
+Beta    TUI → Desktop (Tauri) → security harden → 0.5.0
+RC      API/den freeze → quality → UX         → 0.9.x
+Stable  1.0.0
+```
+
+User-facing roadmap: [wiki](https://y-tretyakov.github.io/raccpack/roadmap.html).
 
 ## License
 
-This project is licensed under either of:
+Licensed under either of:
 
 - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
 - MIT license ([LICENSE-MIT](LICENSE-MIT))
 
 at your option.
-
-## Docs
-
-**User wiki** lives in [`wiki/`](wiki/) and is built with [VitePress](https://vitepress.dev). The site is published to GitHub Pages at <https://y-tretyakov.github.io/raccpack/>.
-
-- Serve locally: `pnpm install && pnpm run wiki:dev`
-- Build: `pnpm run wiki:build` (output in `wiki/.vitepress/dist/`)
-- Preview a build: `pnpm run wiki:preview`
-- Deploy is handled by the `.github/workflows/wiki.yml` workflow.
-- The wiki is RU-first (root locale) with an English skeleton under `wiki/en/`.
-
-**Development docs** live in [`docs/`](docs/) — these are dev specs, not part of the published wiki. Main knowledge documents:
-
-| Path | Role |
-|------|------|
-| `AGENTS.md` | Agent orchestrator memo (Alpha backlog, hard rules) |
-| `raccpack-agent-workflow.md` | Orchestrator / Dev / Test / Docs workflow |
-| `raccpack-roadmap-v1.md` | MVP → 1.0.0 roadmap |
-| `raccpack-architecture-vision.md` | Layers, trust boundaries, DTOs |
-| `raccpack-facade-and-den.md` | Facade use-cases and den layout |
-| `raccpack-modularity.md` | Secrets / archive backend modularity |
-| `WORKLOG.md` | Current stage journal (Alpha+) |
-| `docs/archive/WORKLOG_MVP.md` | Closed MVP 0.1.0 journal |
-| `docs/alpha/` | Alpha stage specs (linked per stage) |
-
-## Git workflow
-
-Branches:
-
-- `main` — **protected**. Milestone releases only (see tags below).
-- `dev` — main working branch. All development merges here.
-- Stage/feature branches — short-lived, created **from `dev`**.
-
-Rules:
-
-1. Development happens **only** in short-lived branches off `dev`.
-2. Stage branch names follow the roadmap as `{phase}-{short-slug}` in kebab-case, e.g. `m1-workspace-core`, `m2-sniff`, `m3-dig`, `m4-pack-den`, `a1-stash-age`, `a2-rinse`, `a3-raid`.
-3. On stage completion: open a PR **into `dev`**; after review/merge, delete the stage branch.
-4. Merge `dev` → `main` plus `git tag` and a GitHub Release **only** on milestones:
-   - MVP → `v0.1.0`
-   - Alpha → `v0.3.0`
-   - Beta → `v0.5.0`
-   - RC → `v0.9.0`
-   - Stable → `v1.0.0`
-5. Between milestones nothing is merged into `main`. Intermediate stages live only in `dev`.
-6. Hotfix/blocker after a milestone release: branch from `main` (or the tag), PR into `main`, then backport into `dev`.
-
-Merge method: **squash** (fixed for stage branches and for `dev → main`). Stage branches are deleted on merge.
-
-**Branch protection (status):** enforced via GitHub rulesets (repo is public). Both rulesets restrict merge method to **squash**.
-- `main`: PR required + 1 approval, no force push, no deletions (bypass: maintainers/admins).
-- `dev`: PR required, no force push, no deletions (bypass: maintainers/admins).

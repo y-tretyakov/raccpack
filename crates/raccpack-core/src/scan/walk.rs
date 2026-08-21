@@ -20,11 +20,15 @@
 //! # }
 //! ```
 //!
-//! `is_under_root` / path-containment checks are NOT implemented here; they are
-//! a required follow-up before `pack` / `stash` can rely on entries staying
-//! within the scan root.
+//! Path-containment checks live here: [`is_path_under_root`] canonicalizes both
+//! sides and guarantees an entry stays within the scan root, which `pack` /
+//! `stash` rely on. [`canonicalize_existing_prefix`] resolves a path that may
+//! not exist yet (canonicalizing its deepest existing ancestor) so the same
+//! check can run before any directory is created.
 
-use std::path::Path;
+use std::ffi::OsString;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
 
@@ -130,4 +134,129 @@ pub fn ensure_scan_root(root: &Path) -> Result<(), Error> {
         });
     }
     Ok(())
+}
+
+/// Whether `path` is contained under `root`, after canonicalizing both sides.
+///
+/// Both paths must exist (`fs::canonicalize`); a missing path yields
+/// [`Error::Io`] with the offending path. The check is component-wise on the
+/// canonical paths, so a sibling like `/a/bc` is NOT under `/a/b`. Because both
+/// sides are canonicalized, a `..` path that resolves inside `root` (e.g.
+/// `/a/b/c/../file`) is accepted.
+pub fn is_path_under_root(path: &Path, root: &Path) -> Result<bool, Error> {
+    let canonical_path = fs::canonicalize(path).map_err(|source| Error::Io {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    let canonical_root = fs::canonicalize(root).map_err(|source| Error::Io {
+        path: root.to_path_buf(),
+        source,
+    })?;
+    Ok(canonical_path.starts_with(canonical_root))
+}
+
+/// Canonicalize the deepest existing ancestor of `path`, then re-append the
+/// remaining components lexically.
+///
+/// Unlike [`is_path_under_root`], `path` itself does not need to exist — the
+/// `stash` F-PATH-3 guard runs before its `staging/…` directories are created.
+/// `..` components in the existing prefix are resolved by the canonicalization;
+/// components below the resolved ancestor are appended verbatim, so callers
+/// must not reintroduce `..` or symlinks there. Relative paths with no existing
+/// ancestor resolve against the working directory.
+pub(crate) fn canonicalize_existing_prefix(path: &Path) -> Result<PathBuf, Error> {
+    if path.as_os_str().is_empty() {
+        return Err(Error::Other {
+            message: "cannot resolve an empty path".to_string(),
+        });
+    }
+    let mut tail: Vec<OsString> = Vec::new();
+    let mut prefix = path;
+    loop {
+        if let Ok(real) = fs::canonicalize(prefix) {
+            let mut resolved = real;
+            for component in tail.iter().rev() {
+                resolved.push(component);
+            }
+            return Ok(resolved);
+        }
+        match prefix.file_name() {
+            Some(name) => {
+                if let Some(parent) = prefix.parent() {
+                    if !parent.as_os_str().is_empty() {
+                        tail.push(name.to_os_string());
+                        prefix = parent;
+                        continue;
+                    }
+                }
+                tail.push(name.to_os_string());
+            }
+            None => {
+                return Err(Error::Other {
+                    message: format!("cannot resolve {}: no existing ancestor", path.display()),
+                });
+            }
+        }
+        let working_dir = fs::canonicalize(Path::new(".")).map_err(|source| Error::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        let mut resolved = working_dir;
+        for component in tail.iter().rev() {
+            resolved.push(component);
+        }
+        return Ok(resolved);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn is_path_under_root_accepts_nested_file() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("proj");
+        fs::create_dir_all(root.join("src")).unwrap();
+        let inside = root.join("src/main.rs");
+        fs::write(&inside, b"fn main() {}\n").unwrap();
+
+        assert!(is_path_under_root(&inside, &root).unwrap());
+        assert!(is_path_under_root(&root, &root).unwrap());
+    }
+
+    #[test]
+    fn is_path_under_root_rejects_sibling_prefix() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("b");
+        fs::create_dir(&root).unwrap();
+        let sibling = dir.path().join("bc");
+        fs::write(&sibling, b"not under b\n").unwrap();
+
+        assert!(!is_path_under_root(&sibling, &root).unwrap());
+    }
+
+    #[test]
+    fn is_path_under_root_resolves_dotdot_inside() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("a/b");
+        fs::create_dir_all(root.join("c")).unwrap();
+        let real = root.join("file.txt");
+        fs::write(&real, b"x\n").unwrap();
+
+        let via_dotdot = root.join("c/../file.txt");
+        assert!(is_path_under_root(&via_dotdot, &root).unwrap());
+    }
+
+    #[test]
+    fn is_path_under_root_missing_path_is_err() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("proj");
+        fs::create_dir(&root).unwrap();
+        let missing = root.join("nope.txt");
+
+        assert!(is_path_under_root(&missing, &root).is_err());
+    }
 }

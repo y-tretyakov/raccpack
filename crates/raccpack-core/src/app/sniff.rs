@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 use crate::cache::{store_sniff_cache, try_load_sniff_cache};
 use crate::detect::{candidate_to_project, detect_stack};
@@ -65,6 +66,14 @@ pub fn sniff(
         if let Some(report) = try_load_sniff_cache(&root, max_depth, POLICY_FINGERPRINT)? {
             let duration_ms = elapsed_ms(t0);
             progress.emit(scan_event(100, "Done (from cache)", true));
+            info!(
+                target: "raccpack_core",
+                root = %root.display(),
+                projects = report.projects.len(),
+                from_cache = true,
+                duration_ms,
+                "sniff complete"
+            );
             return Ok(SniffResult {
                 report,
                 from_cache: true,
@@ -106,6 +115,14 @@ pub fn sniff(
 
     let duration_ms = elapsed_ms(t0);
     progress.emit(scan_event(100, "Done", true));
+    info!(
+        target: "raccpack_core",
+        root = %root.display(),
+        projects = report.projects.len(),
+        from_cache = false,
+        duration_ms,
+        "sniff complete"
+    );
 
     Ok(SniffResult {
         report,

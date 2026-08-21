@@ -1,6 +1,6 @@
 ---
 title: Конфигурация
-description: "Настройка raccpack через TOML-файл и переменные окружения: пути, сканер, ошибки конфигурации."
+description: "Настройка raccpack через TOML-файл и переменные окружения: пути, сканер, стратегии очистки, ошибки конфигурации."
 ---
 
 # Конфигурация
@@ -15,18 +15,44 @@ raccpack настраивается через TOML-файл и нескольк
 2. Стандартный путь XDG: `$XDG_CONFIG_HOME/raccpack/config.toml`, а если `XDG_CONFIG_HOME` не задан — `~/.config/raccpack/config.toml`.
 3. Если файла нигде нет — используется конфигурация по умолчанию (пути можно задать флагами `--root` и `--den`).
 
-Пример:
+Самый простой способ создать файл — команда [`racc init`](/init): она записывает комментированный шаблон в стандартный путь (или в путь из `--config`):
 
 ```bash
-# Явный путь через переменную окружения
+racc init --scan-root ~/DEV/PROJS
+```
+
+Пример:
+
+::: code-group
+
+```bash [bash]
+# bash / zsh — явный путь через переменную окружения
 export RACCPACK_CONFIG=/path/to/raccpack.toml
 racc sniff
 ```
+
+```fish [fish]
+set -gx RACCPACK_CONFIG /path/to/raccpack.toml
+racc sniff
+```
+
+```nu [nu]
+$env.RACCPACK_CONFIG = "/path/to/raccpack.toml"
+racc sniff
+```
+
+```powershell [pwsh]
+$env:RACCPACK_CONFIG = "/path/to/raccpack.toml"
+racc sniff
+```
+
+:::
 
 ## Формат файла
 
 ```toml
 # Конфигурация raccpack
+config_version = 1
 
 [paths]
 # Каталог, содержащий ваши проекты (вход)
@@ -37,6 +63,11 @@ den_dir = "~/.raccpack/den"
 [scanner]
 # Максимальная глубина обхода дерева
 max_depth = 6
+
+[cleanup]
+# Стратегии rinse по умолчанию (если CLI не передал --strategy)
+enabled_strategies = ["rust", "node", "python"]
+# Opt-in при необходимости: "jvm", "go", "generic"
 ```
 
 ### Секция `[paths]`
@@ -54,17 +85,75 @@ max_depth = 6
 |------|--------------|----------|
 | `max_depth` | `6` | Максимальная глубина обхода. Должна быть ≥ 1 |
 
+### Секция `[cleanup]`
+
+| Ключ | По умолчанию | Описание |
+|------|--------------|----------|
+| `enabled_strategies` | `["rust", "node", "python"]` | Id стратегий для `racc rinse`, когда не передан флаг `--strategy` |
+
+`racc rinse` удаляет каталоги артефактов сборки по наборам правил — **стратегиям**. Каждая стратегия — это набор имён каталогов, считающихся мусором. Зарегистрированные стратегии:
+
+| Id | В defaults | Типовые каталоги |
+|----|------------|------------------|
+| `rust` | да | `target` |
+| `node` | да | `node_modules`, `.next`, `dist`, `.nuxt`, `coverage` |
+| `python` | да | `__pycache__`, `.venv`, `venv`, `.tox`, `.mypy_cache`, `.pytest_cache`, `*.egg-info`, `.ruff_cache` |
+| `jvm` | **opt-in** | `build`, `.gradle`, `.m2` |
+| `go` | **opt-in** | `vendor` |
+| `generic` | **opt-in** | `.cache`, `tmp`, `temp` |
+
+По умолчанию включены только `rust`, `node` и `python`. Причина — «осторожные» имена: `dist` (node) и `build` (jvm) иногда содержат настоящие исходники, `vendor` (go) может быть намеренной копией зависимостей, а `tmp` / `temp` (generic) — пользовательские данные. Поэтому `jvm`, `go` и `generic` подключаются **явно** — через `enabled_strategies` в конфигурации или флаг `--strategy` (см. [Rinse](/rinse)).
+
+Флаг `--strategy` перекрывает конфигурацию на текущий запуск:
+
+```bash
+# Вместо config.cleanup.enabled_strategies — только node и rust
+racc rinse --project ~/DEV/PROJS/my-api --strategy node --strategy rust --yes
+```
+
+Неизвестный id в TOML — ошибка при загрузке конфигурации (см. [Ошибки конфигурации](#ошибки-конфигурации)); неизвестный `--strategy` в CLI — ошибка, код выхода `1`.
+
+::: info
+Имена cleanup-стратегий и списки пропускаемых каталогов при обходе/упаковке согласованы по смыслу, но пока живут раздельно. Единый источник правил — в планах (follow-up).
+:::
+
 ### Будущие секции
 
-В конфигурацию будут добавлены секции для групп секретов, очистки и производительности:
+В конфигурацию будут добавлены секции для групп секретов и производительности:
 
 - `[sensitive]` — какие группы секретов включены;
-- `[cleanup]` — стратегии очистки мусора;
 - `[advanced]` — параллельность (`parallel_jobs`), уровень zstd-сжатия.
 
 ::: info
 Неизвестные ключи в TOML не ломают загрузку — будущие секции не сломают существующие конфигурации.
 :::
+
+## config_version и миграция
+
+Актуальная схема конфигурации имеет версию **1** (`config_version = 1`). Именно эта строка записывается в файл командой [`racc init`](/init).
+
+При загрузке конфигурации raccpack проверяет поле `config_version`:
+
+| Значение в файле | Поведение |
+|------------------|-----------|
+| Поле отсутствует или `0` | Автоматическая миграция до v1 **in-memory**: конфиг загружается как v1 без изменений на диске |
+| `1` | Загружается как есть |
+| Больше текущей (например, `2`) | Ошибка `incompatible config version: found N, current version is 1`, код выхода `1` |
+
+Пояснения:
+
+- миграция не переписывает файл — правки появляются только в памяти на время запуска;
+- конфиг из «будущей» версии означает, что файл создан более новой версией raccpack; подсказка CLI предлагает обновить raccpack;
+- старые конфиги (без `config_version`) продолжают работать без ручных правок.
+
+## Переменные окружения
+
+| Переменная | Назначение |
+|------------|------------|
+| `RACCPACK_CONFIG` | Явный путь к TOML-файлу. Если задана — файл обязан существовать |
+| `RACCPACK_PASSPHRASE` | Passphrase для `racc stash` (шифрование age-архива). **Не храните её в TOML** — задаётся через окружение, интерактивный ввод или stdin |
+
+Passphrase не читается из конфигурационного файла и не попадает в вывод/отчёты.
 
 ## Переопределение через CLI
 
@@ -78,7 +167,18 @@ racc sniff --root /tmp/other --max-depth 4
 racc sniff --root ~/DEV/PROJS --den /tmp/den
 ```
 
+`--root` и `--den` не изменяют файл на диске — они действуют один запуск. Для `racc rinse` флаг `--den` принимается, но не влияет на работу: очистка мусора не пишет в den (см. [Rinse](/rinse)).
+
 ## Минимальная конфигурация для первого запуска
+
+Самый быстрый путь — [`racc init`](/init):
+
+```bash
+racc init --scan-root ~/DEV/PROJS
+racc sniff
+```
+
+Вариант вручную:
 
 ```bash
 mkdir -p ~/.config/raccpack
@@ -91,7 +191,7 @@ racc sniff
 ```
 
 ::: info
-Без `scan_root` в конфигурации и без флага `--root` `racc` завершится с ошибкой `MissingScanRoot`.
+Без `scan_root` в конфигурации и без флага `--root` `racc` завершится с ошибкой (`missing scan_root: …`).
 :::
 
 ## Ошибки конфигурации
@@ -100,12 +200,20 @@ racc sniff
 
 | Ошибка | Причина | Подсказка |
 |--------|---------|-----------|
-| `MissingScanRoot` | `scan_root` не задан | Укажите `scan_root` в TOML или флаг `--root` |
-| `ScanRootMissing` / `path not found` | Путь не существует | Проверьте, что папка существует |
-| `NotADirectory` | Указан файл, а не папка | Укажите каталог |
-| `invalid configuration: max_depth` | `max_depth < 1` | Поставьте значение ≥ 1 |
+| `missing scan_root: set paths.scan_root in config or pass --root` | `scan_root` не задан | Укажите `scan_root` в TOML или флаг `--root` |
+| `scan_root does not exist: <path>` / `path not found: <path>` | Путь не существует | Проверьте, что папка существует |
+| `not a directory: <path>` | Указан файл, а не папка | Укажите каталог |
+| `invalid max_depth: <value> (must be >= 1)` | `max_depth < 1` | Поставьте значение ≥ 1 |
+| `unknown cleanup strategy `foo`` | Неизвестный id в `cleanup.enabled_strategies` | Используйте известные id: `rust`, `node`, `python`, `jvm`, `go`, `generic` |
+| `invalid configuration: unknown cleanup strategy `foo`` | Неизвестный `--strategy foo` в CLI | Используйте известные id; ошибка, код выхода `1` |
+| `incompatible config version: found N, current version is 1` | Конфиг создан более новой версией raccpack (`config_version` > 1) | Обновите raccpack (см. [config_version и миграция](#config-version-и-миграция)) |
+
+Ошибка в конфигурации выводится с подсказкой `hint: …`, код выхода — `1`.
 
 ## Дальнейшее чтение
 
+- [Init](/init) — команда создания стартового конфига и скелета den.
+- [Rinse](/rinse) — стратегии очистки и флаг `--strategy`.
+- [Что поддерживается](/supported) — полный каталог возможностей (маркеры, секреты, стратегии).
 - [Использование CLI](/cli-usage) — все флаги команд.
 - [Основные понятия](/concepts) — что такое den и как устроен вывод.

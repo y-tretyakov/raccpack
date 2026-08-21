@@ -38,6 +38,11 @@ pub struct PackTreeOptions {
     pub deny_name_secrets: bool,
     /// Optional content-based deny (off by default in M4.1).
     pub content_deny: ContentDenyOptions,
+    /// Paths omitted from the archive silently (not counted as denies).
+    ///
+    /// Used by the atomic raid to skip files already stashed, mirroring the
+    /// fail-fast commit where stash removed them before pack ran.
+    pub exclude_files: Vec<PathBuf>,
 }
 
 impl Default for PackTreeOptions {
@@ -48,6 +53,7 @@ impl Default for PackTreeOptions {
             zstd_level: 3,
             deny_name_secrets: true,
             content_deny: ContentDenyOptions::default(),
+            exclude_files: Vec::new(),
         }
     }
 }
@@ -149,6 +155,9 @@ pub fn pack_tree(source: &Path, output: &Path, opts: &PackTreeOptions) -> Result
             continue;
         }
         if file_type.is_symlink() || !file_type.is_file() {
+            continue;
+        }
+        if opts.exclude_files.iter().any(|excluded| excluded == &path) {
             continue;
         }
         if depth > opts.max_depth {

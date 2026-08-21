@@ -16,6 +16,12 @@ regex = "1"
 blake3 = "1"
 tar = "0.4"
 zstd = "0.13"
+age = "0.12"
+tracing = "0.1"
+zeroize = { version = "1", features = ["derive"] }
+
+[features]
+age-decrypt = []
 
 [dev-dependencies]
 regex = "1"

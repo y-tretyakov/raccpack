@@ -107,9 +107,27 @@ racc pack --project ~/DEV/PROJS/app-api --yes
 
 По умолчанию `pack` — **dry-run** (ничего не пишет); флаг `--yes` — явное подтверждение, которое записывает архив `.tar.zst` в den. Секреты из архива исключаются автоматически (по имени — всегда, по содержимому — по умолчанию).
 
-## 7. Что дальше
+## 7. Вынесите секреты (`stash`)
 
-На данный момент CLI умеет `sniff`, `dig` и `pack`. Дальше по дорожной карте — команды выноса секретов и полного цикла `raid`:
+```bash
+racc stash --project ~/DEV/PROJS/app-api
+racc stash --project ~/DEV/PROJS/app-api --yes
+```
+
+Первый запуск — **dry-run** (ничего не пишет); флаг `--yes` переносит чувствительные файлы в зашифрованный age-архив в `den/secrets/`. Пароль задаётся через `RACCPACK_PASSPHRASE` или вводится интерактивно.
+
+## 8. Очистите мусор сборки (`rinse`)
+
+```bash
+racc rinse --project ~/DEV/PROJS/app-api
+racc rinse --project ~/DEV/PROJS/app-api --yes
+```
+
+Первый запуск — **dry-run** (ничего не удаляет); флаг `--yes` удаляет каталоги артефактов сборки (`target`, `node_modules`, …) по стратегиям из конфигурации. Какие стратегии включены по умолчанию и как подключить `jvm`, `go`, `generic` — см. [Конфигурация](/configuration) и [Rinse](/rinse).
+
+## 9. Что дальше
+
+Сейчас CLI умеет `sniff`, `dig`, `pack`, `stash`, `rinse` и `raid`; по roadmap — `den`, `init`. Обзор команд — в [Использование CLI](/cli-usage), подробности по каждой — на страницах `/sniff`, `/dig`, `/pack`, `/stash`, `/rinse` и `/raid`:
 
 - [Использование CLI](/cli-usage) — полный справочник команд.
 - [Основные понятия](/concepts) — что такое den, риски и фазы.

@@ -19,23 +19,45 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 mod error;
+mod init;
+mod migrate;
 mod paths;
 mod validate;
 
 pub use error::ConfigError;
+pub use init::{default_toml, init_config, InitOptions, InitResult};
+pub use migrate::{default_config_version, migrate_to_current, CURRENT_CONFIG_VERSION};
+pub use paths::{default_config_path, DEFAULT_DEN_DIR};
 
 /// Top-level raccpack configuration.
 ///
 /// Unknown TOML keys are ignored (no `deny_unknown_fields`) so future sections
-/// such as `[sensitive]`, `[cleanup]`, or `[advanced]` do not break parsing.
-#[derive(Debug, Clone, Default, Deserialize)]
+/// such as `[sensitive]` or `[advanced]` do not break parsing.
+#[derive(Debug, Clone, Deserialize)]
 pub struct RaccConfig {
+    /// Configuration schema version.
+    #[serde(default = "default_config_version")]
+    pub config_version: u32,
     /// Paths for the scan input and den output.
     #[serde(default)]
     pub paths: PathsConfig,
     /// Scanner behavior settings.
     #[serde(default)]
     pub scanner: ScannerConfig,
+    /// Cleanup (rinse) strategy toggles.
+    #[serde(default)]
+    pub cleanup: CleanupConfig,
+}
+
+impl Default for RaccConfig {
+    fn default() -> Self {
+        Self {
+            config_version: default_config_version(),
+            paths: PathsConfig::default(),
+            scanner: ScannerConfig::default(),
+            cleanup: CleanupConfig::default(),
+        }
+    }
 }
 
 /// Raw path settings.
@@ -71,6 +93,31 @@ impl Default for ScannerConfig {
     }
 }
 
+/// Cleanup (rinse) behavior settings.
+#[derive(Debug, Clone, Deserialize)]
+pub struct CleanupConfig {
+    /// Strategy ids enabled when `RinseOptions.strategies` is `None`.
+    #[serde(default = "default_enabled_strategies")]
+    pub enabled_strategies: Vec<String>,
+}
+
+/// Default enabled cleanup strategy ids: only `rust`, `node`, `python`.
+///
+/// `jvm`, `go`, and `generic` are opt-in: `dist`/`build`/`vendor`/`tmp` are
+/// *careful* names that may be genuine source or user data (see
+/// `clean::strategy::DEFAULT_STRATEGIES`).
+pub fn default_enabled_strategies() -> Vec<String> {
+    vec!["rust".into(), "node".into(), "python".into()]
+}
+
+impl Default for CleanupConfig {
+    fn default() -> Self {
+        Self {
+            enabled_strategies: default_enabled_strategies(),
+        }
+    }
+}
+
 impl RaccConfig {
     /// Load configuration from `RACCPACK_CONFIG`, the XDG default location, or
     /// fall back to [`RaccConfig::default`].
@@ -90,7 +137,7 @@ impl RaccConfig {
         }
     }
 
-    /// Load and validate configuration from an explicit path.
+    /// Load, migrate, and validate configuration from an explicit path.
     ///
     /// A missing file yields [`ConfigError::FileNotFound`], an unreadable file
     /// [`ConfigError::Read`], and a malformed TOML document
@@ -105,7 +152,12 @@ impl RaccConfig {
             path: path.to_path_buf(),
             source,
         })?;
-        let config: Self = toml::from_str(&content).map_err(|source| ConfigError::Parse {
+        let raw: toml::Value = toml::from_str(&content).map_err(|source| ConfigError::Parse {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        let migrated = migrate::migrate_to_current(raw)?;
+        let config: Self = migrated.try_into().map_err(|source| ConfigError::Parse {
             path: path.to_path_buf(),
             source,
         })?;
@@ -159,11 +211,13 @@ impl RaccConfig {
 
     /// Validate the parsed configuration.
     ///
-    /// Currently checks that `scanner.max_depth` is at least 1. Empty
+    /// Checks that `scanner.max_depth` is at least 1 and that every
+    /// `cleanup.enabled_strategies` entry is a known strategy id. Empty
     /// `scan_root` / `den_dir` strings are handled at resolve time and do not
     /// need mutation here. Called automatically by [`RaccConfig::load`] and
     /// [`RaccConfig::load_from_path`].
     pub fn validate(&self) -> Result<(), ConfigError> {
-        validate::validate_max_depth(self.scanner.max_depth)
+        validate::validate_max_depth(self.scanner.max_depth)?;
+        validate::validate_enabled_strategies(&self.cleanup.enabled_strategies)
     }
 }

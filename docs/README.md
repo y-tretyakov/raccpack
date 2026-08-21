@@ -18,14 +18,14 @@ docs/
 
 | Файл | Назначение |
 |------|------------|
-| `AGENTS.md` | Памятка Orchestrator: правила, backlog Alpha, формат отчёта |
-| `raccpack-agent-workflow.md` | Workflow Orchestrator / Dev / Test / Docs |
-| `raccpack-roadmap-v1.md` | Дорожная карта до 1.0.0 |
-| `raccpack-architecture-vision.md` | Слои, доверие, DTO |
-| `raccpack-facade-and-den.md` | Facade API + den layout |
-| `raccpack-modularity.md` | Secrets / archive backends |
-| `raccpack-markers-detect-modularity.md` | Markers / detect по экосистемам |
+| `AGENTS.md` | Единственная памятка Orchestrator: правила, backlog Alpha, модульность, git, wiki, инварианты |
 | `WORKLOG.md` | Текущий журнал (Alpha+) |
+| `docs/FOLLOWUPS_FROM_MVP.md` | Открытые follow-ups из MVP (обязательные для Alpha) — live-документ, ссылается на него `docs/alpha/*-index.md` |
+
+Устаревшие knowledge-docs (`raccpack-agent-workflow.md`, `raccpack-roadmap-v1.md`,
+`raccpack-architecture-vision.md`, `raccpack-facade-and-den.md`, `raccpack-modularity.md`,
+`raccpack-markers-detect-modularity.md`) **удалены** — их содержание
+консолидировано в `AGENTS.md` (см. §4/§10). Не восстанавливать.
 
 ## Правила для агента
 
