@@ -1,102 +1,102 @@
 ---
-title: Sniff — найти проекты
-description: Команда racc sniff — поиск проектов под scan_root, определение стека, размера и признака git-репозитория. Кэшируемый read-only обход.
+title: Sniff — discover projects
+description: The racc sniff command — find projects under scan_root, detect their stack, size, and git status. A cached read-only walk.
 ---
 
-# Sniff - найти проекты
+# Sniff - discover projects
 
-Команда: `racc sniff`  
-Статус: реализовано.
+Command: `racc sniff`  
+Status: implemented.
 
-Эта страница описывает **ровно то поведение**, которое реализует `raccpack` сейчас. Если флаг или путь не указаны здесь — их нет в текущей версии.
+This page describes **exactly the behavior** that `raccpack` implements today. If a flag or path is not listed here, it does not exist in the current version.
 
-Вернуться к обзору команд: [Использование CLI](/cli-usage).
+Back to the command overview: [CLI usage](/cli-usage).
 
-## Что делает sniff
+## What sniff does
 
-`racc sniff` обходит `scan_root` и находит проекты по характерным **маркерам** — файлам в корне проекта (`Cargo.toml`, `package.json`, `go.mod`, `pyproject.toml`, `pom.xml`, `Gemfile`, `composer.json`, `CMakeLists.txt`, `Makefile`, `.git` и др. — полный список и приоритеты см. в [Что поддерживается](/supported)). Для каждого проекта определяет:
+`racc sniff` walks `scan_root` and finds projects by characteristic **markers** — files in the project root (`Cargo.toml`, `package.json`, `go.mod`, `pyproject.toml`, `pom.xml`, `Gemfile`, `composer.json`, `CMakeLists.txt`, `Makefile`, `.git`, etc. — see [Supported catalog](/supported) for the full list and priorities). For each project it determines:
 
-- **стек** — язык + фреймворки;
-- **размер** в байтах;
-- признак **git-репозитория**.
+- **stack** — language + frameworks;
+- **size** in bytes;
+- whether it is a **git repository**.
 
-Чего sniff **не** делает:
+What sniff does **not** do:
 
-- ничего не пишет и не удаляет — команда **read-only**;
-- не читает содержимое файлов секретов (в отличие от `racc dig`);
-- не заходит в den и не пишет в него;
-- не возвращает код выхода `2` (это особенность только `dig`).
+- writes and deletes nothing — the command is **read-only**;
+- does not read the contents of secret files (unlike `racc dig`);
+- does not enter or write to the den;
+- never returns exit code `2` (that is specific to `dig`).
 
-## Быстрый старт
+## Quick start
 
 ```bash
-# 1) Простой запуск — таблица проектов под scan_root
+# 1) Plain run — table of projects under scan_root
 racc sniff
 
-# 2) Принудительное пересканирование без кэша
+# 2) Force rescan without cache
 racc sniff --force-refresh
 
-# 3) Машиночитаемый результат для скриптов и CI
+# 3) Machine-readable output for scripts and CI
 racc sniff --json
 ```
 
-## Синтаксис
+## Syntax
 
 ```text
 racc sniff [OPTIONS]
 ```
 
-Позиционных аргументов нет.
+There are no positional arguments.
 
-## Параметры и флаги
+## Options and flags
 
-### Параметры команды
+### Command options
 
-| Флаг | По умолчанию | Описание |
-|------|--------------|----------|
-| `--force-refresh` | выкл. | Игнорировать кэш sniff и пересканировать с нуля |
-| `--max-depth <N>` | из конфига (`scanner.max_depth`, по умолчанию `6`) | Переопределить глубину обхода на этот запуск |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--force-refresh` | off | Ignore the sniff cache and rescan from scratch |
+| `--max-depth <N>` | from config (`scanner.max_depth`, default `6`) | Override the walk depth for this run |
 
-Приоритет глубины: `--max-depth` на этом запуске → `scanner.max_depth` в конфиге → встроенное значение по умолчанию `6`.
+Depth priority: `--max-depth` for this run → `scanner.max_depth` in config → built-in default of `6`.
 
-### Глобальные флаги
+### Global flags
 
-| Флаг | Описание |
-|------|----------|
-| `-c, --config <PATH>` | Файл конфигурации (переопределяет `RACCPACK_CONFIG`) |
-| `--root <PATH>` | Переопределить `scan_root` на этот запуск |
-| `--den <PATH>` | Переопределить `den_dir` на этот запуск (для sniff необязателен) |
-| `--json` | Вывод JSON вместо человекочитаемой таблицы |
+| Flag | Description |
+|------|-------------|
+| `-c, --config <PATH>` | Config file (overrides `RACCPACK_CONFIG`) |
+| `--root <PATH>` | Override `scan_root` for this run |
+| `--den <PATH>` | Override `den_dir` for this run (optional for sniff) |
+| `--json` | Print JSON instead of the human-readable table |
 
 ::: info
-`--root` и `--den` переопределяют конфигурацию только на текущий запуск и не меняют её на диске.
+`--root` and `--den` override the configuration only for the current run and never change it on disk.
 :::
 
-## Поведение
+## Behavior
 
-### Кэш
+### Cache
 
-Результаты кэшируются в `$XDG_CACHE_HOME/raccpack/sniff/{hash}.json` (или `~/.cache/raccpack/sniff/…`, если `XDG_CACHE_HOME` не задан). Имя файла хеширует абсолютный `scan_root`, глубину `max_depth` и версию политики пропускаемых каталогов; версия бинарника проверяется при чтении кэша — при несовпадении кэш считается устаревшим. Повторный запуск без изменений **не пересканирует** — отчёт берётся из кэша:
+Results are cached in `$XDG_CACHE_HOME/raccpack/sniff/{hash}.json` (or `~/.cache/raccpack/sniff/…` when `XDG_CACHE_HOME` is unset). The file name hashes the absolute `scan_root`, the `max_depth`, and the version of the skip-directory policy; the binary version is checked when reading the cache — on mismatch the cache is considered stale. Re-running without changes does **not rescan** — the report comes from the cache:
 
-- `cache: hit` — отчёт прочитан из кэша;
-- `cache: miss` — выполнен полный обход (после него кэш перезаписывается).
+- `cache: hit` — report read from cache;
+- `cache: miss` — full walk performed (the cache is rewritten afterwards).
 
-`--force-refresh` всегда делает полный обход и перезаписывает кэш. Изменение `--max-depth` меняет ключ кэша, поэтому такой запуск тоже будет «мисс». Ошибки чтения кэша трактуются как «miss», ошибки записи кэша не прерывают запуск.
+`--force-refresh` always performs a full walk and rewrites the cache. Changing `--max-depth` changes the cache key, so such a run is also a "miss". Cache read errors are treated as "miss"; cache write errors do not abort the run.
 
 ::: tip
-Если `sniff` «не видит» новый проект — вероятно, сработал кэш: запустите с `--force-refresh`, чтобы пересканировать с нуля.
+If `sniff` "does not see" a new project — the cache has probably kicked in: run with `--force-refresh` to rescan from scratch.
 :::
 
-### Прочее
+### Misc
 
-- Режим запуска — всегда **read-only**, dry-run/commit не применимы.
-- Отсутствие `scan_root` — ошибка (см. [Частые ошибки](#частые-ошибки)).
+- Run mode is always **read-only**: dry-run/commit do not apply.
+- Missing `scan_root` is an error (see [Common errors](#common-errors)).
 
-## Вывод
+## Output
 
-### Человекочитаемый (human)
+### Human-readable (human)
 
-Строка сводки и таблица проектов. Колонки: `NAME`, `STACK`, `SIZE`, `GIT`, `PATH`.
+A summary line and a project table. Columns: `NAME`, `STACK`, `SIZE`, `GIT`, `PATH`.
 
 ```text
 Scan root: /tmp/projects
@@ -106,42 +106,42 @@ NAME  STACK  SIZE   GIT  PATH
 app   Rust   137 B  no   /tmp/projects/app
 ```
 
-- `STACK` — `Язык` или `Язык + Фрейм1 + Фрейм2`; если язык не определён — `-`.
-- `GIT` — `yes`, если в корне проекта есть каталог `.git`, иначе `no`.
-- `SIZE` — человекочитаемый размер с бинарными единицами (`B`, `KiB`, `MiB`, `GiB`, `TiB`).
+- `STACK` — `Language` or `Language + Frame1 + Frame2`; `-` when no language was detected.
+- `GIT` — `yes` if the project root contains a `.git` directory, otherwise `no`.
+- `SIZE` — human-readable size with binary units (`B`, `KiB`, `MiB`, `GiB`, `TiB`).
 
 ### JSON (`--json`)
 
-Поля верхнего уровня:
+Top-level fields:
 
-| Поле | Тип | Смысл |
-|------|-----|-------|
-| `from_cache` | bool | Отчёт взят из кэша (`hit`) или построен заново (`miss`) |
-| `duration_ms` | число | Длительность запуска в миллисекундах |
-| `report` | объект | Сам отчёт `ScanReport` |
+| Field | Type | Meaning |
+|-------|------|---------|
+| `from_cache` | bool | Whether the report came from cache (`hit`) or was built fresh (`miss`) |
+| `duration_ms` | number | Run duration in milliseconds |
+| `report` | object | The `ScanReport` itself |
 
-Поля `report`:
+`report` fields:
 
-| Поле | Тип | Смысл |
-|------|-----|-------|
-| `root` | строка | Сканированный корень (абсолютный путь) |
-| `projects` | массив | Обнаруженные проекты |
-| `total_size_bytes` | число | Сумма размеров всех проектов |
-| `schema_version` | число | Версия схемы (сейчас всегда `1`) |
+| Field | Type | Meaning |
+|-------|------|---------|
+| `root` | string | Scanned root (absolute path) |
+| `projects` | array | Discovered projects |
+| `total_size_bytes` | number | Sum of all project sizes |
+| `schema_version` | number | Schema version (currently always `1`) |
 
-Поля элемента `projects[]`:
+Fields of each `projects[]` entry:
 
-| Поле | Тип | Смысл |
-|------|-----|-------|
-| `path` | строка | Путь к корню проекта |
-| `name` | строка | Имя (обычно — имя папки) |
-| `stack.language` | строка/null | Язык, если определён |
-| `stack.frameworks` | массив | Обнаруженные фреймворки |
-| `stack.markers` | массив | Маркеры, сработавшие при определении |
-| `size_bytes` | число | Размер проекта в байтах |
-| `is_git_repo` | bool | Есть ли каталог `.git` в корне |
+| Field | Type | Meaning |
+|-------|------|---------|
+| `path` | string | Path to the project root |
+| `name` | string | Name (usually the folder name) |
+| `stack.language` | string/null | Language, if detected |
+| `stack.frameworks` | array | Detected frameworks |
+| `stack.markers` | array | Markers matched during detection |
+| `size_bytes` | number | Project size in bytes |
+| `is_git_repo` | bool | Whether a `.git` directory exists in the root |
 
-Пример:
+Example:
 
 ```json
 {
@@ -164,67 +164,67 @@ app   Rust   137 B  no   /tmp/projects/app
 }
 ```
 
-## Коды выхода
+## Exit codes
 
-| Код | Когда |
-|-----|-------|
-| 0 | Успех |
-| 1 | Ошибка: нет/недоступен `scan_root`, не удалось прочитать конфиг и т.п. |
+| Code | When |
+|------|------|
+| 0 | Success |
+| 1 | Error: missing/inaccessible `scan_root`, unreadable config, etc. |
 
-Кода `2` у sniff **нет** — он используется только у `dig` (политика `--fail-on`).
+Sniff has **no** code `2` — it is used only by `dig` (the `--fail-on` policy).
 
-## Примеры
+## Examples
 
 ```bash
-# Локально: полный обзор папки с проектами
+# Locally: full overview of the projects folder
 racc sniff
 
-# Только один корень (без правки конфига)
+# Just one root (without editing config)
 racc sniff --root ~/DEV/PROJS
 
-# Не глубже 3 уровней вложенности
+# No deeper than 3 levels of nesting
 racc sniff --max-depth 3
 
-# Игнорировать кэш и пересканировать
+# Ignore cache and rescan
 racc sniff --force-refresh
 
-# Сразу со всеми переопределениями
+# With all overrides at once
 racc sniff --root ~/DEV/PROJS --max-depth 2 --force-refresh
 
-# JSON для скриптов и CI
+# JSON for scripts and CI
 racc sniff --json
 
-# JSON с переопределённым корнем — машинный разбор
+# JSON with an overridden root — machine parsing
 racc sniff --root "$CI_PROJECT_DIR/../" --json
 ```
 
-## Частые ошибки
+## Common errors
 
-| Ситуация | Что сделать |
-|----------|-------------|
-| `scan_root` не задан (нет конфига) | Задать `paths.scan_root` в конфиге или передать `--root <PATH>` |
-| `scan_root` не существует / недоступен | Проверить путь; ошибка выходит с кодом `1` |
-| «Не вижу новый проект» | Возможно, сработал кэш — запустите с `--force-refresh` |
-| Проект глубже, чем ожидалось | Увеличьте `--max-depth` (по умолчанию — `6`) |
-| `cache: miss` каждый раз | Нормально при изменении `--max-depth` или версии бинарника |
+| Situation | What to do |
+|-----------|------------|
+| `scan_root` not set (no config) | Set `paths.scan_root` in the config or pass `--root <PATH>` |
+| `scan_root` missing / inaccessible | Check the path; error exits with code `1` |
+| "I don't see a new project" | The cache has probably kicked in — run with `--force-refresh` |
+| Project deeper than expected | Increase `--max-depth` (default is `6`) |
+| `cache: miss` every time | Normal when `--max-depth` or the binary version changed |
 
-## Безопасность
+## Security
 
-- Команда **read-only**: не пишет в den и не удаляет файлы.
-- В вывод не попадает содержимое файлов — только имена, стеки и размеры.
-- Не выводит и не логирует пароли/секреты — их поиском занимается `racc dig`, а не `sniff`.
+- The command is **read-only**: it neither writes to the den nor deletes files.
+- File contents never appear in output — only names, stacks, and sizes.
+- Never prints or logs passwords/secrets — finding those is `racc dig`'s job, not sniff's.
 
-## Связанные команды
+## Related commands
 
-| Команда | Роль |
+| Command | Role |
 |---------|------|
-| `racc dig` | Найти и классифицировать секреты (read-only) |
-| `racc stash` | Вынести секреты в зашифрованный age-архив в den |
-| `racc rinse` | Удалить мусор сборки по стратегиям |
-| `racc pack` | Упаковать проект без секретов в `packs/` |
-| `racc raid` | Полный цикл одной командой |
-| [Что поддерживается](/supported) | Полный список маркеров, приоритетов и фреймворков |
+| `racc dig` | Find and classify secrets (read-only) |
+| `racc stash` | Move secrets into an encrypted age archive in the den |
+| `racc rinse` | Delete build trash by strategies |
+| `racc pack` | Pack a project without secrets into `packs/` |
+| `racc raid` | Full cycle in one command |
+| [Supported catalog](/supported) | Full list of markers, priorities, and frameworks |
 
 ---
 
-*Документ соответствует реализации; при изменении флагов CLI обновляйте страницу в том же PR.*
+*This document matches the implementation; when CLI flags change, update the page in the same PR.*

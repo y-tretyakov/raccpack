@@ -1,52 +1,52 @@
 ---
-title: Desktop (настольное приложение)
-description: Целевое поведение Desktop-приложения raccpack на Tauri + React (планируется).
+title: Desktop (desktop application)
+description: Target behavior of the raccpack Desktop application on Tauri + React (planned).
 ---
 
-# Desktop (настольное приложение)
+# Desktop (desktop application)
 
 ::: warning
-Desktop-приложение находится в разработке и запланировано к выходу в Beta (0.5.x). Текущий раздел описывает целевое поведение по vision-документам; детали интерфейса могут измениться.
+The Desktop application is in development and scheduled for release in Beta (0.5.x). This section describes the target behavior based on vision documents; interface details may change.
 :::
 
-## Что это
+## What it is
 
-Настольное приложение на **Tauri + React** (состояние — Zustand). Даёт ту же функциональность, что CLI и TUI, но в графическом интерфейсе: выбор папок, таблицы проектов, списки секретов, мастер рейда.
+A desktop application built on **Tauri + React** (state — Zustand). It provides the same functionality as the CLI and TUI, but in a graphical interface: folder pickers, project tables, secret lists, a raid wizard.
 
-## Как устроено
+## How it is structured
 
-Приложение разделено на две части:
+The application is split into two parts:
 
-- **React (UI)** — интерфейс и состояние экранов. Не содержит логики секретов и не читает файлы с диска напрямую.
-- **BFF (Rust-команды Tauri)** — тонкая прослойка между React и ядром: валидация путей, маппинг DTO, запуск длительных операций и стриминг прогресса.
+- **React (UI)** — the interface and screen state. Contains no secret logic and does not read files from disk directly.
+- **BFF (Tauri Rust commands)** — a thin layer between React and the core: path validation, DTO mapping, launching long operations, and progress streaming.
 
 ```
 React (UI)  →  Zustand  →  Tauri command (BFF)  →  raccpack-core
-                 ↑← события прогресса / результат ←┘
+                  ↑← progress events / result ←┘
 ```
 
-## Целевые возможности
+## Target capabilities
 
-- **Выбор папок** — `scan_root` и `den_dir` через системные диалоги.
-- **Таблица проектов** — результат `sniff` с фильтрами по стеку и размеру.
-- **Список секретов** — результат `dig` с фильтрами по риску и маскированными значениями.
-- **Мастер raid** — подтверждение фаз stash/rinse/pack, запрос passphrase в безопасном диалоге, прогресс по событиям.
-- **Безопасность** — React получает только DTO с маскированными секретами; passphrase не хранится в состоянии долгоживущей строкой.
+- **Folder selection** — `scan_root` and `den_dir` via system dialogs.
+- **Project table** — the result of `sniff` with filters by stack and size.
+- **Secret list** — the result of `dig` with risk filters and masked values.
+- **Raid wizard** — confirmation of stash/rinse/pack phases, passphrase entry in a secure dialog, event-driven progress.
+- **Security** — React receives only DTOs with masked secrets; the passphrase is never stored as a long-lived string in state.
 
-## Как это будет работать
+## How it will work
 
 ```
-действие в React  →  Zustand → invoke("raid", { root, den, dryRun })
-                  →  Tauri command (BFF) → ядро: raid + события прогресса
-                  →  Zustand обновляет UI (только masked-данные)
+action in React  →  Zustand → invoke("raid", { root, den, dryRun })
+                 →  Tauri command (BFF) → core: raid + progress events
+                 →  Zustand updates the UI (masked data only)
 ```
 
-## Когда появится
+## When it will arrive
 
-Desktop ожидается в фазе **B2** (Beta, 0.5.x), после стабилизации facade-контракта. После выхода здесь появятся разделы установки и описания экранов.
+Desktop is expected in phase **B2** (Beta, 0.5.x), after the facade contract stabilizes. Once released, installation instructions and screen descriptions will appear here.
 
-## См. также
+## See also
 
-- [TUI](/tui-usage) — терминальный интерфейс.
-- [Facade API](/facade-api) — контракт, который используют все интерфейсы.
-- [Основные понятия](/concepts) — риски и маскирование.
+- [TUI](/tui-usage) — the terminal interface.
+- [Facade API](/facade-api) — the contract used by all interfaces.
+- [Core concepts](/concepts) — risks and masking.

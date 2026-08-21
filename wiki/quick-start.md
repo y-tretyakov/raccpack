@@ -1,23 +1,23 @@
 ---
-title: Быстрый старт
-description: Первый прогон raccpack за пять минут — конфигурация, поиск проектов и проверка на секреты.
+title: Quick start
+description: Your first raccpack run in five minutes — configuration, project discovery, and a secret check.
 ---
 
-# Быстрый старт
+# Quick start
 
-За пять минут: настроить raccpack, найти проекты, проверить их на секреты.
+In five minutes: set up raccpack, find your projects, and check them for secrets.
 
-## 1. Убедитесь, что `racc` установлен
+## 1. Make sure `racc` is installed
 
 ```bash
 racc --version
 ```
 
-Если команды нет — см. [Установка](/installation).
+If the command is missing, see [Installation](/installation).
 
-## 2. Создайте конфигурацию
+## 2. Create the configuration
 
-Укажите папку с проектами и папку для «den»:
+Specify the projects folder and the "den" folder:
 
 ```bash
 mkdir -p ~/.config/raccpack
@@ -29,16 +29,16 @@ EOF
 ```
 
 ::: info
-Пути могут содержать `~` и относительные компоненты — raccpack сам приведёт их к абсолютным.
+Paths may contain `~` and relative components — raccpack will resolve them to absolute paths itself.
 :::
 
-## 3. Найдите проекты (`sniff`)
+## 3. Find projects (`sniff`)
 
 ```bash
 racc sniff
 ```
 
-Пример вывода:
+Example output:
 
 ```text
 Scan root: /home/user/DEV/PROJS
@@ -50,21 +50,21 @@ web-dashboard TypeScript + Next.js 730.1 MiB  yes  /home/user/DEV/PROJS/web-dash
 scripts     -                      1.8 MiB   no   /home/user/DEV/PROJS/scripts
 ```
 
-Если проектов нет — проверьте `scan_root` и глубину сканирования (см. [Конфигурация](/configuration)).
+If no projects are found — check `scan_root` and the scan depth (see [Configuration](/configuration)).
 
-## 4. Проверьте проекты на секреты (`dig`)
+## 4. Check projects for secrets (`dig`)
 
 ```bash
 racc dig
 ```
 
-или по одному проекту:
+or one project at a time:
 
 ```bash
 racc dig --project ~/DEV/PROJS/app-api
 ```
 
-Пример вывода:
+Example output:
 
 ```text
 Dig root: /home/user/DEV/PROJS
@@ -78,57 +78,57 @@ Medium    JWT-like token           /home/user/DEV/PROJS/scripts/token.txt
 ```
 
 ::: info
-В выводе никогда не появляются исходные значения — только маскированные превью и уровень риска.
+Original values never appear in the output — only masked previews and a risk level.
 :::
 
-## 5. Поймите код выхода
+## 5. Understand the exit code
 
-`racc dig` возвращает код выхода, пригодный для CI:
+`racc dig` returns an exit code suitable for CI:
 
-- `0` — ошибок нет;
-- `1` — произошла ошибка выполнения;
-- `2` — найдены секреты выше порога политики (по умолчанию `Critical`).
+- `0` — no errors;
+- `1` — a runtime error occurred;
+- `2` — secrets above the policy threshold were found (`Critical` by default).
 
-Это удобно для проверок в скриптах:
+This is handy for checks in scripts:
 
 ```bash
 racc dig --fail-on high
 code=$?
 if [ "$code" -eq 2 ]; then
-  echo "Найдены секреты High и выше"
+  echo "High-or-above secrets found"
 fi
 ```
 
-## 6. Упакуйте проект (`pack`)
+## 6. Pack a project (`pack`)
 
 ```bash
 racc pack --project ~/DEV/PROJS/app-api --yes
 ```
 
-По умолчанию `pack` — **dry-run** (ничего не пишет); флаг `--yes` — явное подтверждение, которое записывает архив `.tar.zst` в den. Секреты из архива исключаются автоматически (по имени — всегда, по содержимому — по умолчанию).
+By default `pack` is a **dry-run** (nothing is written); the `--yes` flag is the explicit confirmation that writes the `.tar.zst` archive into the den. Secrets are excluded from the archive automatically (by name — always; by content — by default).
 
-## 7. Вынесите секреты (`stash`)
+## 7. Move secrets out (`stash`)
 
 ```bash
 racc stash --project ~/DEV/PROJS/app-api
 racc stash --project ~/DEV/PROJS/app-api --yes
 ```
 
-Первый запуск — **dry-run** (ничего не пишет); флаг `--yes` переносит чувствительные файлы в зашифрованный age-архив в `den/secrets/`. Пароль задаётся через `RACCPACK_PASSPHRASE` или вводится интерактивно.
+The first run is a **dry-run** (nothing is written); the `--yes` flag moves sensitive files into an encrypted age archive under `den/secrets/`. The passphrase is provided via `RACCPACK_PASSPHRASE` or entered interactively.
 
-## 8. Очистите мусор сборки (`rinse`)
+## 8. Clean build trash (`rinse`)
 
 ```bash
 racc rinse --project ~/DEV/PROJS/app-api
 racc rinse --project ~/DEV/PROJS/app-api --yes
 ```
 
-Первый запуск — **dry-run** (ничего не удаляет); флаг `--yes` удаляет каталоги артефактов сборки (`target`, `node_modules`, …) по стратегиям из конфигурации. Какие стратегии включены по умолчанию и как подключить `jvm`, `go`, `generic` — см. [Конфигурация](/configuration) и [Rinse](/rinse).
+The first run is a **dry-run** (nothing is deleted); the `--yes` flag deletes build artifact directories (`target`, `node_modules`, …) according to strategies from the configuration. Which strategies are enabled by default and how to enable `jvm`, `go`, or `generic` — see [Configuration](/configuration) and [Rinse](/rinse).
 
-## 9. Что дальше
+## 9. What next
 
-Сейчас CLI умеет `sniff`, `dig`, `pack`, `stash`, `rinse` и `raid`; по roadmap — `den`, `init`. Обзор команд — в [Использование CLI](/cli-usage), подробности по каждой — на страницах `/sniff`, `/dig`, `/pack`, `/stash`, `/rinse` и `/raid`:
+The CLI currently supports `sniff`, `dig`, `pack`, `stash`, `rinse`, and `raid`; on the roadmap — `den`, `init`. For a command overview see [CLI usage](/cli-usage); details on each command are on the `/sniff`, `/dig`, `/pack`, `/stash`, `/rinse`, and `/raid` pages:
 
-- [Использование CLI](/cli-usage) — полный справочник команд.
-- [Основные понятия](/concepts) — что такое den, риски и фазы.
-- [Конфигурация](/configuration) — все настройки.
+- [CLI usage](/cli-usage) — full command reference.
+- [Core concepts](/concepts) — what den, risks, and phases are.
+- [Configuration](/configuration) — all settings.

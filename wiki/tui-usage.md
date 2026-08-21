@@ -1,44 +1,44 @@
 ---
-title: TUI (терминальный интерфейс)
-description: Целевое поведение racc-tui — интерактивного терминального интерфейса на базе Ratatui (планируется).
+title: TUI (terminal interface)
+description: Target behavior of racc-tui — an interactive terminal interface built on Ratatui (planned).
 ---
 
-# TUI (терминальный интерфейс)
+# TUI (terminal interface)
 
 ::: warning
-TUI находится в разработке и запланирован к выходу в Beta (0.5.x). Текущий раздел описывает целевое поведение по vision-документам; командные примеры могут измениться.
+The TUI is in development and scheduled for release in Beta (0.5.x). This section describes the target behavior based on vision documents; command examples may change.
 :::
 
-## Что это
+## What it is
 
-`racc-tui` — интерактивный терминальный интерфейс на базе Ratatui. Позволяет работать с проектами и секретами без запоминания команд: навигация по дереву, фильтры, подтверждения.
+`racc-tui` is an interactive terminal interface built on Ratatui. It lets you work with projects and secrets without memorizing commands: tree navigation, filters, confirmations.
 
-## Целевые возможности
+## Target capabilities
 
-- **Экран sniff** — список проектов, стек, размер, признак git-репозитория; клавиши для открытия проекта.
-- **Экран dig** — находки секретов с фильтрами по уровню риска и маскированными деталями.
-- **Подтверждение raid** — мастер, в котором видно, что произойдёт на каждой фазе (stash → rinse → pack), с интерактивным прогрессом.
-- **Dry-run** — режим, в котором видны все изменения до их применения.
+- **sniff screen** — list of projects, stack, size, git-repository flag; keys to open a project.
+- **dig screen** — secret findings with risk-level filters and masked details.
+- **raid confirmation** — a wizard that shows what will happen at each phase (stash → rinse → pack), with interactive progress.
+- **Dry-run** — a mode where all changes are visible before they are applied.
 
-## Как это будет работать
+## How it will work
 
-TUI использует тот же публичный контракт ядра, что и CLI, поэтому результаты и политики (риски, маскирование, dry-run) одинаковы во всех интерфейсах.
+The TUI uses the same public contract of the core as the CLI, so results and policies (risks, masking, dry-run) are identical across all interfaces.
 
 ```
-нажатие клавиши  →  состояние экрана TUI  →  вызов facade
-                 ←  события прогресса + отчёт ←  ядро
-                 →  обновление панелей
+key press  →  TUI screen state  →  facade call
+           ←  progress events + report ←  core
+           →  panel updates
 ```
 
-## Прогресс длинных операций
+## Progress of long operations
 
-Длинные операции (глубокий `dig`, полный `raid`) шлют события прогресса: фаза, процент, сообщение. TUI перерисовывает экран по каждому событию, не блокируя интерфейс.
+Long operations (a deep `dig`, a full `raid`) send progress events: phase, percentage, message. The TUI redraws the screen on every event without blocking the interface.
 
-## Когда появится
+## When it will arrive
 
-TUI ожидается в фазе **B1** (Beta, 0.5.x), сразу после стабилизации facade-контракта (Alpha). После выхода здесь появится раздел с установкой и полной раскладкой клавиш.
+The TUI is expected in phase **B1** (Beta, 0.5.x), right after the facade contract stabilizes (Alpha). Once released, this page will gain a section on installation and the full key map.
 
-## См. также
+## See also
 
-- [Desktop](/desktop-usage) — графический интерфейс.
-- [Facade API](/facade-api) — контракт, который используют все интерфейсы.
+- [Desktop](/desktop-usage) — the graphical interface.
+- [Facade API](/facade-api) — the contract used by all interfaces.

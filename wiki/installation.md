@@ -1,64 +1,64 @@
 ---
-title: Установка
-description: Требования, сборка из исходников и проверка окружения для raccpack.
+title: Installation
+description: Requirements, building from source, and environment verification for raccpack.
 ---
 
-# Установка
+# Installation
 
-## Требования
+## Requirements
 
-- **Linux** — основная поддерживаемая платформа (macOS и Windows работают через те же механизмы Rust, но проверяются «best-effort»).
-- **Rust toolchain** версии **1.75+** для сборки из исходников.
-- Для сборки: компилятор `cargo` и `rustc`.
+- **Linux** — the primary supported platform (macOS and Windows work through the same Rust mechanisms but are tested on a best-effort basis).
+- **Rust toolchain** version **1.75+** for building from source.
+- To build: the `cargo` compiler and `rustc`.
 
 ::: info
-Сборка из исходников пока единственный способ установки: релизные бинарники и системные пакеты появятся на этапе 1.0.0.
+Building from source is currently the only installation method: release binaries and system packages will appear at milestone 1.0.0.
 :::
 
-## Сборка из исходников
+## Building from source
 
-Склонируйте репозиторий и соберите workspace:
+Clone the repository and build the workspace:
 
 ```bash
 git clone https://github.com/y-tretyakov/raccpack.git
 cd raccpack
 
-# Сборка всего workspace (core + CLI)
+# Build the whole workspace (core + CLI)
 cargo build --release
 ```
 
-Бинарник появится в `target/release/racc`. Можно установить его в системный каталог:
+The binary will appear at `target/release/racc`. You can install it into a system directory:
 
 ```bash
 install -m 0755 target/release/racc ~/.local/bin/racc
 ```
 
-Проверьте установку:
+Verify the installation:
 
 ```bash
 racc --help
 racc --version
 ```
 
-Если команда не находится — убедитесь, что каталог установки (`~/.local/bin`) добавлен в `PATH`.
+If the command is not found — make sure the installation directory (`~/.local/bin`) is in your `PATH`.
 
-## Версии интерфейсов
+## Interface versions
 
-raccpack поставляется с тремя интерфейсами. Сейчас доступен только CLI.
+raccpack ships with three interfaces. Currently only the CLI is available.
 
-| Интерфейс | Бинарник | Статус |
-|-----------|----------|--------|
-| CLI | `racc` | Доступен (MVP) |
-| TUI | `racc-tui` | Планируется (Beta, 0.5.x) |
-| Desktop | `raccpack` (Tauri) | Планируется (Beta, 0.5.x) |
+| Interface | Binary | Status |
+|-----------|--------|--------|
+| CLI | `racc` | Available (MVP) |
+| TUI | `racc-tui` | Planned (Beta, 0.5.x) |
+| Desktop | `raccpack` (Tauri) | Planned (Beta, 0.5.x) |
 
 ::: info
-TUI и Desktop находятся в разработке. Их установка будет описана здесь, когда появятся первые сборки. Целевое поведение интерфейсов — в разделах [TUI](/tui-usage) и [Desktop](/desktop-usage).
+TUI and Desktop are in development. Their installation will be described here once the first builds appear. The target behavior of the interfaces is described in the [TUI](/tui-usage) and [Desktop](/desktop-usage) sections.
 :::
 
-## Проверка окружения
+## Verifying the environment
 
-Создайте минимальную конфигурацию и убедитесь, что `racc` видит ваши проекты:
+Create a minimal configuration and make sure `racc` can see your projects:
 
 ```bash
 mkdir -p ~/.config/raccpack
@@ -71,8 +71,8 @@ EOF
 racc sniff
 ```
 
-Подробнее о настройках — в разделе [Конфигурация](/configuration).
+For more on settings, see [Configuration](/configuration).
 
-## Дальнейшие шаги
+## Next steps
 
-- [Быстрый старт](/quick-start) — первый прогон за пять минут.
+- [Quick start](/quick-start) — your first run in five minutes.

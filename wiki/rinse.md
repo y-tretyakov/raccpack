@@ -1,109 +1,109 @@
 ---
-title: Rinse — очистка мусора сборки
-description: Команда racc rinse — удалить известные каталоги артефактов сборки (target, node_modules, кэши) по стратегиям, dry-run по умолчанию.
+title: Rinse — clean build trash
+description: The racc rinse command — remove known build artifact directories (target, node_modules, caches) by strategies, dry-run by default.
 ---
 
-# Rinse - очистка мусора сборки
+# Rinse - clean build trash
 
-Команда: `racc rinse`  
-Статус: реализовано (Alpha).
+Command: `racc rinse`  
+Status: implemented (Alpha).
 
-Эта страница описывает **ровно то поведение**, которое реализует `raccpack` сейчас. Если флаг или путь не указаны здесь — их нет в текущей версии.
+This page describes **exactly the behavior** that `raccpack` implements today. If a flag or path is not listed here, it does not exist in the current version.
 
-Вернуться к обзору команд: [Использование CLI](/cli-usage).
+Back to the command overview: [CLI usage](/cli-usage).
 
-## Что делает rinse (и чего не делает)
+## What rinse does (and does not do)
 
-`racc rinse` удаляет **известные каталоги артефактов сборки** внутри проекта по наборам правил — **стратегиям**:
+`racc rinse` removes **known build artifact directories** inside a project according to rule sets — **strategies**:
 
 - `target` (Rust),
 - `node_modules`, `.next`, `dist`, … (Node),
 - `__pycache__`, `.venv`, … (Python),
-- и другие включённые стратегии (см. [Стратегии](#стратегии-strategy)).
+- and other enabled strategies (see [Strategies (`--strategy`)](#strategies-strategy)).
 
-По умолчанию команда работает в **dry-run**: только показывает, что было бы удалено. Реальное удаление — только с `--yes`.
+By default the command runs as **dry-run**: it only shows what would be removed. Actual deletion requires `--yes`.
 
-Чего rinse **не** делает:
+What rinse does **not** do:
 
-- не ищет и не трогает секреты — для этого `racc stash`;
-- не создаёт архивы — для этого `racc pack`;
-- не удаляет произвольные файлы пользователя вне таблицы стратегий;
-- не использует код выхода `2` (это особенность только `dig`);
-- не требует passphrase и не имеет флагов `--remove-sources` / `--only` (это параметры `stash`).
+- does not look for or touch secrets — that's `racc stash`;
+- does not create archives — that's `racc pack`;
+- does not delete arbitrary user files outside the strategy table;
+- never uses exit code `2` (that is specific to `dig`);
+- needs no passphrase and has no `--remove-sources` / `--only` flags (those are `stash` options).
 
-## Быстрый старт
+## Quick start
 
 ```bash
-# 1) Посмотреть, что будет удалено (безопасно, ничего не удаляется)
+# 1) See what would be removed (safe, nothing deleted)
 racc rinse --project ~/DEV/PROJS/my-api
 
-# 2) Удалить найденный мусор
+# 2) Remove the found trash
 racc rinse --project ~/DEV/PROJS/my-api --yes
 ```
 
 ::: warning
-По умолчанию `rinse` работает в **dry-run**: ничего не удаляется. Реальное удаление каталогов — только с `--yes`.
+By default `rinse` runs as **dry-run**: nothing is deleted. Actual directory removal happens only with `--yes`.
 :::
 
 ::: info
-Перед `--yes` всегда имеет смысл прогнать dry-run и прочитать список путей: `dist`, `build` и `vendor` — «осторожные» имена, в default-наборе стратегий их нет (см. [Стратегии](#стратегии-strategy)).
+Before `--yes`, always run a dry-run and read the list of paths: `dist`, `build`, and `vendor` are "cautious" names and are not in the default strategy set (see [Strategies (`--strategy`)](#strategies-strategy)).
 :::
 
-## Синтаксис
+## Syntax
 
 ```text
 racc rinse --project <PATH> [OPTIONS]
 ```
 
-`--project <PATH>` — **обязательный** параметр: каталог проекта (или поддерево), в котором ищем мусор сборки.
+`--project <PATH>` is a **required** option: the project directory (or subtree) to search for build trash.
 
-## Параметры и флаги
+## Options and flags
 
-### Проект (обязательно)
+### Project (required)
 
-| Параметр | Описание |
-|----------|----------|
-| `--project <PATH>` | Каталог проекта (или поддерево), в котором ищем мусор. Может быть относительным — например `--project .` из каталога проекта |
+| Option | Description |
+|--------|-------------|
+| `--project <PATH>` | Project directory (or subtree) to search for trash. May be relative — e.g. `--project .` from within the project directory |
 
-### Режим записи
+### Write mode
 
-| Параметр | Поведение |
-|----------|-----------|
-| *(по умолчанию)* | **Dry-run**: только отчёт, каталоги не удаляются |
-| `--dry-run` | Явный dry-run |
-| `--yes` | **Commit**: реально удалить найденные каталоги |
+| Option | Behavior |
+|--------|----------|
+| *(default)* | **Dry-run**: report only; no directories removed |
+| `--dry-run` | Explicit dry-run |
+| `--yes` | **Commit**: actually delete the found directories |
 
-**Приоритет:** если указаны и `--dry-run`, и `--yes`, побеждает dry-run — ничего не удаляется.
+**Priority:** if both `--dry-run` and `--yes` are given, dry-run wins — nothing is deleted.
 
-### Стратегии
+### Strategies
 
-| Параметр | По умолчанию | Описание |
-|----------|--------------|----------|
-| `--strategy <ID>` | из `config.cleanup.enabled_strategies` | Повторяемый фильтр стратегий. Без флага используются стратегии из конфигурации |
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--strategy <ID>` | from `config.cleanup.enabled_strategies` | Repeatable strategy filter. Without the flag, strategies come from configuration |
 
-### Вывод
+### Output
 
-| Параметр | Описание |
-|----------|----------|
-| `--json` | Печать `RinseResult` в JSON (см. [JSON](#json-json)) |
+| Option | Description |
+|--------|-------------|
+| `--json` | Print `RinseResult` as JSON (see [JSON (`--json`)](#json-json)) |
 
-### Глобальные флаги
+### Global flags
 
-| Флаг | Описание |
-|------|----------|
-| `-c, --config <PATH>` | Файл конфигурации (переопределяет `RACCPACK_CONFIG`) |
-| `--root <PATH>` | Переопределить `scan_root` на этот запуск; относительный `--project` резолвится относительно него |
-| `--den <PATH>` | Переопределить `den_dir` на этот запуск. Для `rinse` **не используется** — rinse не пишет в den |
-| `--json` | Машиночитаемый вывод JSON |
+| Flag | Description |
+|------|-------------|
+| `-c, --config <PATH>` | Config file (overrides `RACCPACK_CONFIG`) |
+| `--root <PATH>` | Override `scan_root` for this run; a relative `--project` resolves against it |
+| `--den <PATH>` | Override `den_dir` for this run. **Not used** by `rinse` — rinse never writes to the den |
+| `--json` | Machine-readable JSON output |
 
 ::: info
-`--den` принимается (это глобальный флаг), но на работу `rinse` не влияет: очистка мусора не затрагивает den.
+`--den` is accepted (it's a global flag) but has no effect on `rinse`: cleaning trash never touches the den.
 :::
 
-## Стратегии (`--strategy`)
+## Strategies (`--strategy`)
 
-| ID | Что обычно удаляется |
-|----|----------------------|
+| ID | Typically removed |
+|----|-------------------|
 | `rust` | `target` |
 | `node` | `node_modules`, `.next`, `dist`, `.nuxt`, `coverage` |
 | `python` | `__pycache__`, `.venv`, `venv`, `.tox`, `.mypy_cache`, `.pytest_cache`, `*.egg-info`, `.ruff_cache` |
@@ -111,27 +111,27 @@ racc rinse --project <PATH> [OPTIONS]
 | `go` | `vendor` |
 | `generic` | `.cache`, `tmp`, `temp` |
 
-`dist`, `build`, `vendor`, `tmp`/`temp` — «осторожные» имена: иногда это не мусор, а настоящие исходники или пользовательские данные. Поэтому по умолчанию включены только `rust`, `node` и `python`; `jvm`, `go` и `generic` подключаются явно — флагом `--strategy` или в конфигурации.
+`dist`, `build`, `vendor`, `tmp`/`temp` are "cautious" names: sometimes they are not trash but real sources or user data. That's why only `rust`, `node`, and `python` are enabled by default; `jvm`, `go`, and `generic` must be opted in explicitly — via `--strategy` or in configuration.
 
-### Конфиг (`config.toml`)
+### Config (`config.toml`)
 
 ```toml
 [cleanup]
 enabled_strategies = ["rust", "node", "python"]
 ```
 
-Это default, если CLI не передал `--strategy`. Неизвестный id (в конфиге или в CLI) — ошибка, exit `1`.
+This is the default when no `--strategy` is passed on the CLI. An unknown id (in config or CLI) is an error, exit `1`.
 
-## Режим Dry-run vs Commit
+## Dry-run vs Commit mode
 
-| Режим | Флаг | Файловая система |
-|-------|------|------------------|
-| Dry-run | по умолчанию или `--dry-run` | Каталоги **не** удаляются; отчёт — полный список найденного |
-| Commit | `--yes` | Найденные trash-каталоги удаляются (см. [Безопасность](#безопасность)) |
+| Mode | Flag | Filesystem |
+|------|------|------------|
+| Dry-run | default or `--dry-run` | Directories are **not** removed; report lists everything found |
+| Commit | `--yes` | Found trash directories are removed (see [Security](#security)) |
 
-## Вывод
+## Output
 
-### Человекочитаемый (human)
+### Human-readable (human)
 
 Dry-run:
 
@@ -153,15 +153,15 @@ Rinse complete
 
 ### JSON (`--json`)
 
-| Поле | Смысл |
-|------|--------|
-| `removed` | Массив объектов `{ path, strategy, pattern_name, size_bytes }` |
-| `bytes_freed` | Сумма размеров (в dry-run — оценка; в commit — реально освобождено) |
+| Field | Meaning |
+|-------|---------|
+| `removed` | Array of `{ path, strategy, pattern_name, size_bytes }` objects |
+| `bytes_freed` | Sum of sizes (estimate in dry-run; actually freed in commit) |
 | `dry_run` | `true` / `false` |
 
-В dry-run `removed` — это **кандидаты** (то, что было бы удалено), а не «уже удалённые».
+In dry-run, `removed` holds **candidates** (what would be removed), not "already removed" items.
 
-Пример:
+Example:
 
 ```json
 {
@@ -184,96 +184,96 @@ Rinse complete
 }
 ```
 
-## Коды выхода
+## Exit codes
 
-| Код | Когда |
-|-----|--------|
-| 0 | Успех (в т.ч. dry-run) |
-| 1 | Ошибка: нет `--project` (usage), неизвестная стратегия, IO при удалении |
+| Code | When |
+|------|------|
+| 0 | Success (including dry-run) |
+| 1 | Error: missing `--project` (usage), unknown strategy, IO during removal |
 
-Код `2` (как у dig для Critical) **не** используется для rinse.
+Code `2` (as in dig for Critical) is **not** used by rinse.
 
-## Примеры
+## Examples
 
 ```bash
-# Локально: dry-run — показать, что будет удалено (ничего не удаляется)
+# Locally: dry-run — show what would be removed (nothing deleted)
 racc rinse --project ~/DEV/PROJS/my-api
 
-# Явный dry-run
+# Explicit dry-run
 racc rinse --project ~/DEV/PROJS/my-api --dry-run
 
-# Commit: реально удалить найденный мусор
+# Commit: actually remove the found trash
 racc rinse --project ~/DEV/PROJS/my-api --yes
 
-# Только Cargo target/
+# Cargo target/ only
 racc rinse --project ~/DEV/PROJS/my-api --strategy rust --yes
 
-# Только Node-мусор (node_modules, .next, …)
+# Node trash only (node_modules, .next, …)
 racc rinse --project ~/DEV/PROJS/my-api --strategy node --yes
 
-# Rust + Node за один проход (флаг повторяется)
+# Rust + Node in one pass (repeatable flag)
 racc rinse --project ~/DEV/PROJS/my-api --strategy rust --strategy node --yes
 
-# JVM build-каталоги (в default-наборе выключены — только явно)
+# JVM build directories (off by default — explicit only)
 racc rinse --project ~/DEV/PROJS/my-api --strategy jvm --yes
 
-# Go vendor/ (по умолчанию выключен — только явно)
+# Go vendor/ (off by default — explicit only)
 racc rinse --project ~/DEV/PROJS/my-api --strategy go --yes
 
-# Generic: .cache, tmp, temp (по умолчанию выключены — только явно)
+# Generic: .cache, tmp, temp (off by default — explicit only)
 racc rinse --project ~/DEV/PROJS/my-api --strategy generic --yes
 
-# --dry-run всегда побеждает --yes: ничего не удаляется
+# --dry-run always wins over --yes: nothing is deleted
 racc rinse --project ~/DEV/PROJS/my-api --yes --dry-run
 
-# Project относительно текущей директории
+# Project relative to current directory
 cd ~/DEV/PROJS/my-api
 racc rinse --project . --yes
 ```
 
-### Примеры для CI
+### CI examples
 
 ```bash
-# Проверить, есть ли что чистить (dry-run JSON)
+# Check whether there is anything to clean (dry-run JSON)
 racc rinse --project "$CI_PROJECT_DIR" --json
 
-# Удалить только node_modules на CI-агенте после build
+# Remove only node_modules on the CI agent after build
 racc rinse --project "$CI_PROJECT_DIR" --strategy node --yes --json
 
-# Подсчёт «сколько бы освободили» без удаления (jq)
+# Count "how much would be freed" without deleting (jq)
 racc rinse --project ~/DEV/PROJS/my-api --json | jq '.bytes_freed'
 
-# Список путей-кандидатов
+# List candidate paths
 racc rinse --project ~/DEV/PROJS/my-api --json | jq -r '.removed[].path'
 ```
 
-## Частые ошибки
+## Common errors
 
-| Ситуация | Что сделать |
-|----------|-------------|
-| `error: invalid configuration: unknown cleanup strategy \`foo\`` | Проверьте id стратегии: `rust`, `node`, `python`, `jvm`, `go`, `generic` |
-| Ничего не удалилось | Нужен `--yes` (Commit); стратегия не включена (default — только `rust`, `node`, `python`); или имени каталога нет в таблице стратегий |
-| `--project` обязателен | Укажите `--project <PATH>`; ошибка парсинга, exit `1` |
-| Можно ли вернуть `node_modules`? | Только переустановкой зависимостей (`npm install` и т.д.). Rinse не делает бэкап |
-| Секреты в `.env` удалятся? | Нет — `.env` не является trash-каталогом ни одной стратегии. Для секретов: `racc stash` |
+| Situation | What to do |
+|-----------|------------|
+| `error: invalid configuration: unknown cleanup strategy \`foo\`` | Check the strategy id: `rust`, `node`, `python`, `jvm`, `go`, `generic` |
+| Nothing was removed | `--yes` (Commit) required; the strategy is not enabled (default is only `rust`, `node`, `python`); or the directory name is not in the strategy table |
+| `--project` is required | Pass `--project <PATH>`; parse error exits with `1` |
+| Can I get `node_modules` back? | Only by reinstalling dependencies (`npm install` etc.). Rinse keeps no backup |
+| Will secrets in `.env` be deleted? | No — `.env` is not a trash directory of any strategy. For secrets use `racc stash` |
 
-## Безопасность
+## Security
 
-- Удаляются только каталоги, совпавшие со **стратегиями**, внутри `--project` (path containment).
-- Обход **без** follow symlinks (`follow_links(false)`); симлинки на каталоги не удаляются и не обходятся — внешние деревья не задеваются.
-- По умолчанию dry-run — сначала смотрите отчёт.
-- «Осторожные» имена (`dist`, `build`, `vendor`) входят в стратегии, но не в default-набор: `jvm`, `go` и `generic` включайте явно.
-- Rinse — не «удалить всё кроме `src`» и не замена антивирусу: только таблица стратегий.
+- Only directories matching **strategies** inside `--project` are removed (path containment).
+- The walk does **not** follow symlinks (`follow_links(false)`); symlinks to directories are neither removed nor walked — external trees are untouched.
+- Dry-run by default — review the report first.
+- "Cautious" names (`dist`, `build`, `vendor`) exist in strategies but not in the default set: enable `jvm`, `go`, and `generic` explicitly.
+- Rinse is not "delete everything except `src`" and not an antivirus replacement: only the strategy table applies.
 
-## Связанные команды
+## Related commands
 
-| Команда | Роль |
+| Command | Role |
 |---------|------|
-| `racc dig` | Найти секреты (read-only) |
-| `racc stash` | Убрать секреты в `.age` |
-| `racc pack` | Упаковать проект **без** секретов в `packs/` |
-| `racc raid` | Полный цикл одной командой: stash → rinse → pack → move |
+| `racc dig` | Find secrets (read-only) |
+| `racc stash` | Move secrets into an `.age` archive |
+| `racc pack` | Pack a project **without** secrets into `packs/` |
+| `racc raid` | Full cycle in one command: stash → rinse → pack → move |
 
 ---
 
-*Документ соответствует реализации; при изменении флагов CLI обновляйте страницу в том же PR.*
+*This document matches the implementation; when CLI flags change, update the page in the same PR.*
