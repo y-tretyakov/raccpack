@@ -23,7 +23,7 @@ CLI / TUI / Desktop tool for scanning project trees, finding secrets, cleaning b
 
 ## Status
 
-**Version `0.2.12`** — MVP `0.1.0` closed; **Alpha** (stash / rinse / raid) done, `A4` git+DX in progress toward `0.3.0`.
+**Version `0.2.13`** — MVP `0.1.0` closed; **Alpha** (stash / rinse / raid) done, `A4` git+DX in progress toward `0.3.0`.
 
 | Command | Status | Role |
 |---------|--------|------|
@@ -33,6 +33,7 @@ CLI / TUI / Desktop tool for scanning project trees, finding secrets, cleaning b
 | **stash** | Available (Alpha) | Age-encrypted secret archives into den (`secrets/…`), optional source removal |
 | **rinse** | Available (Alpha) | Build-trash cleanup by strategies (`rust`/`node`/`python` default, more opt-in), DryRun default / `--yes` |
 | **raid** | Available (Alpha) | Orchestrated stash → rinse → pack → move in one command; atomic default (staging + WAL + rollback), manifest JSON in den, `--fail-fast` mode, exit 1 on `!success` |
+| **init** | Available (Alpha) | Create default config (`config_version = 1`) with prefilled paths; optional den skeleton (`--ensure-den`), `--force` to overwrite |
 | **TUI / Desktop** | Planned (Beta) | Ratatui / Tauri + React |
 
 Details and exact flags: [wiki · CLI](https://y-tretyakov.github.io/raccpack/cli-usage.html).

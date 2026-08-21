@@ -1,8 +1,8 @@
 # Raccpack — roadmap до 1.0.0
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
-**Текущая точка:** MVP 0.1.0 закрыт; Alpha A1–A3 закрыты (stash/rinse/raid доступны), идёт A4 (git/DX): A4.1 закрыт.  
-**Текущая версия:** `0.2.12` — сверять `docs/VERSION_ROADMAP.md`.
+**Текущая точка:** MVP 0.1.0 закрыт; Alpha A1–A3 закрыты (stash/rinse/raid доступны), идёт A4 (git/DX): A4.1–A4.2 закрыты.  
+**Текущая версия:** `0.2.13` — сверять `docs/VERSION_ROADMAP.md`.
 
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
 
@@ -95,7 +95,7 @@
 ## Фаза A4 — Git и DX alpha
 
 - A4.1 — GitClient (process) + status sensitive files в dig. ✅
-- A4.2 — Config migrate chain + `racc init`.
+- A4.2 — Config migrate chain + `racc init`. ✅
 - A4.3 — Логи tracing без секретов; `--verbose`.
 - A4.4 — Интеграционные тесты core + CI job `cargo test`.
 

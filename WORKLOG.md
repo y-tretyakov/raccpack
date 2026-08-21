@@ -822,6 +822,25 @@ CLI `racc rinse`: DryRun default, `--yes` → Commit (удаление trash-dir
 **Синхронизация:** VERSION_ROADMAP (A4.1 ✅ 0.2.12), raccpack-roadmap-v1 (A4.1 ✅), README (badge 0.2.12, Status: dig + git status per finding), Cargo.toml → 0.2.12. AGENTS.md §3.9 дополнен: Status-таблица README обязательна после каждого этапа.
 **Follow-up:** wiki `dig.html` — задокументировать поле `git_status` в JSON-выводе (user-facing, Docs-задача).
 
+### 2026-08-21 — A4.2: config migrate chain + `racc init`
+
+**Задача:** спека `docs/alpha/a4/a4.2-config-migrate-init.md`. Ветка `a4-config-migrate-init` от `dev`, PR #86 → `dev` (squash, merged, ветка удалена). Версия → **0.2.13**.
+
+**Сделано:**
+- `config_version` в TOML (`RaccConfig`, serde default) + `config/migrate.rs`: `CURRENT_CONFIG_VERSION = 1`; цепочка v0/missing → v1 (инъекция поля), future version → `ConfigError::IncompatibleVersion` («downgrade client»); `load_from_path` теперь parse → `migrate_to_current` → typed struct.
+- `config/init.rs`: `InitOptions` / `InitResult` (serde), `default_toml()` — комментированный шаблон со ссылками на wiki-страницы; `init_config()` — `AlreadyExists` без `--force`, create parent dirs, опциональный den skeleton через `ensure_den`.
+- CLI `racc init`: флаги `--force`, `--scan-root`, `--ensure-den`; глобальные `--config` / `--den` / `--json` переиспользованы (вместо дубля `--den` из спеки — решение зафиксировано в PR). Exit 1 при существующем конфиге без `--force`. Human/JSON вывод пути.
+- **F-ERR-1 закрыт:** `From<ConfigError> for Error` (FileNotFound/ScanRoot→PathNotFound, Read/Write→Io, остальное→Config) + unit-тест.
+- Новые варианты `ConfigError`: `AlreadyExists`, `Write`, `IncompatibleVersion` (+ suggestions).
+- Re-exports lib.rs аддитивные (`init_config`, `migrate_to_current`, `CURRENT_CONFIG_VERSION`, `default_config_path`, `DEFAULT_DEN_DIR`, …). Breaking: нет.
+- `paths.rs`: `default_config_path` / `DEFAULT_DEN_DIR` / `resolve_path` подняты до `pub` (нужны init + CLI).
+
+**Файлы:** `config/{migrate,init}.rs` (created), `config/{mod,error,paths}.rs`, `domain/error.rs`, `lib.rs`, `cli.rs`, `commands/{init.rs (created), mod.rs}`, `main.rs`, тесты `tests/{config_migrate,config_init,cli_init}.rs` (created), `tests/config.rs` (changed)
+**Тесты:** `cargo test --workspace` green (новые suites: config_migrate ×7, config_init ×7, cli_init ×7 + unit в migrate/init/error); fmt + clippy `-D warnings` core/cli чисто.
+**Процесс:** работа найдена в рабочем дереве ветки `a4-config-migrate-init` (от предыдущей сессии, без отчётов Dev/Test). Orchestrator провёл полную приёмку сам по merge-ready состоянию: DoD спеки, инварианты (без unwrap/expect в production, типизированные ошибки, слои), полный прогон. Отдельный rework не требовался.
+**Синхронизация:** по чеклисту §3.9 — Cargo.toml/Cargo.lock 0.2.13, README (badge + Status-абзац + строка `init` в Status-таблице), VERSION_ROADMAP (A4.2 ✅ 0.2.13, все 6 точек), raccpack-roadmap-v1 (A4.2 ✅), WORKLOG, бинарник переустановлен.
+**Follow-up:** wiki — страница/секция `racc init` + `configuration.md` (пример сгенерированного конфига) + `roadmap.md`/`introduction.md` версии (Docs-задача).
+
 ## Принятые решения (Alpha+)
 
 | Дата | Решение |
