@@ -471,7 +471,7 @@ fn dig_root_equals_scan_root_without_project() {
 }
 
 #[test]
-fn dig_git_status_is_none_on_mvp() {
+fn dig_git_status_none_when_not_a_repo() {
     let (temp, root) = workspace();
     let _ = temp;
     write(&root, ".env", &format!("{AWS_ACCESS_KEY}\n"));
@@ -482,7 +482,14 @@ fn dig_git_status_is_none_on_mvp() {
     assert!(!result.files.is_empty());
     assert!(
         result.files.iter().all(|f| f.git_status.is_none()),
-        "git_status is always None on MVP"
+        "a plain directory without .git must leave every git_status None"
+    );
+
+    let json = serde_json::to_string(&result).expect("serialize DigResult");
+    let decoded: DigResult = serde_json::from_str(&json).expect("deserialize DigResult");
+    assert_eq!(
+        decoded, result,
+        "JSON roundtrip must survive git enrichment (all None here)"
     );
 }
 

@@ -14,7 +14,9 @@ mod sniff;
 mod stash;
 
 pub use context::{AppContext, RunMode, SecretExitPolicy, WorkspacePaths};
-pub use dig::{dig, exit_code_for_secrets, DigOptions, DigResult, RepeatedSecret, SensitiveFile};
+pub use dig::{
+    dig, dig_with_git, exit_code_for_secrets, DigOptions, DigResult, RepeatedSecret, SensitiveFile,
+};
 pub use pack::{pack, PackOptions, PackResult};
 pub use progress::{NullProgress, OperationKind, ProgressEvent, ProgressSink};
 pub use raid::{

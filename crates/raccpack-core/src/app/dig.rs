@@ -6,13 +6,14 @@
 //! optionally aggregates repeated values by their masked hash; exit-policy is
 //! applied separately via [`exit_code_for_secrets`].
 
-use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::collections::{BTreeMap, HashMap};
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
 use crate::domain::{Result, SensitiveRisk};
+use crate::git::{find_repo_root, GitClient, GitFileStatus, ProcessGitClient};
 use crate::scan::{ensure_scan_root, SkipPolicy};
 use crate::secrets::{
     scan::scan_secrets_with_count, ContentScanLimits, MaskedValue, SecretScanOptions,
@@ -59,7 +60,10 @@ pub struct SensitiveFile {
     pub labels: Vec<String>,
     /// Masked preview of the highest-risk content hit, if any.
     pub content_match: Option<MaskedValue>,
-    /// Git status — None until the git phase (A4).
+    /// Git status of the file as a stable snake_case string (`"tracked"`,
+    /// `"untracked"`, `"ignored"`, …) when the scanned root sits inside a git
+    /// working tree; `None` outside a repo or whenever git is unavailable
+    /// (missing binary, timeout, error) — git problems never fail a dig run.
     pub git_status: Option<String>,
 }
 
@@ -98,13 +102,28 @@ pub struct DigResult {
 /// Validates the root with [`ensure_scan_root`], runs the combined secret scan
 /// ([`crate::secrets::scan_secrets`]) with `max_depth` from
 /// `ctx.config.scanner.max_depth`, `SkipPolicy::default_scan()`, and the
-/// `scan_content` / `find_repeated` flags from `opts`. Progress is emitted as a
-/// single `"dig"` phase at 0 / 50 / 100 percent. The exit policy is never
+/// `scan_content` / `find_repeated` flags from `opts`, then enriches findings
+/// with git status via a default [`ProcessGitClient`]. Progress is emitted as
+/// a single `"dig"` phase at 0 / 50 / 100 percent. The exit policy is never
 /// applied here — callers use [`exit_code_for_secrets`] on the returned files.
 pub fn dig(
     ctx: &AppContext,
     opts: &DigOptions,
     progress: &mut dyn ProgressSink,
+) -> Result<DigResult> {
+    let git = ProcessGitClient::new();
+    dig_with_git(ctx, opts, progress, &git)
+}
+
+/// [`dig`] with an injected [`GitClient`] (mock in tests, custom backends).
+///
+/// Git enrichment is best-effort: any client error degrades every
+/// `git_status` to `None` while the run itself stays `Ok`.
+pub fn dig_with_git(
+    ctx: &AppContext,
+    opts: &DigOptions,
+    progress: &mut dyn ProgressSink,
+    git: &dyn GitClient,
 ) -> Result<DigResult> {
     let t0 = Instant::now();
 
@@ -134,6 +153,7 @@ pub fn dig(
     ));
 
     let files: Vec<SensitiveFile> = findings.iter().map(finding_to_file).collect();
+    let files = enrich_with_git_status(files, &root, git);
     let repeated = if opts.find_repeated {
         aggregate_by_hash(&findings)
     } else {
@@ -188,6 +208,47 @@ fn finding_to_file(finding: &SensitiveFinding) -> SensitiveFile {
         content_match: finding.content_match.clone(),
         git_status: None,
     }
+}
+
+/// Best-effort git enrichment: fill `git_status` on each finding.
+///
+/// Skips entirely when there are no findings (git is never invoked). Any
+/// failure — not a repo, client error, missing path in the answer — leaves the
+/// affected `git_status` as `None`; this function never returns an error.
+fn enrich_with_git_status(
+    mut files: Vec<SensitiveFile>,
+    root: &Path,
+    git: &dyn GitClient,
+) -> Vec<SensitiveFile> {
+    if files.is_empty() {
+        return files;
+    }
+    if let Some(statuses) = collect_git_statuses(root, &files, git) {
+        for file in &mut files {
+            if let Some(status) = statuses.get(&file.path) {
+                file.git_status = Some(status.as_str().to_string());
+            }
+        }
+    }
+    files
+}
+
+/// Resolve statuses for all finding paths, or `None` when git cannot help.
+///
+/// The repo root is the nearest `.git` ancestor; when none exists the scanned
+/// root itself is offered to the client, which stays the single authority on
+/// "is this a repo".
+fn collect_git_statuses(
+    root: &Path,
+    files: &[SensitiveFile],
+    git: &dyn GitClient,
+) -> Option<HashMap<PathBuf, GitFileStatus>> {
+    let repo = find_repo_root(root).unwrap_or_else(|| root.to_path_buf());
+    if !git.is_repo(&repo).ok()? {
+        return None;
+    }
+    let paths: Vec<PathBuf> = files.iter().map(|f| f.path.clone()).collect();
+    git.files_status(&repo, &paths).ok()
 }
 
 /// Aggregate masked content hits by `value_hash`, keeping only hashes that

@@ -8,12 +8,13 @@ pub mod config;
 pub mod den;
 pub mod detect;
 pub mod domain;
+pub mod git;
 pub mod scan;
 pub mod secrets;
 
 pub use app::{
-    dig, exit_code_for_secrets, pack, raid, rinse, sniff, stash, AgeIdentity, AppContext,
-    DigOptions, DigResult, NullProgress, OperationKind, OrchestrationMode, PackOptions,
+    dig, dig_with_git, exit_code_for_secrets, pack, raid, rinse, sniff, stash, AgeIdentity,
+    AppContext, DigOptions, DigResult, NullProgress, OperationKind, OrchestrationMode, PackOptions,
     PackPhaseOpts, PackResult, ProgressEvent, ProgressSink, RaidOptions, RaidResult,
     RaidStageResult, RepeatedSecret, RinseOptions, RinsePhaseOpts, RinseResult, RunMode,
     SecretExitPolicy, SensitiveFile, SniffOptions, SniffResult, StashOptions, StashPhaseOpts,
@@ -36,6 +37,9 @@ pub use den::{
 };
 pub use detect::{candidate_to_project, detect_stack, detect_stacks, stack_from_candidate};
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};
+pub use git::{
+    find_repo_root, GitClient, GitFileStatus, GitState, MockGitClient, ProcessGitClient,
+};
 pub use scan::{
     default_markers, ensure_scan_root, find_candidates, project_size_bytes, skip::SkipPolicy,
     skip::SkipReason, walk::WalkOptions, walk_tree, CandidateOptions, MarkerDef, MarkerHit,

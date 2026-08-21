@@ -46,6 +46,12 @@ pub enum Error {
     /// A requested feature is not implemented in this version.
     #[error("unsupported: {feature}")]
     Unsupported { feature: String },
+    /// A git subprocess failed (missing binary, timeout, non-zero exit).
+    ///
+    /// The `message` carries git diagnostics only — never file contents or
+    /// secrets (see [`crate::git`] invariants).
+    #[error("git failed: {message}")]
+    Git { message: String },
     /// Catch-all for errors without a dedicated variant.
     #[error("{message}")]
     Other { message: String },
@@ -72,6 +78,9 @@ impl Error {
             Error::NotAFile { .. } => Some("Provide regular file paths."),
             Error::Unsupported { .. } => Some(
                 "This version supports passphrase identities only; recipient keys arrive in a later release.",
+            ),
+            Error::Git { .. } => Some(
+                "Ensure git is installed and on PATH; git status is best-effort and never fails the command.",
             ),
             _ => None,
         }
