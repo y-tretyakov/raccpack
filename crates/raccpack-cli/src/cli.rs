@@ -54,6 +54,24 @@ pub enum Commands {
     Rinse(RinseArgs),
     /// Orchestrated stash → rinse → pack → move for one project
     Raid(RaidArgs),
+    /// Initialize a new raccpack configuration file and optional den
+    Init(InitArgs),
+}
+
+/// Options specific to `racc init`.
+#[derive(Debug, Args, Default)]
+pub struct InitArgs {
+    /// Overwrite existing configuration file
+    #[arg(long)]
+    pub force: bool,
+
+    /// Prefill paths.scan_root in the generated config
+    #[arg(long, value_name = "PATH")]
+    pub scan_root: Option<PathBuf>,
+
+    /// Create den directory skeleton (.den-version, README.txt)
+    #[arg(long)]
+    pub ensure_den: bool,
 }
 
 /// Options specific to `racc sniff`.
@@ -824,6 +842,45 @@ mod tests {
                 assert!(args.fail_fast);
             }
             _ => panic!("expected raid command"),
+        }
+    }
+
+    #[test]
+    fn init_args_default_to_false_and_none() {
+        let args = InitArgs::default();
+        assert!(!args.force);
+        assert!(args.scan_root.is_none());
+        assert!(!args.ensure_den);
+    }
+
+    #[test]
+    fn clap_parse_init_with_all_flags() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "--config",
+            "/tmp/custom.toml",
+            "--den",
+            "/tmp/vault",
+            "--json",
+            "init",
+            "--force",
+            "--scan-root",
+            "/tmp/projects",
+            "--ensure-den",
+        ])
+        .expect("parse should succeed");
+
+        assert_eq!(cli.global.config, Some(PathBuf::from("/tmp/custom.toml")));
+        assert_eq!(cli.global.den, Some(PathBuf::from("/tmp/vault")));
+        assert!(cli.global.json);
+
+        match cli.command {
+            Commands::Init(args) => {
+                assert!(args.force);
+                assert_eq!(args.scan_root, Some(PathBuf::from("/tmp/projects")));
+                assert!(args.ensure_den);
+            }
+            _ => panic!("expected init command"),
         }
     }
 }

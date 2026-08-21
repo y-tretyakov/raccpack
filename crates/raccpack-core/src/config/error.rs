@@ -1,17 +1,24 @@
 use std::path::PathBuf;
 
-/// Strict, typed errors for config loading, parsing, and path resolution.
-///
-/// Kept separate from [`crate::Error`]; merging them into one library error is
-/// planned as a follow-up (facade phase).
+/// Strict, typed errors for config loading, parsing, initialization, and path resolution.
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
     /// The config file does not exist at the given path.
     #[error("config file not found: {path}")]
     FileNotFound { path: PathBuf },
+    /// The config file already exists and overwrite was not requested.
+    #[error("config file already exists: {path}")]
+    AlreadyExists { path: PathBuf },
     /// Failed to read the config file from disk.
     #[error("failed to read config {path}: {source}")]
     Read {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    /// Failed to write configuration file or den directory to disk.
+    #[error("failed to write {path}: {source}")]
+    Write {
         path: PathBuf,
         #[source]
         source: std::io::Error,
@@ -23,6 +30,9 @@ pub enum ConfigError {
         #[source]
         source: toml::de::Error,
     },
+    /// The config version is newer than supported by this client.
+    #[error("incompatible config version: found {found}, current version is {current}")]
+    IncompatibleVersion { found: u32, current: u32 },
     /// No `scan_root` was provided in config, env, or CLI.
     #[error("missing scan_root: set paths.scan_root in config or pass --root")]
     MissingScanRoot,
@@ -46,6 +56,15 @@ impl ConfigError {
         match self {
             ConfigError::FileNotFound { .. } => {
                 Some("Create the config file or unset RACCPACK_CONFIG to fall back to defaults.")
+            }
+            ConfigError::AlreadyExists { .. } => {
+                Some("Use --force to overwrite the existing configuration file.")
+            }
+            ConfigError::IncompatibleVersion { .. } => {
+                Some("This config was created by a newer version of raccpack. Please update raccpack.")
+            }
+            ConfigError::Write { .. } => {
+                Some("Check that the destination path is writable and permissions are correct.")
             }
             ConfigError::MissingScanRoot => {
                 Some("Set paths.scan_root in the config file or pass --root on the command line.")

@@ -289,6 +289,7 @@ fn config_validate_rejects_zero_max_depth_manual_struct() {
         },
         scanner: ScannerConfig { max_depth: 0 },
         cleanup: CleanupConfig::default(),
+        ..RaccConfig::default()
     };
 
     let err = cfg

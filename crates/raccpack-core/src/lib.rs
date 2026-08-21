@@ -28,7 +28,11 @@ pub use clean::{
     find_trash_dirs, remove_trash_dir, DetectTrashOptions, StrategyDef, StrategyId, TrashDir,
     TrashMatchKind, TrashPattern, DEFAULT_STRATEGIES,
 };
-pub use config::{CleanupConfig, ConfigError, PathsConfig, RaccConfig, ScannerConfig};
+pub use config::{
+    default_config_path, default_config_version, default_toml, init_config, migrate_to_current,
+    CleanupConfig, ConfigError, InitOptions, InitResult, PathsConfig, RaccConfig, ScannerConfig,
+    CURRENT_CONFIG_VERSION, DEFAULT_DEN_DIR,
+};
 pub use den::{
     ensure_den, manifest_relative_path, pack_relative_path, place_pack, place_secrets_archive,
     project_slug, secrets_relative_path, short_id, staging_pack_path, utc_timestamp_now,
