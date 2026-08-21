@@ -18,7 +18,8 @@ description: Команда racc dig — поиск секретов и оцен
 2. Классифицирует каждую находку по уровню риска: `Low`, `Medium`, `High`, `Critical`.
 3. По умолчанию проверяет и содержимое файлов; `--no-content` ограничивает поиск именами.
 4. По запросу (`--repeated`) находит значения, повторяющиеся в двух и более файлах.
-5. Завершается кодом `2`, если находки превышают порог политики `--fail-on`.
+5. Определяет git-статус каждой находки (`git_status`, best-effort).
+6. Завершается кодом `2`, если находки превышают порог политики `--fail-on`.
 
 Чего **не** делает:
 
@@ -118,7 +119,7 @@ Repeated secrets:
 {
   "root": "/tmp/projects",
   "files": [
-    { "path": "...", "risk": "High", "labels": ["Environment file", "Secret assignment"], "content_match": { "masked": "PASS…et", "value_hash": "d917…bfe", "original_len": 20 }, "git_status": null }
+    { "path": "...", "risk": "High", "labels": ["Environment file", "Secret assignment"], "content_match": { "masked": "PASS…et", "value_hash": "d917…bfe", "original_len": 20 }, "git_status": "untracked" }
   ],
   "repeated": [],
   "duration_ms": 18,
@@ -136,7 +137,7 @@ Repeated secrets:
 | `files[].risk` | Уровень риска: `Low` / `Medium` / `High` / `Critical` |
 | `files[].labels` | Метки: правило по имени и/или по содержимому |
 | `files[].content_match` | `{ masked, value_hash, original_len }` или `null` |
-| `files[].git_status` | Всегда `null` (фаза git — впереди, A4) |
+| `files[].git_status` | Git-статус файла: `"tracked"` / `"untracked"` / `"ignored"` / `"modified"` / `"staged"` / `"deleted"` / `"unknown"` или `null` — см. [ниже](#git_status) |
 | `repeated` | Повторяющиеся значения (заполняется только с `--repeated`) |
 | `repeated[].value_hash` | blake3-хеш значения (никогда само значение) |
 | `repeated[].masked` | Маскированное превью |
@@ -153,6 +154,30 @@ Repeated secrets:
 :::
 
 `content_match` равен `null`, когда сработало только имя файла (например, при `--no-content`).
+
+### git_status
+
+Поле `files[].git_status` — состояние файла в git на момент сканирования. Значения — стабильные snake_case строки:
+
+| Значение | Смысл |
+|----------|-------|
+| `tracked` | Файл отслеживается git, изменений нет |
+| `untracked` | Файл не отслеживается git |
+| `ignored` | Файл подходит под ignore-правила (`.gitignore` и др.) |
+| `modified` | Файл отслеживается и изменён (в рабочем дереве или индексе) |
+| `staged` | Изменения файла добавлены в индекс (новый, переименованный или скопированный) |
+| `deleted` | Файл удалён |
+| `unknown` | Статус не удалось определить |
+
+Поле равно `null`, когда статуса нет: проект вне git-репозитория, `git` не установлен либо завершился с ошибкой или по таймауту. Git-статус — best-effort: сбой git **не** влияет на результат `dig` — отчёт и код выхода остаются прежними.
+
+::: tip
+В CI удобно смотреть только путь, риск и статус находок:
+
+```bash
+racc dig --project ~/DEV/PROJS/my-api --json | jq '.files[] | {path, risk, git_status}'
+```
+:::
 
 ## Коды выхода
 
