@@ -24,19 +24,19 @@
 
 ## Текущая позиция
 
-> **Сделано до A3 включительно** (A1 + A2 + A3.1…A3.5).
+> **Сделано до A4.1 включительно** (A1–A3 + A4.1).
 
 | | |
 |--|--|
-| **Текущая версия workspace** | **`0.2.11`** |
-| Последний этап | **A3.5** — CLI raid полный + E2E + wiki |
-| Следующий этап | **A4.1** → версия **`0.2.12`** |
+| **Текущая версия workspace** | **`0.2.12`** |
+| Последний этап | **A4.1** — GitClient + git_status в dig |
+| Следующий этап | **A4.2** → версия **`0.2.13`** |
 | Alpha exit | после **A4.4** → **`0.3.0`** |
 
 ```text
 0.1.0  MVP
-0.2.0 … 0.2.11  Alpha A1–A3   ← ВЫ ЗДЕСЬ (0.2.11)
-0.2.12 … 0.3.0  Alpha A4
+0.2.0 … 0.2.11  Alpha A1–A3
+0.2.12 … 0.3.0  Alpha A4   ← ВЫ ЗДЕСЬ (0.2.12)
 0.4.0 …        Detect v2
 0.5.0 …        Beta
 0.9.0 …        RC
@@ -96,7 +96,7 @@
 
 | Этап | Версия | Статус | Фича |
 |------|--------|--------|------|
-| A4.1 | **0.2.12** | ⬜ | GitClient + git_status в dig |
+| A4.1 | **0.2.12** | ✅ | GitClient + git_status в dig |
 | A4.2 | **0.2.13** | ⬜ | config migrate + `racc init` |
 | A4.3 | **0.2.14** | ⬜ | tracing + `--verbose` |
 | A4.4 | **0.3.0** | ⬜ | integration + CI = **Alpha exit** |
@@ -194,7 +194,7 @@
 ```toml
 # Cargo.toml (workspace)
 [workspace.package]
-version = "0.2.11"
+version = "0.2.12"
 ```
 
 Все crates: `version.workspace = true`.
@@ -209,7 +209,7 @@ version = "0.2.11"
 
 ```bash
 cargo run -p raccpack-cli -- --version
-# raccpack-cli 0.2.11  →  последний этап A3.5
+# raccpack-cli 0.2.12  →  последний этап A4.1
 ```
 
 | Версия | Значит «есть» |
@@ -219,6 +219,7 @@ cargo run -p raccpack-cli -- --version
 | ≥ 0.2.8 | thin raid CLI |
 | ≥ 0.2.9 | atomic raid |
 | ≥ 0.2.11 | full raid CLI + wiki |
+| ≥ 0.2.12 | git_status в dig (GitClient) |
 | ≥ 0.3.0 | Alpha complete (git, init, -v, CI) |
 | ≥ 0.4.0 | Detect DAG |
 | ≥ 0.5.0 | TUI + Desktop + reveal |
@@ -241,8 +242,8 @@ cargo run -p raccpack-cli -- --version
 ## Сводка «сейчас»
 
 ```text
-Текущая версия:  0.2.11
-Этап:            A3.5 (конец фазы A3)
-Следующий bump:  0.2.12  при закрытии A4.1
+Текущая версия:  0.2.12
+Этап:            A4.1 (GitClient + git_status в dig)
+Следующий bump:  0.2.13  при закрытии A4.2
 Alpha exit:      0.3.0   при закрытии A4.4
 ```

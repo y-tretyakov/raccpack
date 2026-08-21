@@ -803,6 +803,25 @@ CLI `racc rinse`: DryRun default, `--yes` → Commit (удаление trash-dir
 - `main` не переделывался целиком под `dev` — только добавлены 3 документа (main остаётся за релизами вех).
 - Ветки `main`/`dev` не удалялись. `.agents/` не трогался.
 
+### 2026-08-21 — A4.1: GitClient (process) + git_status в dig
+
+**Задача:** спека `docs/alpha/a4/a4.1-git-client.md`. Ветка `a4-git-client` от `dev`, PR #85 → `dev` (squash, merged, ветка удалена). Версия → **0.2.12**.
+
+**Сделано:**
+- Новый модуль `core/src/git/`: trait `GitClient` (`is_repo` / `file_status` / `files_status`), типы `GitFileStatus` (serde snake_case + `as_str()`) и `GitState`, `find_repo_root()` (walk-up до `.git`, dir или file); thin `mod.rs`.
+- `ProcessGitClient`: subprocess `git -C … rev-parse --is-inside-work-tree` и `status --porcelain=v1 -z --ignored=matching --untracked-files=all`; timeout через spawn+try_wait poll+kill (без новых зависимостей), stdout/stderr дренаж потоками; `GIT_TERMINAL_PROMPT=0`. Porcelain-маппинг: `??`→untracked, `!!`→ignored, любой M→modified, A/R/C→staged, D→deleted, нет в выводе→tracked, иное→unknown; `-z`-парсер — чистая функция с unit-таблицей.
+- `MockGitClient` (always compiled, builder: `with_is_repo/with_statuses/with_error`) для тестов без git.
+- Dig: `dig()` делегирует в новый `dig_with_git(…, &dyn GitClient)`; сигнатура `dig()` не менялась (CLI/raid не затронуты). Обогащение best-effort named-функциями: пустые findings → git не вызывается; не-repo / любая ошибка клиента → все `git_status: None`, dig Ok (никогда не падает из-за git).
+- `Error::Git { message }` + suggestion; без raw секретов в сообщениях.
+- Re-exports lib.rs аддитивные (`git::*`, `dig_with_git`). Breaking: нет.
+- Решение по спеке §3.1: `AM` → **Modified** («любой M» приоритетнее «A*→Staged»), зафиксировано в doc-comment и unit-тестах.
+
+**Файлы:** `src/git/{mod,client,process,mock}.rs` (created), `src/app/dig.rs`, `src/app/mod.rs`, `src/domain/error.rs`, `src/lib.rs`, `tests/{git_client,git_process,dig}.rs` (changed|created)
+**Тесты:** `cargo test --workspace` green; `cargo test -p raccpack-core --test git_process -- --ignored` green (реальный git: tracked/untracked/modified, .gitignore→ignored, missing binary soft-fail); fmt + clippy `-D warnings` core/cli чисто.
+**Процесс:** Dev попытка 1 вернула пустой отчёт без изменений → ре-диспетч (попытка 2, принята). Test rework ×1: 2 clippy-линта в `tests/git_process.rs` (bool_assert_comparison, cloned_ref_to_slice_refs) — исправлены, diff ограничен.
+**Синхронизация:** VERSION_ROADMAP (A4.1 ✅ 0.2.12), raccpack-roadmap-v1 (A4.1 ✅), README (badge 0.2.12, Status: dig + git status per finding), Cargo.toml → 0.2.12. AGENTS.md §3.9 дополнен: Status-таблица README обязательна после каждого этапа.
+**Follow-up:** wiki `dig.html` — задокументировать поле `git_status` в JSON-выводе (user-facing, Docs-задача).
+
 ## Принятые решения (Alpha+)
 
 | Дата | Решение |

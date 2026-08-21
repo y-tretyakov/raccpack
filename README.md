@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.75-orange?style=flat-square&logo=rust" alt="Rust"/></a>
   <a href="https://doc.rust-lang.org/cargo/"><img src="https://img.shields.io/badge/Cargo-workspace-blue?style=flat-square&logo=cargo" alt="Cargo"/></a>
-  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.2.11-blue?style=flat-square" alt="version"/></a>
+  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.2.12-blue?style=flat-square" alt="version"/></a>
   <a href="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml"><img src="https://img.shields.io/badge/CI-wiki-success?style=flat-square" alt="CI"/></a>
   <a href="https://github.com/y-tretyakov/raccpack"><img src="https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-success?style=flat-square" alt="Windows | Linux | macOS"/></a>
   <a href="https://tauri.app"><img src="https://img.shields.io/badge/Tauri-Desktop-purple?style=flat-square&logo=tauri" alt="Tauri"/></a>
@@ -28,7 +28,7 @@ CLI / TUI / Desktop tool for scanning project trees, finding secrets, cleaning b
 | Command | Status | Role |
 |---------|--------|------|
 | **sniff** | Available | Discover projects by markers, stack, sizes, versioned cache |
-| **dig** | Available | Secret scan (filename + content), masked values, risk levels, exit policy |
+| **dig** | Available | Secret scan (filename + content), masked values, risk levels, exit policy, git status per finding |
 | **pack** | Available | `tar.zst` into den (`packs/…`), name/content deny, DryRun default / `--yes` |
 | **stash** | Available (Alpha) | Age-encrypted secret archives into den (`secrets/…`), optional source removal |
 | **rinse** | Available (Alpha) | Build-trash cleanup by strategies (`rust`/`node`/`python` default, more opt-in), DryRun default / `--yes` |
