@@ -15,6 +15,12 @@ raccpack настраивается через TOML-файл и нескольк
 2. Стандартный путь XDG: `$XDG_CONFIG_HOME/raccpack/config.toml`, а если `XDG_CONFIG_HOME` не задан — `~/.config/raccpack/config.toml`.
 3. Если файла нигде нет — используется конфигурация по умолчанию (пути можно задать флагами `--root` и `--den`).
 
+Самый простой способ создать файл — команда [`racc init`](/init): она записывает комментированный шаблон в стандартный путь (или в путь из `--config`):
+
+```bash
+racc init --scan-root ~/DEV/PROJS
+```
+
 Пример:
 
 ::: code-group
@@ -46,6 +52,7 @@ racc sniff
 
 ```toml
 # Конфигурация raccpack
+config_version = 1
 
 [paths]
 # Каталог, содержащий ваши проекты (вход)
@@ -121,6 +128,24 @@ racc rinse --project ~/DEV/PROJS/my-api --strategy node --strategy rust --yes
 Неизвестные ключи в TOML не ломают загрузку — будущие секции не сломают существующие конфигурации.
 :::
 
+## config_version и миграция
+
+Актуальная схема конфигурации имеет версию **1** (`config_version = 1`). Именно эта строка записывается в файл командой [`racc init`](/init).
+
+При загрузке конфигурации raccpack проверяет поле `config_version`:
+
+| Значение в файле | Поведение |
+|------------------|-----------|
+| Поле отсутствует или `0` | Автоматическая миграция до v1 **in-memory**: конфиг загружается как v1 без изменений на диске |
+| `1` | Загружается как есть |
+| Больше текущей (например, `2`) | Ошибка `incompatible config version: found N, current version is 1`, код выхода `1` |
+
+Пояснения:
+
+- миграция не переписывает файл — правки появляются только в памяти на время запуска;
+- конфиг из «будущей» версии означает, что файл создан более новой версией raccpack; подсказка CLI предлагает обновить raccpack;
+- старые конфиги (без `config_version`) продолжают работать без ручных правок.
+
 ## Переменные окружения
 
 | Переменная | Назначение |
@@ -145,6 +170,15 @@ racc sniff --root ~/DEV/PROJS --den /tmp/den
 `--root` и `--den` не изменяют файл на диске — они действуют один запуск. Для `racc rinse` флаг `--den` принимается, но не влияет на работу: очистка мусора не пишет в den (см. [Rinse](/rinse)).
 
 ## Минимальная конфигурация для первого запуска
+
+Самый быстрый путь — [`racc init`](/init):
+
+```bash
+racc init --scan-root ~/DEV/PROJS
+racc sniff
+```
+
+Вариант вручную:
 
 ```bash
 mkdir -p ~/.config/raccpack
@@ -172,11 +206,13 @@ racc sniff
 | `invalid max_depth: <value> (must be >= 1)` | `max_depth < 1` | Поставьте значение ≥ 1 |
 | `unknown cleanup strategy `foo`` | Неизвестный id в `cleanup.enabled_strategies` | Используйте известные id: `rust`, `node`, `python`, `jvm`, `go`, `generic` |
 | `invalid configuration: unknown cleanup strategy `foo`` | Неизвестный `--strategy foo` в CLI | Используйте известные id; ошибка, код выхода `1` |
+| `incompatible config version: found N, current version is 1` | Конфиг создан более новой версией raccpack (`config_version` > 1) | Обновите raccpack (см. [config_version и миграция](#config-version-и-миграция)) |
 
 Ошибка в конфигурации выводится с подсказкой `hint: …`, код выхода — `1`.
 
 ## Дальнейшее чтение
 
+- [Init](/init) — команда создания стартового конфига и скелета den.
 - [Rinse](/rinse) — стратегии очистки и флаг `--strategy`.
 - [Что поддерживается](/supported) — полный каталог возможностей (маркеры, секреты, стратегии).
 - [Использование CLI](/cli-usage) — все флаги команд.

@@ -26,6 +26,12 @@ description: Обзор команд racc — глобальные флаги и
 
 ## Типовой сценарий
 
+Перед первым запуском создайте конфигурацию одной командой — [racc init](/init):
+
+```bash
+racc init --scan-root ~/DEV/PROJS
+```
+
 Полный цикл работы с проектами:
 
 ```bash
@@ -36,6 +42,7 @@ racc rinse --project <PATH> --yes
 racc pack --project <PATH> --yes
 ```
 
+- **init** — создать стартовый `config.toml` (один раз, перед первым запуском);
 - **sniff** — найти проекты под `scan_root`;
 - **dig** — найти секреты (read-only, ничего не пишет);
 - **stash** — вынести секреты в зашифрованный age-архив в den;
@@ -226,6 +233,24 @@ Exit: `0` при `success == true`, `1` при ошибке или `success == f
 
 Подробно: [Raid](/raid)
 
+### `racc init`
+
+Создаёт стартовый конфигурационный файл с комментированным шаблоном (`config_version = 1`) — по умолчанию в `~/.config/raccpack/config.toml`. С `--ensure-den` дополнительно создаёт скелет den (`.den-version`, `README.txt`). Существующий файл перезаписывается только с `--force`.
+
+```text
+racc init [--force] [--scan-root PATH] [--ensure-den]
+```
+
+```bash
+# Шаблон в ~/.config/raccpack/config.toml
+racc init
+
+# Сразу указать папку проектов и создать den
+racc init --scan-root ~/DEV/PROJS --den ~/.raccpack/den --ensure-den
+```
+
+Подробно: [Init](/init)
+
 ## В разработке
 
 Следующие команды планируются в ближайших версиях (см. [Дорожную карту](/roadmap)):
@@ -233,7 +258,6 @@ Exit: `0` при `success == true`, `1` при ошибке или `success == f
 | Команда | Назначение | Статус |
 |---------|------------|--------|
 | `racc den` | Управление den | Планируется |
-| `racc init` | Стартовая конфигурация | Планируется |
 
 ## Примечания
 
