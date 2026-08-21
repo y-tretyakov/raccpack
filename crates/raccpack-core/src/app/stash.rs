@@ -258,7 +258,7 @@ pub fn stash(
 
     // Redaction invariant: log counts only — never the passphrase or file
     // contents.
-    info!(target: "raccpack_core", files = entries.len(), "encrypting {} files", entries.len());
+    info!(target: "raccpack_core", files = entries.len(), "encrypting files");
     let batch = write_stash_age(&entries, &staging, passphrase).map_err(|err| {
         best_effort_staging_cleanup(&staging);
         err
