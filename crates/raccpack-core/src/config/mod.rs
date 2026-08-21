@@ -19,17 +19,25 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 mod error;
+mod init;
+mod migrate;
 mod paths;
 mod validate;
 
 pub use error::ConfigError;
+pub use init::{default_toml, init_config, InitOptions, InitResult};
+pub use migrate::{default_config_version, migrate_to_current, CURRENT_CONFIG_VERSION};
+pub use paths::{default_config_path, DEFAULT_DEN_DIR};
 
 /// Top-level raccpack configuration.
 ///
 /// Unknown TOML keys are ignored (no `deny_unknown_fields`) so future sections
 /// such as `[sensitive]` or `[advanced]` do not break parsing.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RaccConfig {
+    /// Configuration schema version.
+    #[serde(default = "default_config_version")]
+    pub config_version: u32,
     /// Paths for the scan input and den output.
     #[serde(default)]
     pub paths: PathsConfig,
@@ -39,6 +47,17 @@ pub struct RaccConfig {
     /// Cleanup (rinse) strategy toggles.
     #[serde(default)]
     pub cleanup: CleanupConfig,
+}
+
+impl Default for RaccConfig {
+    fn default() -> Self {
+        Self {
+            config_version: default_config_version(),
+            paths: PathsConfig::default(),
+            scanner: ScannerConfig::default(),
+            cleanup: CleanupConfig::default(),
+        }
+    }
 }
 
 /// Raw path settings.
@@ -118,7 +137,7 @@ impl RaccConfig {
         }
     }
 
-    /// Load and validate configuration from an explicit path.
+    /// Load, migrate, and validate configuration from an explicit path.
     ///
     /// A missing file yields [`ConfigError::FileNotFound`], an unreadable file
     /// [`ConfigError::Read`], and a malformed TOML document
@@ -133,7 +152,12 @@ impl RaccConfig {
             path: path.to_path_buf(),
             source,
         })?;
-        let config: Self = toml::from_str(&content).map_err(|source| ConfigError::Parse {
+        let raw: toml::Value = toml::from_str(&content).map_err(|source| ConfigError::Parse {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        let migrated = migrate::migrate_to_current(raw)?;
+        let config: Self = migrated.try_into().map_err(|source| ConfigError::Parse {
             path: path.to_path_buf(),
             source,
         })?;

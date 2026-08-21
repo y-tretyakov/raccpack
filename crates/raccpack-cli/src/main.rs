@@ -15,6 +15,7 @@ mod progress;
 
 use crate::cli::{Cli, Commands};
 use crate::commands::run_dig;
+use crate::commands::run_init;
 use crate::commands::run_pack;
 use crate::commands::run_raid;
 use crate::commands::run_rinse;
@@ -54,5 +55,9 @@ fn run(cli: Cli) -> Result<ExitCode, CliError> {
             Ok(ExitCode::SUCCESS)
         }
         Commands::Raid(args) => run_raid(global, args),
+        Commands::Init(args) => {
+            run_init(global, args)?;
+            Ok(ExitCode::SUCCESS)
+        }
     }
 }

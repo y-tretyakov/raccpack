@@ -87,6 +87,20 @@ impl Error {
     }
 }
 
+impl From<crate::config::ConfigError> for Error {
+    fn from(err: crate::config::ConfigError) -> Self {
+        match err {
+            crate::config::ConfigError::FileNotFound { path } => Error::PathNotFound { path },
+            crate::config::ConfigError::ScanRootMissing { path } => Error::PathNotFound { path },
+            crate::config::ConfigError::Read { path, source } => Error::Io { path, source },
+            crate::config::ConfigError::Write { path, source } => Error::Io { path, source },
+            other => Error::Config {
+                message: other.to_string(),
+            },
+        }
+    }
+}
+
 /// Convenience result alias for library operations.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -221,5 +235,31 @@ mod tests {
             message: "x".into(),
         });
         assert!(r.is_err());
+    }
+
+    #[test]
+    fn config_error_converts_to_domain_error() {
+        let not_found = crate::config::ConfigError::FileNotFound {
+            path: PathBuf::from("/nonexistent/config.toml"),
+        };
+        let err: Error = not_found.into();
+        match err {
+            Error::PathNotFound { path } => {
+                assert_eq!(path, PathBuf::from("/nonexistent/config.toml"))
+            }
+            other => panic!("expected PathNotFound, got {other:?}"),
+        }
+
+        let bad_ver = crate::config::ConfigError::IncompatibleVersion {
+            found: 9,
+            current: 1,
+        };
+        let err: Error = bad_ver.into();
+        match err {
+            Error::Config { message } => {
+                assert!(message.contains("incompatible config version"))
+            }
+            other => panic!("expected Config error, got {other:?}"),
+        }
     }
 }
