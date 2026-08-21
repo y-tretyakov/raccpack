@@ -28,10 +28,10 @@ description: Возможности фазы Alpha A4 — git status у нахо
 ### dig + git status
 
 ```bash
-# Обычный dig — в human-выводе виден git status (если репозиторий git)
+# Обычный dig — human-вывод показывает risk/label/path; git status в нём НЕ отображается
 racc dig --project ~/DEV/PROJS/my-api
 
-# JSON: поле git_status у каждого файла
+# Git-статус доступен только в JSON: поле git_status у каждого файла
 racc dig --project ~/DEV/PROJS/my-api --json | jq '.files[] | {path, risk, git_status}'
 
 # Только Critical + статус
