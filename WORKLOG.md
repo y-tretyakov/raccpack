@@ -6,7 +6,7 @@
 [`docs/archive/WORKLOG_MVP.md`](docs/archive/WORKLOG_MVP.md).
 Спеки закрытых этапов: [`docs/archive/mvp/`](docs/archive/mvp/).
 
-**Текущая версия: `0.2.13`** (закрыты A4.1–A4.2; следующий bump `0.2.14` при A4.3, Alpha exit `0.3.0` при A4.4, см. `docs/VERSION_ROADMAP.md`).
+**Текущая версия: `0.2.14`** (закрыты A4.1–A4.3; следующий bump `0.3.0` при A4.4 — Alpha exit, см. `docs/VERSION_ROADMAP.md`).
 
 ## Backlog (Alpha → 0.3.0)
 
@@ -25,7 +25,7 @@
 [x] A3.5 CLI racc raid --fail-fast/toggles; exit 1 при !success; E2E alpha; wiki
 [x] A4.1 GitClient (process) + status sensitive files в dig
 [x] A4.2 Config migrate chain + racc init
-[ ] A4.3 tracing без секретов; --verbose
+[x] A4.3 tracing без секретов; --verbose
 [ ] A4.4 integration tests core + CI cargo test
 ```
 
@@ -840,6 +840,25 @@ CLI `racc rinse`: DryRun default, `--yes` → Commit (удаление trash-dir
 **Процесс:** работа найдена в рабочем дереве ветки `a4-config-migrate-init` (от предыдущей сессии, без отчётов Dev/Test). Orchestrator провёл полную приёмку сам по merge-ready состоянию: DoD спеки, инварианты (без unwrap/expect в production, типизированные ошибки, слои), полный прогон. Отдельный rework не требовался.
 **Синхронизация:** по чеклисту §3.9 — Cargo.toml/Cargo.lock 0.2.13, README (badge + Status-абзац + строка `init` в Status-таблице), VERSION_ROADMAP (A4.2 ✅ 0.2.13, все 6 точек), raccpack-roadmap-v1 (A4.2 ✅), WORKLOG, бинарник переустановлен.
 **Follow-up:** wiki — страница/секция `racc init` + `configuration.md` (пример сгенерированного конфига) + `roadmap.md`/`introduction.md` версии — **закрыт** (коммит 883f085).
+
+### 2026-08-21 — A4.3: tracing без секретов + глобальный `--verbose`
+
+**Задача:** спека `docs/alpha/a4/a4.3-tracing-verbose.md`. Ветка `a4-tracing-verbose` от `dev`, PR #87 → `dev` (squash, merged, ветка удалена). Версия → **0.2.14**.
+
+**Сделано:**
+- `crates/raccpack-cli/src/logging.rs` (NEW, 125 строк): `init_tracing(u8)` — fmt-subscriber в **stderr** (`--json` держит stdout чистым), `EnvFilter`, ANSI только на TTY; идемпотентность через `try_init` (повторный вызов — no-op, тест «doesn't panic» зелёный). Pure-хелперы: `filter_for_verbosity` (0→warn, 1→info, 2→debug, ≥3→trace) и `resolve_filter` (непустой `RUST_LOG` побеждает флаг; пустой/whitespace = unset) + unit-тесты.
+- `cli.rs`: глобальный repeatable `-v/--verbose` (`ArgAction::Count`, u8) + 5 parse-тестов по существующему паттерну.
+- `main.rs`: `init_tracing(cli.global.verbose)` сразу после `Cli::parse()`, до `run()`.
+- Core-инструментация точечно (только counters/paths/source): stash — «encrypting N files», «archive placed in den», «source files removed»; dig/sniff — summary (root, счётчики, from_cache, duration_ms).
+- CLI `passphrase.rs`: только источник («passphrase source: env|tty|stdin») — значение никогда.
+- Интеграционные тесты `tests/tracing_logging.rs` (7 кейсов): default quiet, `-v`→info, `-vv`→debug, RUST_LOG wins, JSON|stderr разделение потоков, **passphrase/секрет не появляются в -vv выводе** (fake AWS secret + RACCPACK_PASSPHRASE), `-vvv` smoke.
+
+**Файлы:** `cli/src/logging.rs` (created), `cli/src/{cli,main,passphrase}.rs`, `cli/tests/tracing_logging.rs` (created), `core/src/app/{stash,dig,sniff}.rs`, `Cargo.toml` обоих crates (tracing/tracing-subscriber deps), `Cargo.lock`
+**Тесты:** `cargo test --workspace` green; узкий набор `cargo test -p raccpack-cli --test tracing_logging` 7/7; fmt + clippy `-D warnings` core/cli чисто. Redaction-sweep Orchestrator'а: в `secrets/`/`archive/` ни одного log-event; grep значения passphrase в `-vv` выводе stash — пусто.
+**Процесс:** Dev + Test параллельно, оба приняты с попытки 1. Test стартовал в гонке до правок Dev (baseline), финальный прогон — по merge-ready дереву; Orchestrator перепроверил всё сам по финальному состоянию.
+**Решения:** логи всегда в stderr (спека §5 «JSON в stdout, логи в stderr»); ANSI только на TTY; пустой `RUST_LOG` считается unset.
+**Замечания (не блокеры):** P3 — `stash.rs` info! дублирует счётчик в поле и сообщении (`files = …` + `"encrypting {} files"`); pre-existing debt — `cli.rs` ~941 строка (тест-тяжёлый), кандидат на split args/tests отдельным hygiene-этапом.
+**Синхронизация:** по чеклисту §3.9 — Cargo.toml/Cargo.lock 0.2.14, README (badge + Status-абзац), VERSION_ROADMAP (A4.3 ✅ 0.2.14, все точки), raccpack-roadmap-v1 (A4.3 ✅), wiki (`cli-usage.md` глобальный `-v/--verbose`, `roadmap.md`, `introduction.md`), бинарник переустановлен.
 
 ## Принятые решения (Alpha+)
 
