@@ -23,7 +23,7 @@ CLI / TUI / Desktop tool for scanning project trees, finding secrets, cleaning b
 
 ## Status
 
-**Version `0.2.11`** — MVP `0.1.0` closed; **Alpha** (stash / rinse / raid) done, `A4` git+DX in progress toward `0.3.0`.
+**Version `0.2.12`** — MVP `0.1.0` closed; **Alpha** (stash / rinse / raid) done, `A4` git+DX in progress toward `0.3.0`.
 
 | Command | Status | Role |
 |---------|--------|------|
