@@ -1,0 +1,23 @@
+# nFPM config — raccpack 0.3.0 distro packages (mirror of MVP 0.1.0 set)
+name: raccpack
+arch: amd64
+platform: linux
+version: 0.3.0
+release: "1"
+section: utils
+priority: optional
+maintainer: Yuriy Tretyakov <y-tretyakov@users.noreply.github.com>
+description: |-
+  Scan project trees, find secrets, clean build trash and pack each project
+  into a den - a store of age-encrypted secret archives and tar.zst packs.
+homepage: https://y-tretyakov.github.io/raccpack/
+license: MIT OR Apache-2.0
+
+contents:
+  - src: /work/dist/out/racc-x86_64
+    dst: /usr/bin/racc
+    type: file
+    file_info:
+      mode: 0755
+      owner: root
+      group: root
