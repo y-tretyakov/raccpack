@@ -5,6 +5,7 @@ use clap::Parser;
 mod cli;
 mod commands;
 mod error;
+mod logging;
 mod output;
 mod output_pack;
 mod output_raid;
@@ -22,9 +23,12 @@ use crate::commands::run_rinse;
 use crate::commands::run_sniff;
 use crate::commands::run_stash;
 use crate::error::CliError;
+use tracing::debug;
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    logging::init_tracing(cli.global.verbose);
+    debug!(verbose = cli.global.verbose, "racc starting");
     match run(cli) {
         Ok(code) => code,
         Err(err) => {

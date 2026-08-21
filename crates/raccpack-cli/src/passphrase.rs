@@ -11,21 +11,28 @@
 
 use std::io::{BufRead, IsTerminal};
 
+use tracing::info;
 use zeroize::Zeroizing;
 
 use crate::error::CliError;
 
 /// Read the stash passphrase following the priority order above.
+///
+/// Redaction invariant: only the *source* is logged ("env" / "tty" /
+/// "stdin") — never the value itself.
 pub fn read_passphrase() -> Result<Zeroizing<String>, CliError> {
     if let Ok(value) = std::env::var("RACCPACK_PASSPHRASE") {
         if !value.is_empty() {
+            info!("passphrase source: env");
             return Ok(Zeroizing::new(value));
         }
     }
 
     if std::io::stdin().is_terminal() {
+        info!("passphrase source: tty");
         read_interactive()
     } else {
+        info!("passphrase source: stdin");
         read_pipe()
     }
 }

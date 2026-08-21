@@ -30,6 +30,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+use tracing::info;
 use zeroize::Zeroizing;
 
 use crate::den::{
@@ -255,6 +256,9 @@ pub fn stash(
 
     progress.emit(stash_event(30, "Encrypting archive…", false));
 
+    // Redaction invariant: log counts only — never the passphrase or file
+    // contents.
+    info!(target: "raccpack_core", files = entries.len(), "encrypting {} files", entries.len());
     let batch = write_stash_age(&entries, &staging, passphrase).map_err(|err| {
         best_effort_staging_cleanup(&staging);
         err
@@ -286,6 +290,8 @@ pub fn stash(
         err
     })?;
 
+    info!(target: "raccpack_core", path = %placed.absolute_path.display(), "stash archive placed in den");
+
     if let Some(parent) = staging.parent() {
         let _ = fs::remove_dir(parent);
     }
@@ -294,6 +300,7 @@ pub fn stash(
     if opts.remove_sources {
         progress.emit(stash_event(90, "Removing sources…", false));
         removed = remove_stash_sources(&batch.manifest)?;
+        info!(target: "raccpack_core", removed, "stash source files removed");
     }
 
     progress.emit(stash_event(100, "Done", true));
