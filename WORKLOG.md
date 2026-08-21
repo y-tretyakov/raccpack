@@ -6,7 +6,7 @@
 [`docs/archive/WORKLOG_MVP.md`](docs/archive/WORKLOG_MVP.md).
 Спеки закрытых этапов: [`docs/archive/mvp/`](docs/archive/mvp/).
 
-**Текущая версия: `0.2.11`** (закрыт A3.5 — конец фазы A3; следующий bump `0.2.12` при A4.1, см. `docs/VERSION_ROADMAP.md`).
+**Текущая версия: `0.2.13`** (закрыты A4.1–A4.2; следующий bump `0.2.14` при A4.3, Alpha exit `0.3.0` при A4.4, см. `docs/VERSION_ROADMAP.md`).
 
 ## Backlog (Alpha → 0.3.0)
 
@@ -23,8 +23,8 @@
 [x] A3.3 atomic upgrade (default Atomic: staging + WAL + rollback, ORPHAN-1..4)
 [x] A3.4 manifest JSON в den/manifests/ (после успешного Atomic commit)
 [x] A3.5 CLI racc raid --fail-fast/toggles; exit 1 при !success; E2E alpha; wiki
-[ ] A4.1 GitClient (process) + status sensitive files в dig
-[ ] A4.2 Config migrate chain + racc init
+[x] A4.1 GitClient (process) + status sensitive files в dig
+[x] A4.2 Config migrate chain + racc init
 [ ] A4.3 tracing без секретов; --verbose
 [ ] A4.4 integration tests core + CI cargo test
 ```
@@ -820,7 +820,7 @@ CLI `racc rinse`: DryRun default, `--yes` → Commit (удаление trash-dir
 **Тесты:** `cargo test --workspace` green; `cargo test -p raccpack-core --test git_process -- --ignored` green (реальный git: tracked/untracked/modified, .gitignore→ignored, missing binary soft-fail); fmt + clippy `-D warnings` core/cli чисто.
 **Процесс:** Dev попытка 1 вернула пустой отчёт без изменений → ре-диспетч (попытка 2, принята). Test rework ×1: 2 clippy-линта в `tests/git_process.rs` (bool_assert_comparison, cloned_ref_to_slice_refs) — исправлены, diff ограничен.
 **Синхронизация:** VERSION_ROADMAP (A4.1 ✅ 0.2.12), raccpack-roadmap-v1 (A4.1 ✅), README (badge 0.2.12, Status: dig + git status per finding), Cargo.toml → 0.2.12. AGENTS.md §3.9 дополнен: Status-таблица README обязательна после каждого этапа.
-**Follow-up:** wiki `dig.html` — задокументировать поле `git_status` в JSON-выводе (user-facing, Docs-задача).
+**Follow-up:** wiki `dig.html` — задокументировать поле `git_status` в JSON-выводе — **закрыт** (коммит 123f97a).
 
 ### 2026-08-21 — A4.2: config migrate chain + `racc init`
 
@@ -839,7 +839,7 @@ CLI `racc rinse`: DryRun default, `--yes` → Commit (удаление trash-dir
 **Тесты:** `cargo test --workspace` green (новые suites: config_migrate ×7, config_init ×7, cli_init ×7 + unit в migrate/init/error); fmt + clippy `-D warnings` core/cli чисто.
 **Процесс:** работа найдена в рабочем дереве ветки `a4-config-migrate-init` (от предыдущей сессии, без отчётов Dev/Test). Orchestrator провёл полную приёмку сам по merge-ready состоянию: DoD спеки, инварианты (без unwrap/expect в production, типизированные ошибки, слои), полный прогон. Отдельный rework не требовался.
 **Синхронизация:** по чеклисту §3.9 — Cargo.toml/Cargo.lock 0.2.13, README (badge + Status-абзац + строка `init` в Status-таблице), VERSION_ROADMAP (A4.2 ✅ 0.2.13, все 6 точек), raccpack-roadmap-v1 (A4.2 ✅), WORKLOG, бинарник переустановлен.
-**Follow-up:** wiki — страница/секция `racc init` + `configuration.md` (пример сгенерированного конфига) + `roadmap.md`/`introduction.md` версии (Docs-задача).
+**Follow-up:** wiki — страница/секция `racc init` + `configuration.md` (пример сгенерированного конфига) + `roadmap.md`/`introduction.md` версии — **закрыт** (коммит 883f085).
 
 ## Принятые решения (Alpha+)
 
