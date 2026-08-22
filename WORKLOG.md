@@ -49,7 +49,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 
 ### Follow-ups (открытые)
 
-- [ ] hygiene: `detect/mod.rs` 435 строк — вынести инлайн unit-тесты в отдельный файл (сделать при удобном этапе D1.x/D2.x, не блокирует)
+- [x] hygiene: `detect/mod.rs` 435 строк — инлайн unit-тесты вынесены в `detect/tests.rs` (mod.rs 442→191; закрыто после D1.3)
 
 ### Exit criteria Detect v2
 
@@ -168,7 +168,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 - [x] Tests green; no unwrap in prod
 
 #### Follow-up
-- hygiene: `detect/mod.rs` 435 строк — вынести инлайн unit-тесты в отдельный файл (backlog, не блокер).
+- hygiene: `detect/mod.rs` — **закрыт** (инлайн тесты → `detect/tests.rs`, см. запись D1.3).
 
 ### 2026-08-22 — D1.2 — Detection / StackNode DTO
 
