@@ -5,7 +5,8 @@ use std::path::Path;
 use crate::domain::{Error, Stack};
 use crate::scan::MarkerHit;
 
-use super::types::{has_name, has_prefix, has_prefix_ext, read_dir_names, StackDetector};
+use super::traits::StackDetector;
+use super::types::{has_name, has_prefix, has_prefix_ext, read_dir_names};
 
 /// Detector for the Node/JavaScript/TypeScript ecosystem.
 pub struct NodeDetector;
