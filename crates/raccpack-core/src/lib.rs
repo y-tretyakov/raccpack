@@ -41,7 +41,7 @@ pub use den::{
 };
 pub use detect::{
     candidate_to_project, clamp_confidence, detect_stack, detect_stacks, detector_registry,
-    stack_from_candidate, DetectMode, Detection, StackNode,
+    stack_from_candidate, DetectMode, Detection, StackNode, WorkspaceDetector,
 };
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};
 pub use git::{

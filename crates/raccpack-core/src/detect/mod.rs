@@ -3,11 +3,14 @@
 //! Entry points: [`stack_from_candidate`] (pure, marker-based),
 //! [`detect_stack`] (path + markers, enriches frameworks from the top level of
 //! the project directory), [`detect_stacks`] (fail-fast batch),
-//! [`candidate_to_project`] (assembly helper for M2.3) and
+//! [`WorkspaceDetector::detect_tree`] (composite tree over nested scopes),
+//! [`candidate_to_project`] (assembly helper) and
 //! [`crate::scan::project_size_bytes`].
 //!
-//! The pipeline itself is selected by [`DetectMode`] (config `detect.mode`);
-//! until Detect v2 only [`DetectMode::PriorityTable`] is executable.
+//! The pipeline itself is selected by [`DetectMode`] (config `detect.mode`):
+//! the default [`DetectMode::PriorityTable`] keeps the flat §4.1 behaviour,
+//! [`DetectMode::CompositeDag`] fills `Project.stack_tree` through the
+//! composite pipeline (experimental; see [`workspace`]).
 //!
 //! # Merge policy
 //!
@@ -58,10 +61,12 @@ mod ruby;
 mod rust;
 mod traits;
 mod types;
+mod workspace;
 
 pub use mode::DetectMode;
 pub use traits::StackDetector;
 pub use types::{clamp_confidence, Detection, StackNode};
+pub use workspace::WorkspaceDetector;
 
 use cpp::CppDetector;
 use git::GitDetector;
@@ -189,3 +194,5 @@ fn sorted_unique_marker_names(markers: &[MarkerHit]) -> Vec<String> {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod workspace_tests;

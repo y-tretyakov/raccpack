@@ -2,9 +2,9 @@
 //!
 //! Covers the config→mode contract ([`RaccConfig`] parsing, unknown-mode
 //! rejection) and the facade behaviour of the resolved mode inside `sniff`:
-//! precedence (CLI override > config > default), the fail-fast guard for
-//! pipelines that are not shipped yet, and that the default path (cache hit,
-//! report shape) is unchanged.
+//! precedence (CLI override > config > default), the composite pipeline
+//! execution (`stack_tree` filled, flat stack kept) and that the default path
+//! (cache hit, report shape) is unchanged.
 //!
 //! Every test that reaches the cache layer is `#[serial]` and uses a fresh
 //! isolated cache directory so tests never read or write the real
@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use raccpack_core::app::{sniff, AppContext, NullProgress, RunMode, SniffOptions, SniffResult};
 use raccpack_core::config::{ConfigError, RaccConfig};
 use raccpack_core::detect::DetectMode;
-use raccpack_core::{Error, ScanReport};
+use raccpack_core::ScanReport;
 use serial_test::serial;
 use tempfile::TempDir;
 
@@ -157,25 +157,42 @@ fn unknown_config_mode_is_rejected_with_suggestion() {
     );
 }
 
-// --- Case 4: CompositeDag guard precedes IO ---------------------------------
+// --- Case 4: CompositeDag pipeline runs --------------------------------------
 
 #[test]
 #[serial]
-fn composite_dag_fails_fast_before_any_io() {
+fn composite_dag_sniff_fills_stack_tree_and_keeps_flat_stack() {
     let (temp, root) = workspace();
     let _env = CacheEnvGuard::set(&isolated_cache_dir(&temp));
 
-    let missing = root.join("does-not-exist");
-    let mut ctx = ctx_for(config_with_mode(DetectMode::CompositeDag), &root);
-    ctx.paths.scan_root = missing;
+    // Monorepo fixture: rust root + nested node package.
+    let repo = root.join("monorepo");
+    fs::create_dir_all(repo.join("web")).expect("create monorepo/web");
+    fs::write(repo.join("Cargo.toml"), "[package]\nname = \"mono\"\n").expect("write Cargo.toml");
+    fs::write(repo.join("web").join("package.json"), "{}").expect("write package.json");
 
-    let mut progress = NullProgress;
-    let err = sniff(&ctx, &SniffOptions::default(), &mut progress)
-        .expect_err("unshipped pipeline must fail fast");
+    let ctx = ctx_for(config_with_mode(DetectMode::CompositeDag), &root);
+    let result = sniff_once(&ctx, &SniffOptions::default());
 
-    assert!(
-        matches!(err, Error::DetectPipelineUnavailable { ref mode } if mode == "composite_dag"),
-        "expected DetectPipelineUnavailable before any IO, got {err:?}"
+    let project = result
+        .report
+        .projects
+        .iter()
+        .find(|p| p.name == "monorepo")
+        .expect("monorepo must be discovered");
+    // Flat-stack invariant holds in composite mode too.
+    assert_eq!(project.stack.language.as_deref(), Some("Rust"));
+    assert!(project.stack.frameworks.is_empty());
+
+    // Composite tree carries both ecosystems.
+    let tree = project.stack_tree.as_ref().expect("stack_tree is filled");
+    assert_eq!(tree.detection.ecosystem, "rust");
+    assert_eq!(tree.detection.language.as_deref(), Some("Rust"));
+    assert_eq!(tree.children.len(), 1);
+    assert_eq!(tree.children[0].detection.ecosystem, "node");
+    assert_eq!(
+        tree.children[0].detection.language.as_deref(),
+        Some("JavaScript")
     );
 }
 
@@ -199,24 +216,43 @@ fn cli_override_wins_over_config() {
     };
     let result = sniff_once(&ctx, &overridden);
     assert!(!result.from_cache);
+    let flat_project = result
+        .report
+        .projects
+        .iter()
+        .find(|p| p.name == "app-rust")
+        .expect("app-rust discovered");
     assert_eq!(
         language_of(&result.report, "app-rust").as_deref(),
         Some("Rust"),
         "override must restore the default pipeline"
     );
+    assert!(
+        flat_project.stack_tree.is_none(),
+        "priority_table must not produce a stack tree"
+    );
 
-    // config = priority_table + CLI override composite_dag => pipeline error.
+    // config = priority_table + CLI override composite_dag => DAG pipeline runs.
     let ctx = ctx_for(RaccConfig::default(), &root);
     let forced_dag = SniffOptions {
         detect_mode: Some(DetectMode::CompositeDag),
         ..SniffOptions::default()
     };
-    let mut progress = NullProgress;
-    let err = sniff(&ctx, &forced_dag, &mut progress)
-        .expect_err("override must select the DAG pipeline and fail");
+    let dag_result = sniff_once(&ctx, &forced_dag);
+    assert!(!dag_result.from_cache);
+    let dag_project = dag_result
+        .report
+        .projects
+        .iter()
+        .find(|p| p.name == "app-rust")
+        .expect("app-rust discovered");
+    assert_eq!(
+        language_of(&dag_result.report, "app-rust").as_deref(),
+        Some("Rust")
+    );
     assert!(
-        matches!(err, Error::DetectPipelineUnavailable { ref mode } if mode == "composite_dag"),
-        "expected DetectPipelineUnavailable, got {err:?}"
+        dag_project.stack_tree.is_some(),
+        "override must select the composite pipeline"
     );
 }
 

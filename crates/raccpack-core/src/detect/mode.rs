@@ -8,15 +8,16 @@ use serde::{Deserialize, Serialize};
 /// Detection pipeline used to resolve project languages and frameworks.
 ///
 /// The default [`DetectMode::PriorityTable`] keeps the §4.1 marker priority
-/// table behaviour; [`DetectMode::CompositeDag`] selects the composite DAG
-/// pipeline that lands in Detect v2 (`0.4.x`).
+/// table behaviour; [`DetectMode::CompositeDag`] selects the experimental
+/// composite pipeline ([`super::workspace::WorkspaceDetector`]) that
+/// additionally fills `Project.stack_tree`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum DetectMode {
     /// Marker priority table — the current, default pipeline.
     #[default]
     PriorityTable,
-    /// Composite DAG pipeline (Detect v2).
+    /// Composite DAG pipeline (experimental, Detect v2).
     CompositeDag,
 }
 

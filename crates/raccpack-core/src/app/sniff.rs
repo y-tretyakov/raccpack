@@ -1,11 +1,12 @@
+use std::path::Path;
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use crate::cache::{store_sniff_cache, try_load_sniff_cache};
-use crate::detect::{candidate_to_project, detect_stack, DetectMode};
-use crate::domain::{Error, Result, ScanReport};
+use crate::detect::{candidate_to_project, detect_stack, DetectMode, StackNode, WorkspaceDetector};
+use crate::domain::{Result, ScanReport};
 use crate::scan::{
     ensure_scan_root, find_candidates, project_size_bytes, CandidateOptions, SkipPolicy,
 };
@@ -55,9 +56,11 @@ pub struct SniffResult {
 /// a rescan and rewrites the cache. Cache read failures are treated as a miss
 /// and cache write failures never fail the run.
 ///
-/// The detect mode resolves as CLI override → config → default; a resolved
-/// [`DetectMode::CompositeDag`] fails with [`Error::DetectPipelineUnavailable`]
-/// until Detect v2 (`0.4.x`) ships the pipeline.
+/// The detect mode resolves as CLI override → config → default. The resolved
+/// [`DetectMode::CompositeDag`] additionally fills
+/// [`Project::stack_tree`](crate::Project::stack_tree) per candidate via the
+/// composite pipeline (experimental), while the flat stack stays filled in
+/// both modes.
 pub fn sniff(
     ctx: &AppContext,
     opts: &SniffOptions,
@@ -66,11 +69,6 @@ pub fn sniff(
     let t0 = Instant::now();
 
     let detect_mode = resolve_detect_mode(ctx, opts);
-    if detect_mode != DetectMode::PriorityTable {
-        return Err(Error::DetectPipelineUnavailable {
-            mode: detect_mode.to_string(),
-        });
-    }
 
     let root = ctx.paths.scan_root.clone();
     ensure_scan_root(&root)?;
@@ -115,10 +113,15 @@ pub fn sniff(
     let mut projects = Vec::with_capacity(candidates.len());
     let mut total_size: u64 = 0;
     for candidate in candidates {
+        // The flat stack is always filled, in both pipelines.
         let stack = detect_stack(&candidate.path, &candidate.markers)?;
         let size = project_size_bytes(&candidate.path, &policy, max_depth).unwrap_or_default();
         total_size = total_size.saturating_add(size);
-        projects.push(candidate_to_project(candidate, stack, size));
+        let mut project = candidate_to_project(candidate, stack, size);
+        if detect_mode == DetectMode::CompositeDag {
+            project.stack_tree = Some(composite_stack_tree(&project.path, max_depth, &policy)?);
+        }
+        projects.push(project);
     }
 
     progress.emit(scan_event(90, "Building report", false));
@@ -158,6 +161,33 @@ fn resolve_detect_mode(ctx: &AppContext, opts: &SniffOptions) -> DetectMode {
     opts.detect_mode.unwrap_or(ctx.config.detect.mode)
 }
 
+/// Build the composite stack tree for one candidate project.
+///
+/// Reuses [`find_candidates`] over the candidate directory (same `max_depth`
+/// and skip policy as the outer scan) — it inspects the root itself, never
+/// follows symlinks and returns paths sorted ascending. The resulting
+/// `(path, markers)` pairs feed [`WorkspaceDetector`]; no extra walker is
+/// introduced here.
+fn composite_stack_tree(
+    project_root: &Path,
+    max_depth: usize,
+    policy: &SkipPolicy,
+) -> Result<StackNode> {
+    let subs = find_candidates(
+        project_root,
+        &CandidateOptions {
+            max_depth,
+            policy: policy.clone(),
+            ..CandidateOptions::default()
+        },
+    )?;
+    let pairs = subs
+        .into_iter()
+        .map(|candidate| (candidate.path, candidate.markers))
+        .collect::<Vec<_>>();
+    WorkspaceDetector::new().detect_tree(project_root, &pairs)
+}
+
 /// Cache-key fingerprint for `(default scan policy, detect mode)`.
 ///
 /// The default mode keeps the bare [`POLICY_FINGERPRINT`] string so cache file
@@ -192,11 +222,13 @@ fn elapsed_ms(t0: Instant) -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use std::ffi::{OsStr, OsString};
     use std::path::PathBuf;
 
     use super::*;
     use crate::app::{NullProgress, RunMode, SecretExitPolicy, WorkspacePaths};
     use crate::config::RaccConfig;
+    use serial_test::serial;
 
     fn ctx_with_mode(mode: DetectMode) -> AppContext {
         let mut config = RaccConfig::default();
@@ -209,6 +241,31 @@ mod tests {
             },
             mode: RunMode::DryRun,
             exit_policy: SecretExitPolicy::FailOnCritical,
+        }
+    }
+
+    /// Restores the previous `XDG_CACHE_HOME` value on drop, even on panic.
+    struct CacheEnvGuard {
+        previous: Option<OsString>,
+    }
+
+    impl CacheEnvGuard {
+        /// Point `XDG_CACHE_HOME` at an empty directory inside `work`.
+        fn set(work: &tempfile::TempDir) -> Self {
+            let previous = std::env::var_os("XDG_CACHE_HOME");
+            let dir = work.path().join("xdg-cache");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::env::set_var("XDG_CACHE_HOME", &dir);
+            Self { previous }
+        }
+    }
+
+    impl Drop for CacheEnvGuard {
+        fn drop(&mut self) {
+            match &self.previous {
+                Some(value) => std::env::set_var("XDG_CACHE_HOME", value),
+                None => std::env::remove_var("XDG_CACHE_HOME"),
+            }
         }
     }
 
@@ -238,16 +295,24 @@ mod tests {
     }
 
     #[test]
-    fn composite_dag_fails_with_unavailable_error_before_any_io() {
-        let missing_root = PathBuf::from("/definitely/not/a/real/scan/root");
-        let mut config = RaccConfig::default();
-        config.paths.scan_root = Some(missing_root.to_string_lossy().into_owned());
+    #[serial]
+    fn composite_dag_sniff_builds_stack_tree_with_nested_ecosystems() {
+        let work = tempfile::tempdir().unwrap();
+        let _cache = CacheEnvGuard::set(&work);
+
+        // Monorepo fixture: rust root + nested node package.
+        let scan_root = work.path().join("projects");
+        let repo = scan_root.join("monorepo");
+        std::fs::create_dir_all(repo.join("web")).unwrap();
+        std::fs::write(repo.join("Cargo.toml"), "[package]\nname = \"mono\"\n").unwrap();
+        std::fs::write(repo.join("web").join("package.json"), "{}").unwrap();
+
         let ctx = AppContext {
+            config: RaccConfig::default(),
             paths: WorkspacePaths {
-                scan_root: missing_root,
-                den_dir: PathBuf::from("/tmp/den"),
+                scan_root,
+                den_dir: work.path().join("den"),
             },
-            config,
             mode: RunMode::DryRun,
             exit_policy: SecretExitPolicy::FailOnCritical,
         };
@@ -255,11 +320,32 @@ mod tests {
             detect_mode: Some(DetectMode::CompositeDag),
             ..SniffOptions::default()
         };
-        let err = sniff(&ctx, &opts, &mut NullProgress).unwrap_err();
-        assert!(
-            matches!(err, Error::DetectPipelineUnavailable { ref mode } if mode == "composite_dag")
+
+        let result = sniff(&ctx, &opts, &mut NullProgress).expect("composite_dag must run");
+
+        // Nested projects are not collapsed: monorepo and monorepo/web are
+        // both candidates; nested ones are not collapsed by design.
+        let project = result
+            .report
+            .projects
+            .iter()
+            .find(|p| p.name == "monorepo")
+            .expect("monorepo must be discovered");
+        // Flat-stack invariant holds in composite mode too.
+        assert_eq!(project.stack.language.as_deref(), Some("Rust"));
+
+        let tree = project.stack_tree.as_ref().expect("stack_tree is filled");
+        assert_eq!(tree.detection.ecosystem, "rust");
+        assert_eq!(tree.detection.confidence, 1.0);
+        assert_eq!(tree.detection.language.as_deref(), Some("Rust"));
+        assert_eq!(tree.children.len(), 1);
+        let web = &tree.children[0];
+        assert_eq!(web.detection.ecosystem, "node");
+        assert_eq!(web.detection.language.as_deref(), Some("JavaScript"));
+        assert_eq!(
+            web.detection.scope.file_name().and_then(OsStr::to_str),
+            Some("web")
         );
-        assert!(err.to_string().contains("composite_dag"));
     }
 
     #[test]
