@@ -56,6 +56,7 @@ mod traits;
 mod types;
 
 pub use traits::StackDetector;
+pub use types::{clamp_confidence, Detection, StackNode};
 
 use cpp::CppDetector;
 use git::GitDetector;
@@ -167,6 +168,7 @@ pub fn candidate_to_project(candidate: ProjectCandidate, stack: Stack, size_byte
         path: candidate.path,
         name: candidate.name,
         stack,
+        stack_tree: None,
         size_bytes,
         is_git_repo: candidate.is_git_repo,
     }

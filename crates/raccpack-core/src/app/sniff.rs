@@ -27,7 +27,9 @@ pub struct SniffOptions {
 }
 
 /// Outcome of a [`sniff`] run.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+// `Eq` was dropped alongside `ScanReport`'s: `Project.stack_tree` carries an
+// `f32` confidence (`PartialEq` still holds).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SniffResult {
     /// The produced scan report.
     pub report: ScanReport,

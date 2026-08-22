@@ -1,7 +1,9 @@
 /// Result of a workspace scan.
 ///
 /// `total_size_bytes` is the sum of `project.size_bytes` over all projects.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+// `Eq` mirrors `Project` (no longer `Eq` since `stack_tree: Option<StackNode>`
+// carries an `f32` confidence).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ScanReport {
     /// Root that was scanned.
     pub root: std::path::PathBuf,
@@ -10,6 +12,10 @@ pub struct ScanReport {
     /// Sum of `project.size_bytes` across all projects.
     pub total_size_bytes: u64,
     /// Schema version for JSON consumers (CI). Starts at 1.
+    ///
+    /// Additive fields (e.g. `Project.stack_tree`, serialized as `null` when
+    /// absent) do NOT bump this version — bump only on breaking JSON shape
+    /// changes for consumers.
     pub schema_version: u32,
 }
 
@@ -34,6 +40,7 @@ mod tests {
             path: std::path::PathBuf::from("/tmp/demo"),
             name: "demo".to_string(),
             stack: Stack::default(),
+            stack_tree: None,
             size_bytes: 100,
             is_git_repo: false,
         };

@@ -1,3 +1,5 @@
+use crate::detect::StackNode;
+
 /// Description of a project's technology stack (result of detection).
 ///
 /// Default: no language detected, empty frameworks and markers.
@@ -16,14 +18,22 @@ pub struct Stack {
 /// `name` usually equals `path.file_name()`, but callers may override it.
 /// `path` is not required to be canonicalized at the DTO stage; normalization
 /// is the caller's (facade) responsibility.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+// `Eq` was dropped when `stack_tree: Option<StackNode>` was added: the node
+// carries an `f32` confidence and cannot be `Eq` (`PartialEq` still holds).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Project {
     /// Absolute or normalized path to project root.
     pub path: std::path::PathBuf,
     /// Directory name (or derived display name).
     pub name: String,
     /// Detected technology stack.
+    ///
+    /// Flat summary — ALWAYS filled, both in flat and composite_dag mode.
     pub stack: Stack,
+    /// Recursive composite detection tree; `Some` only in composite_dag mode
+    /// (Detect v2), always `None` until that pipeline exists.
+    #[serde(default)]
+    pub stack_tree: Option<StackNode>,
     /// Total size in bytes (files under project, after skip policy — later).
     pub size_bytes: u64,
     /// Whether the project root is inside a git repository.
@@ -52,6 +62,7 @@ mod tests {
                 frameworks: vec!["Axum".to_string()],
                 markers: vec!["Cargo.toml".to_string()],
             },
+            stack_tree: None,
             size_bytes: 4096,
             is_git_repo: true,
         };
