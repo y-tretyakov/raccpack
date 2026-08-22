@@ -16,10 +16,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.3.2`** (Detect v2, фаза D1) |
-| **Веха** | **Detect v2 → 0.4.0**, D1 почти закрыта |
-| **Следующий этап** | **D1.3** — `detect.mode` config + CLI → bump **`0.3.3`** |
-| **Предыдущий** | D1.2 Detection / StackNode DTO (PR #93) |
+| **Версия** | **`0.3.3`** (Detect v2, фаза D1 закрыта) |
+| **Веха** | **Detect v2 → 0.4.0**, далее фаза D2 |
+| **Следующий этап** | **D2.1** — WorkspaceDetector → DAG → bump **`0.3.4`** |
+| **Предыдущий** | D1.3 `detect.mode` config + CLI (PR #94) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
@@ -32,7 +32,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 ```
 [x] D1.1 StackDetector trait + registry          → 0.3.1
 [x] D1.2 Detection / StackNode DTO                 → 0.3.2
-[ ] D1.3 detect.mode config + CLI                  → 0.3.3
+[x] D1.3 detect.mode config + CLI                  → 0.3.3
 [ ] D2.1 WorkspaceDetector → DAG                   → 0.3.4
 [ ] D2.2 conflict merge                            → 0.3.5
 [ ] D2.3 flat stack + stack_tree compat            → 0.3.6
@@ -76,6 +76,8 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 | 2026-08-22 | **D1.1** StackDetector trait → `traits.rs`, `all_detectors()` → `detector_registry()`, integration-тесты реестра → **0.3.1** (PR #92); behavior-preserving, wiki не трогали (внутренний рефакторинг без изменений CLI) |
 | 2026-08-22 | **D1.2** Detection/StackNode DTO + `Project.stack_tree` (additive, serde back-compat) → **0.3.2** (PR #93); Eq снят каскадно; wiki — только версии |
 | 2026-08-22 | docs: фаза **D4 batch raid** встроена в конец Detect v2 (roadmap/versions/index/wiki); exit вехи перенесён D3.3 → **D4.4 = 0.4.0**; без bump |
+| 2026-08-22 | docs: спеки d4.* залиты (4be1f58); полировка формулировок (48cc26d) |
+| 2026-08-22 | **D1.3** `detect.mode` config + `racc sniff --detect-mode` → **0.3.3** (PR #94); composite_dag до D2.x = явная ошибка; wiki обновлён (UX-этап) |
 
 ---
 
@@ -213,3 +215,32 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 
 #### Решение по нумерации
 Уже проставленные версии сохранены; D4.1 design — без bump; D4.2 → 0.3.10, D4.3 → 0.3.11, D4.4 → 0.4.0.
+
+### 2026-08-22 — D1.3 — `detect.mode` config + CLI
+
+- **Дата:** 2026-08-22
+- **Ветка / PR:** `d1-detect-mode-config` / **#94** (squash в `dev`)
+- **Статус:** CLOSED — **фаза D1 полностью закрыта**
+- **Версия:** 0.3.3
+
+#### Сделано
+- `DetectMode` (PriorityTable default / CompositeDag) в новом `detect/mode.rs`; serde-строки строгие, алиас `dag` только на CLI.
+- Секция `[detect]` в конфиге (`DetectConfig.mode`, serde default); старые TOML без секции валидны; `config_version = 1` не тронут, миграция не нужна.
+- Unknown TOML mode → `ConfigError::UnknownDetectMode` + suggestion (проверка по raw-TOML до typed parse).
+- CLI `racc sniff --detect-mode priority_table|composite_dag|dag`; unknown → clap possible values (exit 2).
+- **composite_dag до D2.x → явная `Error::DetectPipelineUnavailable`** с hint «lands in Detect v2 (0.4.x)», fail до любых IO (exit 1). Решение Orchestrator: честный UX вместо тихого fallback; D2.1 подменит на реальный пайплайн.
+- Кэш-fingerprint различает режимы (`+detect_mode=composite_dag`); default-ключ `default_scan_v1` байт-в-байт прежний (кэш существующих пользователей жив).
+- `racc init`: закомментированный `[detect]`-хинт в шаблоне.
+
+#### Тесты
+- Новый `tests/detect_mode_config.rs`: 7 кейсов (default, parse обоих строк, unknown+suggestion, fail-fast до IO, CLI>config override в обе стороны, explicit==default, cache-hit default).
+- `cargo test --workspace` green · fmt clean · clippy core+cli `-D warnings` clean · smoke exit-кодов 1/2 подтверждены лично.
+
+#### DoD
+- [x] Config parse + default priority_table
+- [x] CLI override
+- [x] Unknown mode → Error
+- [x] Tests + help text
+
+#### Follow-up
+- Wiki обновлён в этом же этапе (UX-этап): cli-usage / sniff / configuration.

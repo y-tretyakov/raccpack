@@ -85,6 +85,16 @@ Paths may contain `~` and relative components — raccpack resolves them to abso
 |-----|---------|-------------|
 | `max_depth` | `6` | Maximum walk depth. Must be ≥ 1 |
 
+### The `[detect]` section
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `mode` | `"priority_table"` | Detection pipeline for `racc sniff`. Values: `"priority_table"`, `"composite_dag"` |
+
+::: warning
+`"composite_dag"` is **not available yet** (Detect v2, `0.4.x`). An unknown value fails with an error listing the valid ones.
+:::
+
 ### The `[cleanup]` section
 
 | Key | Default | Description |

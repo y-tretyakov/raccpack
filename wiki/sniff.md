@@ -56,8 +56,15 @@ There are no positional arguments.
 |------|---------|-------------|
 | `--force-refresh` | off | Ignore the sniff cache and rescan from scratch |
 | `--max-depth <N>` | from config (`scanner.max_depth`, default `6`) | Override the walk depth for this run |
+| `--detect-mode <MODE>` | from config (`detect.mode`, default `priority_table`) | Detection pipeline for this run. Values: `priority_table`, `composite_dag` (alias `dag`) |
 
 Depth priority: `--max-depth` for this run → `scanner.max_depth` in config → built-in default of `6`.
+
+Mode priority: `--detect-mode` for this run → `detect.mode` in config → built-in default of `priority_table`.
+
+::: warning
+The `composite_dag` pipeline is **not available yet** — it lands in Detect v2 (`0.4.x`). Selecting it fails with an error suggesting `priority_table`.
+:::
 
 ### Global flags
 

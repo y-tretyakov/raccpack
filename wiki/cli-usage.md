@@ -58,10 +58,10 @@ racc pack --project <PATH> --yes
 
 ### `racc sniff`
 
-Scans `scan_root`, finds projects, and prints a table: name, stack, size, git status, path. Results are cached; `--force-refresh` ignores the cache, `--max-depth N` limits walk depth.
+Scans `scan_root`, finds projects, and prints a table: name, stack, size, git status, path. Results are cached; `--force-refresh` ignores the cache, `--max-depth N` limits walk depth, `--detect-mode` selects the detection pipeline.
 
 ```text
-racc sniff [--force-refresh] [--max-depth N]
+racc sniff [--force-refresh] [--max-depth N] [--detect-mode priority_table|composite_dag]
 ```
 
 ```bash

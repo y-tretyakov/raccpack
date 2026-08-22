@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.85-orange?style=flat-square&logo=rust" alt="Rust"/></a>
   <a href="https://doc.rust-lang.org/cargo/"><img src="https://img.shields.io/badge/Cargo-workspace-blue?style=flat-square&logo=cargo" alt="Cargo"/></a>
-  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.3.2-blue?style=flat-square" alt="version"/></a>
+  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.3.3-blue?style=flat-square" alt="version"/></a>
   <a href="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml"><img src="https://img.shields.io/badge/CI-wiki-success?style=flat-square" alt="CI"/></a>
   <a href="https://github.com/y-tretyakov/raccpack"><img src="https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-success?style=flat-square" alt="Windows | Linux | macOS"/></a>
   <a href="https://tauri.app"><img src="https://img.shields.io/badge/Tauri-Desktop-purple?style=flat-square&logo=tauri" alt="Tauri"/></a>
@@ -23,7 +23,7 @@ CLI / TUI / Desktop tool for scanning project trees, finding secrets, cleaning b
 
 ## Status
 
-**Version `0.3.2`** — MVP `0.1.0` closed; **Alpha `0.3.0` closed** (stash / rinse / raid / git+DX). Detect v2 in progress toward `0.4.0`: D1.1 closed (StackDetector trait + registry), D1.2 closed (Detection / StackNode DTO, additive `stack_tree` — no CLI change).
+**Version `0.3.3`** — MVP `0.1.0` closed; **Alpha `0.3.0` closed** (stash / rinse / raid / git+DX). Detect v2 in progress toward `0.4.0`: **D1 complete** — D1.1 trait+registry, D1.2 Detection/StackNode DTO, D1.3 `detect.mode` config + `racc sniff --detect-mode` (`composite_dag`/`dag` lands with D2.x).
 
 | Command | Status | Role |
 |---------|--------|------|

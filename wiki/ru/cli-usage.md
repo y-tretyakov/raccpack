@@ -58,10 +58,10 @@ racc pack --project <PATH> --yes
 
 ### `racc sniff`
 
-Сканирует `scan_root`, находит проекты и печатает таблицу: имя, стек, размер, признак git-репозитория, путь. Результат кэшируется; `--force-refresh` игнорирует кэш, `--max-depth N` ограничивает глубину обхода.
+Сканирует `scan_root`, находит проекты и печатает таблицу: имя, стек, размер, признак git-репозитория, путь. Результат кэшируется; `--force-refresh` игнорирует кэш, `--max-depth N` ограничивает глубину обхода, `--detect-mode` выбирает конвейер определения стека.
 
 ```text
-racc sniff [--force-refresh] [--max-depth N]
+racc sniff [--force-refresh] [--max-depth N] [--detect-mode priority_table|composite_dag]
 ```
 
 ```bash
