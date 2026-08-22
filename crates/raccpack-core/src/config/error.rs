@@ -48,6 +48,9 @@ pub enum ConfigError {
     /// `cleanup.enabled_strategies` contains an unknown strategy id.
     #[error("unknown cleanup strategy `{id}`")]
     UnknownCleanupStrategy { id: String },
+    /// `detect.mode` contains an unknown pipeline id.
+    #[error("unknown detect mode `{value}` (expected one of: priority_table, composite_dag)")]
+    UnknownDetectMode { value: String },
 }
 
 impl ConfigError {
@@ -80,6 +83,9 @@ impl ConfigError {
             }
             ConfigError::UnknownCleanupStrategy { .. } => {
                 Some("Set cleanup.enabled_strategies to known ids: rust, node, python, jvm, go, generic.")
+            }
+            ConfigError::UnknownDetectMode { .. } => {
+                Some("Set detect.mode to `priority_table` (default) or `composite_dag`.")
             }
             ConfigError::Read { .. } | ConfigError::Parse { .. } => None,
         }

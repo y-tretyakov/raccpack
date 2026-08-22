@@ -4,7 +4,7 @@ use std::path::Path;
 
 use raccpack_core::{sniff, AppContext, NullProgress, RaccConfig, RunMode, SniffOptions};
 
-use crate::cli::{GlobalOpts, SniffArgs};
+use crate::cli::{DetectModeArg, GlobalOpts, SniffArgs};
 use crate::error::CliError;
 use crate::output;
 
@@ -17,6 +17,7 @@ pub fn run_sniff(global: GlobalOpts, args: SniffArgs) -> Result<(), CliError> {
     let opts = SniffOptions {
         force_refresh: args.force_refresh,
         max_depth: args.max_depth,
+        detect_mode: args.detect_mode.map(DetectModeArg::to_detect_mode),
     };
     let mut progress = NullProgress;
     let result = sniff(&ctx, &opts, &mut progress)?;

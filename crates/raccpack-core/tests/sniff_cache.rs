@@ -278,6 +278,7 @@ fn sniff_force_refresh_recomputes() {
     let forced = SniffOptions {
         force_refresh: true,
         max_depth: None,
+        detect_mode: None,
     };
     let refreshed = sniff_once(&ctx, &forced);
     assert!(
@@ -306,10 +307,12 @@ fn sniff_cache_miss_on_max_depth_change() {
     let deep = SniffOptions {
         force_refresh: false,
         max_depth: Some(6),
+        detect_mode: None,
     };
     let shallow = SniffOptions {
         force_refresh: false,
         max_depth: Some(2),
+        detect_mode: None,
     };
 
     let first = sniff_once(&ctx, &deep);

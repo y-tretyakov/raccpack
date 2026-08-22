@@ -6,6 +6,9 @@
 //! [`candidate_to_project`] (assembly helper for M2.3) and
 //! [`crate::scan::project_size_bytes`].
 //!
+//! The pipeline itself is selected by [`DetectMode`] (config `detect.mode`);
+//! until Detect v2 only [`DetectMode::PriorityTable`] is executable.
+//!
 //! # Merge policy
 //!
 //! Detectors are organized per ecosystem — one `*.rs` per language — and this
@@ -47,6 +50,7 @@ mod git;
 mod go;
 mod jvm;
 mod make;
+mod mode;
 mod node;
 mod php;
 mod python;
@@ -55,6 +59,7 @@ mod rust;
 mod traits;
 mod types;
 
+pub use mode::DetectMode;
 pub use traits::StackDetector;
 pub use types::{clamp_confidence, Detection, StackNode};
 

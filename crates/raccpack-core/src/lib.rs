@@ -30,8 +30,8 @@ pub use clean::{
 };
 pub use config::{
     default_config_path, default_config_version, default_toml, init_config, migrate_to_current,
-    CleanupConfig, ConfigError, InitOptions, InitResult, PathsConfig, RaccConfig, ScannerConfig,
-    CURRENT_CONFIG_VERSION, DEFAULT_DEN_DIR,
+    CleanupConfig, ConfigError, DetectConfig, InitOptions, InitResult, PathsConfig, RaccConfig,
+    ScannerConfig, CURRENT_CONFIG_VERSION, DEFAULT_DEN_DIR,
 };
 pub use den::{
     ensure_den, manifest_relative_path, pack_relative_path, place_pack, place_secrets_archive,
@@ -41,7 +41,7 @@ pub use den::{
 };
 pub use detect::{
     candidate_to_project, clamp_confidence, detect_stack, detect_stacks, detector_registry,
-    stack_from_candidate, Detection, StackNode,
+    stack_from_candidate, DetectMode, Detection, StackNode,
 };
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};
 pub use git::{
