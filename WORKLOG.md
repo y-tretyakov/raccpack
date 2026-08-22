@@ -882,7 +882,7 @@ CLI `racc rinse`: DryRun default, `--yes` → Commit (удаление trash-dir
 
 ### 2026-08-22 — docs: архивация спек Alpha + каркасы Detect v2 / Beta
 
-**Задача:** консолидация dev-docs после Alpha exit: спеки A1–A4 → archive, новые спеки Detect v2 (D1–D3) и Beta (B1–B4). Ветка `docs-archive-alpha-specs` от `dev`, PR → `dev` (squash).
+**Задача:** консолидация dev-docs после Alpha exit: спеки A1–A4 → archive, новые спеки Detect v2 (D1–D3) и Beta (B1–B4). Ветка `docs-archive-alpha-specs` от `dev`, PR #91 → `dev` (squash).
 
 **Сделано:**
 - `docs/alpha/` → `docs/archive/alpha/` (A1–A4 + `a3_new` слит в `archive/alpha/a3/`, SHIPPED/SUPERSEDED пометки сохранены).
