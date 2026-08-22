@@ -17,7 +17,7 @@
 |------|-------------------|--------|
 | **MVP** | 0.1.x | Минимальный полезный цикл: sniff → dig → pack → den (закрыт) |
 | **Alpha** | 0.2.x–0.3.x | Полный raid (атомарный) + age-stash + rinse; CLI feature-complete для headless |
-| **Detect v2** | 0.4.x | Композитные детекторы / DAG для монорепо (между Alpha и Beta) |
+| **Detect v2** | 0.4.x | Композитные детекторы / DAG для монорепо + batch raid по scan root (между Alpha и Beta) |
 | **Beta** | 0.5.x | TUI; Desktop; ephemeral reveal; hardening безопасности |
 | **RC** | 0.9.x | Заморозка API/den; полировка; нагрузка и регрессии |
 | **Stable** | **1.0.0** | Документация, политика поддержки, tag |
@@ -126,7 +126,16 @@
 - D3.2 — `sniff` выводит дерево/DAG при `--detect-mode=dag` или в JSON.
 - D3.3 — Фикстуры монорепо (Rust+Node, Python+JS …) + тесты.
 
-**Detect v2 exit criteria:** на типичном monorepo `sniff` показывает корректное дерево; `rinse` удаляет только релевантный мусор; legacy PriorityTable продолжает работать.
+## Фаза D4 — Batch raid по scan root
+
+Убирает обязательный shell-цикл для multi-project raid: один вызов проходит весь scan root, **каждый** проект — отдельный raid (свои secrets + pack).
+
+- D4.1 — Design: `--root` vs `--project`; 1 project = 1 raid; sequential; continue-on-error (docs, без bump).
+- D4.2 — Core: `raid_batch()` поверх sniff list + `raid()`.
+- D4.3 — CLI: `racc raid --root` (+ `--only` / `--limit` / `--stop-on-error`).
+- D4.4 — Wiki + E2E = **Detect v2 exit 0.4.0**.
+
+**Detect v2 exit criteria:** на типичном monorepo `sniff` показывает корректное дерево; `rinse` удаляет только релевантный мусор; legacy PriorityTable продолжает работать; `racc raid --root` прогоняет все проекты root'а батчем (планируется, в бинарнике пока отсутствует).
 
 ---
 
@@ -225,7 +234,7 @@
 ```text
 MVP        M1 workspace/DTO/config  →  M2 sniff  →  M3 dig  →  M4 pack+den          ✅ 0.1.0
 Alpha      A1 stash/age ✅  →  A2 rinse ✅  →  A3 raid+atomic  →  A4 git+CI          → 0.3.0
-Detect v2  D1 registry ✅  →  D2 composite DAG  →  D3 rinse/sniff impact   → 0.4.x
+Detect v2  D1 registry ✅  →  D2 composite DAG  →  D3 rinse/sniff impact  →  D4 batch raid  → 0.4.x
 Beta       B1 TUI  →  B2 Desktop+reveal  →  B3 security+reveal  →  B4 den gc + docs → 0.5.0
 RC         R1 freeze  →  R2 quality  →  R3 UX  →  R4 validation                     → 0.9.x
 Stable     S1 release 1.0.0

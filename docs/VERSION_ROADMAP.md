@@ -13,7 +13,7 @@
 |------|-------------|--------|
 | **MVP** | **0.1.0** | sniff → dig → pack → den |
 | **Alpha** | **0.3.0** | atomic raid + stash + rinse + git/DX CLI |
-| **Detect v2** | **0.4.0** | composite DAG |
+| **Detect v2** | **0.4.0** | composite DAG + batch raid (`racc raid --root`) |
 | **Beta** | **0.5.0** | TUI + Desktop + reveal + hardening |
 | **RC** | **0.9.0** | freeze API/den |
 | **Stable** | **1.0.0** | semver-стабильность |
@@ -31,7 +31,7 @@
 | **Текущая версия workspace** | **`0.3.2`** |
 | Последний этап | **D1.2** — Detection / StackNode DTO |
 | Следующий этап | **D1.3** → версия **`0.3.3`** (`detect.mode` config + CLI) |
-| Detect v2 exit | после **D3.3** → **`0.4.0`** |
+| Detect v2 exit | после **D4.4** → **`0.4.0`** (batch raid включён) |
 
 ```text
 0.1.0  MVP
@@ -117,7 +117,11 @@
 | D2.3 | **0.3.6** | ⬜ | flat stack + stack_tree compat |
 | D3.1 | **0.3.7** | ⬜ | rinse по DAG scopes |
 | D3.2 | **0.3.8** | ⬜ | sniff tree output |
-| D3.3 | **0.4.0** | ⬜ | fixtures + **Detect v2 exit** |
+| D3.3 | **0.3.9** | ⬜ | fixtures монорепо |
+| D4.1 | — | ⬜ | batch raid design (`--root` vs `--project`; docs) — **без bump** |
+| D4.2 | **0.3.10** | ⬜ | facade `raid_batch` (1 project = 1 raid, sequential, continue-on-error) |
+| D4.3 | **0.3.11** | ⬜ | CLI `racc raid --root` (+ `--only`/`--limit`/`--stop-on-error`) |
+| D4.4 | **0.4.0** | ⬜ | wiki + E2E = **Detect v2 exit** |
 
 ---
 
@@ -226,7 +230,7 @@ cargo run -p raccpack-cli -- --version
 | ≥ 0.3.0 | Alpha complete (git, init, -v, CI) |
 | ≥ 0.3.1 | Detect v2 start: StackDetector trait + detector_registry (внутреннее, без изменений CLI) |
 | ≥ 0.3.2 | Detection / StackNode DTO + Project.stack_tree (аддитивно, JSON back-compat) |
-| ≥ 0.4.0 | Detect DAG |
+| ≥ 0.4.0 | Detect DAG + batch raid (`racc raid --root`) |
 | ≥ 0.5.0 | TUI + Desktop + reveal |
 
 ---

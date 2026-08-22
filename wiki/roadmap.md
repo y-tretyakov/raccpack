@@ -54,7 +54,7 @@ Dates are approximate. "Available" status means the functionality can be used in
 |-----------|---------|---------------|
 | **MVP** | 0.1.x | sniff → dig → pack → den |
 | **Alpha** | 0.3.x | Full `raid` (atomic: staging + WAL + rollback, JSON manifests), age-stash, rinse, git integration, CLI only |
-| **Detect v2** | 0.4.x | Composite detectors / DAG for monorepositories |
+| **Detect v2** | 0.4.x | Composite detectors / DAG for monorepositories; batch raid `racc raid --root` (planned) |
 | **Beta** | 0.5.x | TUI, Desktop, security hardening |
 | **RC** | 0.9.x | Contract freeze, polishing |
 | **Stable** | 1.0.0 | Stable public API |

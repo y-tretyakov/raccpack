@@ -11,9 +11,10 @@
 | **D1** | [d1-index.md](d1-index.md) — trait, DTO, config mode |
 | **D2** | [d2-index.md](d2-index.md) — Composite / DAG / compat |
 | **D3** | [d3-index.md](d3-index.md) — rinse / sniff impact + fixtures |
+| **D4** | [d4-index.md](d4-index.md) — batch raid по scan root (спеки появятся позже — ссылка допустима) |
 
 ```text
-D1.1 → D1.2 → D1.3 → D2.1 → D2.2 → D2.3 → D3.1 → D3.2 → D3.3
+D1.1 → D1.2 → D1.3 → D2.1 → D2.2 → D2.3 → D3.1 → D3.2 → D3.3 → D4.1 → D4.2 → D4.3 → D4.4
 ```
 
 ## Exit criteria Detect v2
@@ -23,6 +24,7 @@ D1.1 → D1.2 → D1.3 → D2.1 → D2.2 → D2.3 → D3.1 → D3.2 → D3.3
 - [ ] `detect.mode = priority_table` — **без регрессий** (default)
 - [ ] `composite_dag` включается конфигом / CLI
 - [ ] Плоский `stack: String` остаётся в JSON
+- [ ] `racc raid --root` прогоняет все проекты scan root батчем (каждый проект — отдельный raid; planned, D4.3)
 
 ## Зависимости
 

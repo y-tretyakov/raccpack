@@ -158,7 +158,7 @@ Branch protection: squash-only; `main` requires PR + 1 approval; no force push /
 ```text
 MVP     sniff → dig → pack + den                ✅ 0.1.0
 Alpha   stash ✅ → rinse ✅ → raid ✅ → git+CI  ✅ 0.3.0
-Detect v2  D1 registry ✅ → D1 DTO ✅ → D2 DAG → D3 impact → 0.4.x
+Detect v2  D1 ✅ → D2 DAG → D3 impact → D4 batch raid → 0.4.x
 Beta    TUI → Desktop (Tauri) → security harden → 0.5.0
 RC      API/den freeze → quality → UX         → 0.9.x
 Stable  1.0.0

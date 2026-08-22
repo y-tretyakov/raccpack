@@ -38,7 +38,11 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 [ ] D2.3 flat stack + stack_tree compat            → 0.3.6
 [ ] D3.1 rinse по DAG scopes                       → 0.3.7
 [ ] D3.2 sniff tree output                         → 0.3.8
-[ ] D3.3 fixtures + Detect v2 exit                 → 0.4.0
+[ ] D3.3 fixtures + монорепо-тесты                 → 0.3.9
+[ ] D4.1 batch raid design (--root vs --project)   → без bump
+[ ] D4.2 facade raid_batch                         → 0.3.10
+[ ] D4.3 CLI racc raid --root                      → 0.3.11
+[ ] D4.4 wiki + E2E = Detect v2 EXIT               → 0.4.0
 ```
 
 Спеки: `docs/detect/detect-v2-index.md` и `d1.*` / `d2.*` / `d3.*`.
@@ -54,6 +58,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 - [ ] `detect.mode = priority_table` — без регрессий (default)
 - [ ] CLI `--detect-mode` / config `[detect] mode`
 - [ ] Плоский `stack` всегда в JSON
+- [ ] Multi-project: `racc raid --root` — батч по scan root (D4.3; planned, в бинарнике пока нет)
 
 ---
 
@@ -70,6 +75,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 | 2026-08-22 | **WORKLOG.md → archive WORKLOG_ALPHA**; этот файл — журнал Detect+ |
 | 2026-08-22 | **D1.1** StackDetector trait → `traits.rs`, `all_detectors()` → `detector_registry()`, integration-тесты реестра → **0.3.1** (PR #92); behavior-preserving, wiki не трогали (внутренний рефакторинг без изменений CLI) |
 | 2026-08-22 | **D1.2** Detection/StackNode DTO + `Project.stack_tree` (additive, serde back-compat) → **0.3.2** (PR #93); Eq снят каскадно; wiki — только версии |
+| 2026-08-22 | docs: фаза **D4 batch raid** встроена в конец Detect v2 (roadmap/versions/index/wiki); exit вехи перенесён D3.3 → **D4.4 = 0.4.0**; без bump |
 
 ---
 
@@ -191,3 +197,19 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 
 #### Follow-up
 - Продюсеры `Some(stack_tree)` — D2.1 WorkspaceDetector (по плану).
+
+### 2026-08-22 — docs: фаза D4 (batch raid) в roadmap/versions
+
+- **Дата:** 2026-08-22
+- **Статус:** CLOSED (docs-only, **без bump**)
+- **Версия:** 0.3.2 (не менялась)
+
+#### Сделано
+- VERSION_ROADMAP: D4.1–D4.4 добавлены; D3.3 перенумерован 0.4.0 → 0.3.9 (фикстуры); exit вехи = **D4.4 → 0.4.0**; якорь/≥-таблица упомянуты batch raid.
+- roadmap-v1: секция «Фаза D4», ASCII-карта, exit criteria + `racc raid --root`.
+- `docs/detect/detect-v2-index.md`: строка фазы D4 (+ ссылка `d4-index.md`, спеки положит человек), линия пайплайна до D4.4, exit-criteria пункт.
+- README + wiki roadmap (ru/en): «+ batch raid» как planned, без заявлений о shipped.
+- WORKLOG: backlog `[ ]` D4.1–D4.4, exit criteria.
+
+#### Решение по нумерации
+Уже проставленные версии сохранены; D4.1 design — без bump; D4.2 → 0.3.10, D4.3 → 0.3.11, D4.4 → 0.4.0.

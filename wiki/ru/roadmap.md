@@ -54,7 +54,7 @@ description: Как raccpack развивается к версии 1.0.0 — ч
 |------|--------|------------|
 | **MVP** | 0.1.x | sniff → dig → pack → den |
 | **Alpha** | 0.3.x | Полный `raid` (atomic: staging + WAL + rollback, манифесты JSON), age-stash, rinse, git-интеграция, только CLI |
-| **Detect v2** | 0.4.x | Композитные детекторы / DAG для монорепозиториев |
+| **Detect v2** | 0.4.x | Композитные детекторы / DAG для монорепозиториев; batch raid `racc raid --root` (планируется) |
 | **Beta** | 0.5.x | TUI, Desktop, hardening безопасности |
 | **RC** | 0.9.x | Заморозка контрактов, полировка |
 | **Stable** | 1.0.0 | Стабильный публичный API |
