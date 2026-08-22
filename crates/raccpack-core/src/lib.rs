@@ -40,7 +40,8 @@ pub use den::{
     PlacePackResult, PlaceSecretsRequest, PlaceSecretsResult, DEN_VERSION, MANIFEST_SCHEMA_VERSION,
 };
 pub use detect::{
-    candidate_to_project, detect_stack, detect_stacks, detector_registry, stack_from_candidate,
+    candidate_to_project, clamp_confidence, detect_stack, detect_stacks, detector_registry,
+    stack_from_candidate, Detection, StackNode,
 };
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};
 pub use git::{

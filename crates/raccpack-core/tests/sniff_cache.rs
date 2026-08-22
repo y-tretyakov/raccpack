@@ -419,6 +419,7 @@ fn cache_api_serde_roundtrip() {
                 frameworks: vec!["Axum".to_string()],
                 markers: vec!["Cargo.toml".to_string()],
             },
+            stack_tree: None,
             size_bytes: 4096,
             is_git_repo: false,
         }],
