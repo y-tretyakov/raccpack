@@ -8,7 +8,7 @@ description: How raccpack is evolving toward version 1.0.0 — what is already a
 How raccpack is evolving toward version 1.0.0 — and what you can use today.
 
 ::: info
-Current version: **0.3.0** — **Alpha complete** (stash / rinse / raid / init / git+DX available).
+Current version: **0.3.1** — Alpha complete; Detect v2 in progress (D1.1 registry closed, internal only).
 Dates are approximate. "Available" status means the functionality can be used in the current version built from source.
 :::
 
