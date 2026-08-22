@@ -128,29 +128,35 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 - Аудит: блокеров Detect нет; техдолг выписан.
 
 **Версия:** без bump (docs/process only).  
-**Следующее:** D1.1 по спеке `docs/detect/d1.1-stack-detector-trait.md` → version **0.3.1**.
+**Следующее:** D1.1 по спеке `docs/detect/d1/d1.1-stack-detector-trait.md` → version **0.3.1**.
 
 ---
 
-## Шаблон записи этапа (Detect+)
+## Этапы (Detect+)
 
-```markdown
-### D1.1 — StackDetector trait + registry (… )
+### 2026-08-22 — D1.1 — StackDetector trait + registry
 
-- **Дата:**
-- **Ветка / PR:**
-- **Статус:**
+- **Дата:** 2026-08-22
+- **Ветка / PR:** `d1-stack-detector-trait` / **#92** (squash в `dev`)
+- **Статус:** CLOSED
 - **Версия:** 0.3.1
 
 #### Сделано
-- …
+- Trait `StackDetector` перенесён `types.rs` → `detect/traits.rs` (layout §2 спеки); в `types.rs` остались таблица приоритетов + pure-хелперы.
+- `all_detectors()` → `pub fn detector_registry()` — стабильный порядок rust → node → go → python → jvm → ruby → php → cpp → make → git без изменений; re-export добавлен в `lib.rs`.
+- Integration-тесты `tests/detector_registry.rs` (13 кейсов): форма реестра/stable ids, каждый экосистемный детектор стреляет на fixture, probe-all smoke.
+- Behavior-preserving: merge policy, `resolve_language`, probe-all при пустых markers не тронуты.
+- **Deviation (осознанный):** скетч спеки `detect(...) -> Vec<Detection>` требует DTO `Detection` из D1.2. В D1.1 сохранены `matches()` и `detect(hits, project_dir) -> Result<Stack, Error>` как bridge; миграцию сигнатуры целиком выполняет D1.2. Зафиксировано в спеке d1.1 (§6).
 
 #### Тесты
-- `cargo test --workspace`
+- `cargo test -p raccpack-core --test detector_registry` — 13 pass; `--test detect_stack` — 31; `--test candidates` — 19; полный `cargo test -p raccpack-core` — green.
+- `cargo fmt --check`; clippy `-D warnings` (core + cli, all-targets) — clean.
 
 #### DoD
-- [ ] …
+- [x] Trait + registry
+- [x] Existing detectors implement trait
+- [x] PriorityTable path behavior unchanged
+- [x] Tests green; no unwrap in prod
 
 #### Follow-up
-- …
-```
+- hygiene: `detect/mod.rs` 435 строк — вынести инлайн unit-тесты в отдельный файл (backlog, не блокер).
