@@ -2,7 +2,7 @@
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
 **Текущая точка:** MVP 0.1.0 закрыт; Alpha A1–A3 закрыты (stash/rinse/raid доступны), идёт A4 (git/DX): A4.1–A4.2 закрыты.  
-**Текущая версия:** `0.3.0` — сверять `docs/VERSION_ROADMAP.md`.
+**Текущая версия:** `0.3.1` — сверять `docs/VERSION_ROADMAP.md`.
 
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
 
@@ -110,7 +110,7 @@
 
 ## Фаза D1 — Реестр и контракт детекторов
 
-- D1.1 — Trait `StackDetector` + внутренний реестр модулей (сохранить текущую модульность «один язык ≈ один модуль»).
+- D1.1 — Trait `StackDetector` + внутренний реестр модулей (сохранить текущую модульность «один язык ≈ один модуль»). ✅ **0.3.1**
 - D1.2 — `Detection` / `StackNode` DTO (markers, confidence, scope).
 - D1.3 — Config / CLI: `detect.mode = priority_table | composite_dag` (default пока `priority_table`).
 
@@ -225,7 +225,7 @@
 ```text
 MVP        M1 workspace/DTO/config  →  M2 sniff  →  M3 dig  →  M4 pack+den          ✅ 0.1.0
 Alpha      A1 stash/age ✅  →  A2 rinse ✅  →  A3 raid+atomic  →  A4 git+CI          → 0.3.0
-Detect v2  D1 registry  →  D2 composite DAG  →  D3 rinse/sniff impact               → 0.4.x
+Detect v2  D1 registry ✅  →  D2 composite DAG  →  D3 rinse/sniff impact   → 0.4.x
 Beta       B1 TUI  →  B2 Desktop+reveal  →  B3 security+reveal  →  B4 den gc + docs → 0.5.0
 RC         R1 freeze  →  R2 quality  →  R3 UX  →  R4 validation                     → 0.9.x
 Stable     S1 release 1.0.0

@@ -16,10 +16,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.3.0`** (Alpha exit) |
-| **Веха** | Подготовка / старт **Detect v2 → 0.4.0** |
-| **Следующий этап** | **D1.1** — StackDetector trait + registry → bump **`0.3.1`** |
-| **Предыдущий** | A4.4 integration + CI (PR #89), docs archive (PR #91) |
+| **Версия** | **`0.3.1`** (Detect v2 стартовал) |
+| **Веха** | **Detect v2 → 0.4.0**, фаза D1 в работе |
+| **Следующий этап** | **D1.2** — Detection / StackNode DTO → bump **`0.3.2`** |
+| **Предыдущий** | D1.1 StackDetector trait + registry (PR #92) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
@@ -30,7 +30,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 ## Backlog (Detect v2 → 0.4.0)
 
 ```
-[ ] D1.1 StackDetector trait + registry          → 0.3.1
+[x] D1.1 StackDetector trait + registry          → 0.3.1
 [ ] D1.2 Detection / StackNode DTO                 → 0.3.2
 [ ] D1.3 detect.mode config + CLI                  → 0.3.3
 [ ] D2.1 WorkspaceDetector → DAG                   → 0.3.4
@@ -42,6 +42,10 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 ```
 
 Спеки: `docs/detect/detect-v2-index.md` и `d1.*` / `d2.*` / `d3.*`.
+
+### Follow-ups (открытые)
+
+- [ ] hygiene: `detect/mod.rs` 435 строк — вынести инлайн unit-тесты в отдельный файл (сделать при удобном этапе D1.x/D2.x, не блокирует)
 
 ### Exit criteria Detect v2
 
@@ -64,6 +68,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 | 2026-08-21 | A4.4 CI + MSRV 1.85 → **0.3.0 ALPHA EXIT** |
 | 2026-08-22 | docs: Alpha specs → `docs/archive/alpha/`; scaffolds `docs/detect/`, `docs/beta/` (PR #91) |
 | 2026-08-22 | **WORKLOG.md → archive WORKLOG_ALPHA**; этот файл — журнал Detect+ |
+| 2026-08-22 | **D1.1** StackDetector trait → `traits.rs`, `all_detectors()` → `detector_registry()`, integration-тесты реестра → **0.3.1** (PR #92); behavior-preserving, wiki не трогали (внутренний рефакторинг без изменений CLI) |
 
 ---
 
