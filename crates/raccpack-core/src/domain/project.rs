@@ -30,8 +30,8 @@ pub struct Project {
     ///
     /// Flat summary — ALWAYS filled, both in flat and composite_dag mode.
     pub stack: Stack,
-    /// Recursive composite detection tree; `Some` only in composite_dag mode
-    /// (Detect v2), always `None` until that pipeline exists.
+    /// Recursive composite detection tree; `Some` only in composite_dag mode,
+    /// `None` (or absent — `#[serde(default)]`) otherwise.
     #[serde(default)]
     pub stack_tree: Option<StackNode>,
     /// Total size in bytes (files under project, after skip policy — later).

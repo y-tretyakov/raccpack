@@ -4,7 +4,8 @@ use super::*;
 use crate::domain::Stack;
 use crate::scan::MarkerKind;
 
-fn hit(name: &str, hint: Option<&str>) -> MarkerHit {
+/// Shared marker-hit fixture (also used by [`super::workspace_tests`]).
+pub(super) fn hit(name: &str, hint: Option<&str>) -> MarkerHit {
     MarkerHit {
         name: name.to_string(),
         kind: MarkerKind::FileName,

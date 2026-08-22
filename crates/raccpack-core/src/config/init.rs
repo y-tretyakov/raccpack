@@ -97,7 +97,7 @@ enabled_strategies = ["rust", "node", "python"]
 # -----------------------------------------------------------------------------
 # [detect] — Language & framework detection pipeline for `racc sniff`
 # -----------------------------------------------------------------------------
-# mode = "priority_table"   # default; "composite_dag" lands in Detect v2 (0.4.x)
+# mode = "priority_table"   # default; "composite_dag" = experimental composite pipeline
 "#
     )
 }

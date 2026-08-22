@@ -103,9 +103,6 @@ fn clone_error(error: &Error) -> Error {
         Error::Unsupported { feature } => Error::Unsupported {
             feature: feature.clone(),
         },
-        Error::DetectPipelineUnavailable { mode } => {
-            Error::DetectPipelineUnavailable { mode: mode.clone() }
-        }
         Error::Git { message } => Error::Git {
             message: message.clone(),
         },
