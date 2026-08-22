@@ -2,7 +2,7 @@
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
 **Текущая точка:** MVP 0.1.0 закрыт; Alpha A1–A3 закрыты (stash/rinse/raid доступны), идёт A4 (git/DX): A4.1–A4.2 закрыты.  
-**Текущая версия:** `0.3.1` — сверять `docs/VERSION_ROADMAP.md`.
+**Текущая версия:** `0.3.2` — сверять `docs/VERSION_ROADMAP.md`.
 
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
 
@@ -111,7 +111,7 @@
 ## Фаза D1 — Реестр и контракт детекторов
 
 - D1.1 — Trait `StackDetector` + внутренний реестр модулей (сохранить текущую модульность «один язык ≈ один модуль»). ✅ **0.3.1**
-- D1.2 — `Detection` / `StackNode` DTO (markers, confidence, scope).
+- D1.2 — `Detection` / `StackNode` DTO (markers, confidence, scope). ✅ **0.3.2**
 - D1.3 — Config / CLI: `detect.mode = priority_table | composite_dag` (default пока `priority_table`).
 
 ## Фаза D2 — Workspace / Composite detector

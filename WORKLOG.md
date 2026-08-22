@@ -16,10 +16,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.3.1`** (Detect v2 стартовал) |
-| **Веха** | **Detect v2 → 0.4.0**, фаза D1 в работе |
-| **Следующий этап** | **D1.2** — Detection / StackNode DTO → bump **`0.3.2`** |
-| **Предыдущий** | D1.1 StackDetector trait + registry (PR #92) |
+| **Версия** | **`0.3.2`** (Detect v2, фаза D1) |
+| **Веха** | **Detect v2 → 0.4.0**, D1 почти закрыта |
+| **Следующий этап** | **D1.3** — `detect.mode` config + CLI → bump **`0.3.3`** |
+| **Предыдущий** | D1.2 Detection / StackNode DTO (PR #93) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
@@ -31,7 +31,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 
 ```
 [x] D1.1 StackDetector trait + registry          → 0.3.1
-[ ] D1.2 Detection / StackNode DTO                 → 0.3.2
+[x] D1.2 Detection / StackNode DTO                 → 0.3.2
 [ ] D1.3 detect.mode config + CLI                  → 0.3.3
 [ ] D2.1 WorkspaceDetector → DAG                   → 0.3.4
 [ ] D2.2 conflict merge                            → 0.3.5
@@ -69,6 +69,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 | 2026-08-22 | docs: Alpha specs → `docs/archive/alpha/`; scaffolds `docs/detect/`, `docs/beta/` (PR #91) |
 | 2026-08-22 | **WORKLOG.md → archive WORKLOG_ALPHA**; этот файл — журнал Detect+ |
 | 2026-08-22 | **D1.1** StackDetector trait → `traits.rs`, `all_detectors()` → `detector_registry()`, integration-тесты реестра → **0.3.1** (PR #92); behavior-preserving, wiki не трогали (внутренний рефакторинг без изменений CLI) |
+| 2026-08-22 | **D1.2** Detection/StackNode DTO + `Project.stack_tree` (additive, serde back-compat) → **0.3.2** (PR #93); Eq снят каскадно; wiki — только версии |
 
 ---
 
@@ -160,3 +161,33 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 
 #### Follow-up
 - hygiene: `detect/mod.rs` 435 строк — вынести инлайн unit-тесты в отдельный файл (backlog, не блокер).
+
+### 2026-08-22 — D1.2 — Detection / StackNode DTO
+
+- **Дата:** 2026-08-22
+- **Ветка / PR:** `d1-detection-dto` / **#93** (squash в `dev`)
+- **Статус:** CLOSED
+- **Версия:** 0.3.2
+
+#### Сделано
+- DTO `Detection` + `StackNode` (рекурсивный) в `detect/types.rs` (спека §2: зафиксировано detect/).
+- `clamp_confidence(f32) -> f32`: clamp [0,1]; NaN/±inf → **0.0** (JSON-детерминизм) — задокументировано + unit-тесты.
+- `Project.stack_tree: Option<StackNode>`, `#[serde(default)]` (старый JSON ⇒ None); flat `stack` всегда заполнен; 8 мест конструирования обновлены (`None` до composite_dag D2.x).
+- `schema_version = 1` сохранён, решение задокументировано в `report.rs`.
+- Re-exports: `raccpack_core::detect::{Detection, StackNode, clamp_confidence}` (аддитивные).
+
+#### Semver-заметка
+`Eq` снят с `Project`, `ScanReport`, `SniffResult` (каскад от f32 в `StackNode`; HashMap/BTreeSet-потребителей нет — прослежено grep'ом, компиляция доказывает).
+
+#### Тесты
+- Новый `tests/detection_dto.rs`: 7 кейсов (serde roundtrip, вложенное дерево ≥3 уровней, back-compat без поля, `"stack_tree":null` + flat stack, Some-roundtrip, clamp-края, f32-in-JSON).
+- `cargo test --workspace` — green (38 suites); fmt clean; clippy core+cli all-targets `-D warnings` clean.
+
+#### DoD
+- [x] DTO public + Serialize
+- [x] Project.stack_tree additive
+- [x] Flat stack always present
+- [x] Tests green
+
+#### Follow-up
+- Продюсеры `Some(stack_tree)` — D2.1 WorkspaceDetector (по плану).

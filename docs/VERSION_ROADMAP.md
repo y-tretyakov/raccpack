@@ -24,20 +24,20 @@
 
 ## Текущая позиция
 
-> **Сделано до D1.1 включительно** (Detect v2 стартовал). **Alpha exit: 0.3.0.**
+> **Сделано до D1.2 включительно** (Detect v2 идёт). **Alpha exit: 0.3.0.**
 
 | | |
 |--|--|
-| **Текущая версия workspace** | **`0.3.1`** |
-| Последний этап | **D1.1** — StackDetector trait + registry |
-| Следующий этап | **D1.2** → версия **`0.3.2`** (Detection / StackNode DTO) |
+| **Текущая версия workspace** | **`0.3.2`** |
+| Последний этап | **D1.2** — Detection / StackNode DTO |
+| Следующий этап | **D1.3** → версия **`0.3.3`** (`detect.mode` config + CLI) |
 | Detect v2 exit | после **D3.3** → **`0.4.0`** |
 
 ```text
 0.1.0  MVP
 0.2.0 … 0.2.11  Alpha A1–A3
 0.2.12 … 0.3.0  Alpha A4
-0.3.1 …        Detect v2   ← ВЫ ЗДЕСЬ (0.3.1, D1.1 closed)
+0.3.1 …        Detect v2   ← ВЫ ЗДЕСЬ (0.3.2, D1.1–D1.2 closed)
 0.5.0 …        Beta
 0.9.0 …        RC
 1.0.0          Stable
@@ -110,7 +110,7 @@
 | Этап | Версия | Статус | Фича |
 |------|--------|--------|------|
 | D1.1 | **0.3.1** | ✅ | StackDetector trait + registry |
-| D1.2 | **0.3.2** | ⬜ | Detection / StackNode DTO |
+| D1.2 | **0.3.2** | ✅ | Detection / StackNode DTO |
 | D1.3 | **0.3.3** | ⬜ | `detect.mode` config + CLI |
 | D2.1 | **0.3.4** | ⬜ | WorkspaceDetector → tree |
 | D2.2 | **0.3.5** | ⬜ | conflict merge |
@@ -194,7 +194,7 @@
 ```toml
 # Cargo.toml (workspace)
 [workspace.package]
-version = "0.3.1"
+version = "0.3.2"
 ```
 
 Все crates: `version.workspace = true`.
@@ -209,7 +209,7 @@ version = "0.3.1"
 
 ```bash
 cargo run -p raccpack-cli -- --version
-# raccpack-cli 0.3.1   →  D1.1 (Detect v2 start)
+# raccpack-cli 0.3.2   →  D1.2 (Detect v2)
 ```
 
 | Версия | Значит «есть» |
@@ -225,6 +225,7 @@ cargo run -p raccpack-cli -- --version
 | ≥ 0.3.0 | **Alpha complete**: integration + CI, MSRV 1.85 |
 | ≥ 0.3.0 | Alpha complete (git, init, -v, CI) |
 | ≥ 0.3.1 | Detect v2 start: StackDetector trait + detector_registry (внутреннее, без изменений CLI) |
+| ≥ 0.3.2 | Detection / StackNode DTO + Project.stack_tree (аддитивно, JSON back-compat) |
 | ≥ 0.4.0 | Detect DAG |
 | ≥ 0.5.0 | TUI + Desktop + reveal |
 
@@ -246,7 +247,7 @@ cargo run -p raccpack-cli -- --version
 ## Сводка «сейчас»
 
 ```text
-Текущая версия:  0.3.1
-Этап:            D1.1 (StackDetector trait + registry) — CLOSED
-Следующий bump:  0.3.2   при закрытии D1.2 (Detection / StackNode DTO)
+Текущая версия:  0.3.2
+Этап:            D1.2 (Detection / StackNode DTO) — CLOSED
+Следующий bump:  0.3.3   при закрытии D1.3 (detect.mode config + CLI)
 ```
