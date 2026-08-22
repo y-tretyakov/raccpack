@@ -46,6 +46,12 @@ pub enum Error {
     /// A requested feature is not implemented in this version.
     #[error("unsupported: {feature}")]
     Unsupported { feature: String },
+    /// The requested detection pipeline is not available in this version.
+    ///
+    /// `composite_dag` lands with Detect v2 (`0.4.x`); until then it is an
+    /// explicit error instead of a silent fallback to the priority table.
+    #[error("detection pipeline `{mode}` is not available in this version")]
+    DetectPipelineUnavailable { mode: String },
     /// A git subprocess failed (missing binary, timeout, non-zero exit).
     ///
     /// The `message` carries git diagnostics only — never file contents or
@@ -78,6 +84,9 @@ impl Error {
             Error::NotAFile { .. } => Some("Provide regular file paths."),
             Error::Unsupported { .. } => Some(
                 "This version supports passphrase identities only; recipient keys arrive in a later release.",
+            ),
+            Error::DetectPipelineUnavailable { .. } => Some(
+                "The composite_dag pipeline lands in Detect v2 (0.4.x); keep priority_table.",
             ),
             Error::Git { .. } => Some(
                 "Ensure git is installed and on PATH; git status is best-effort and never fails the command.",
@@ -212,6 +221,20 @@ mod tests {
             }
             .suggestion(),
             Some("This version supports passphrase identities only; recipient keys arrive in a later release.")
+        );
+        assert_eq!(
+            Error::DetectPipelineUnavailable {
+                mode: "composite_dag".into()
+            }
+            .to_string(),
+            "detection pipeline `composite_dag` is not available in this version"
+        );
+        assert_eq!(
+            Error::DetectPipelineUnavailable {
+                mode: "composite_dag".into()
+            }
+            .suggestion(),
+            Some("The composite_dag pipeline lands in Detect v2 (0.4.x); keep priority_table.")
         );
         assert_eq!(
             Error::Config {

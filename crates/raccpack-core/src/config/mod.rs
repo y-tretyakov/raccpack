@@ -1,6 +1,7 @@
 //! Config loading, validation, and path resolution for raccpack-core.
 //!
-//! Config is read from a TOML file (sections style: `[paths]`, `[scanner]`)
+//! Config is read from a TOML file (sections style: `[paths]`, `[scanner]`,
+//! `[detect]`)
 //! with the following priority:
 //!
 //! 1. `RACCPACK_CONFIG` env var — explicit path, the file must exist.
@@ -17,6 +18,8 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
+
+use crate::detect::DetectMode;
 
 mod error;
 mod init;
@@ -47,6 +50,9 @@ pub struct RaccConfig {
     /// Cleanup (rinse) strategy toggles.
     #[serde(default)]
     pub cleanup: CleanupConfig,
+    /// Detection pipeline settings (sniff).
+    #[serde(default)]
+    pub detect: DetectConfig,
 }
 
 impl Default for RaccConfig {
@@ -56,6 +62,7 @@ impl Default for RaccConfig {
             paths: PathsConfig::default(),
             scanner: ScannerConfig::default(),
             cleanup: CleanupConfig::default(),
+            detect: DetectConfig::default(),
         }
     }
 }
@@ -118,6 +125,14 @@ impl Default for CleanupConfig {
     }
 }
 
+/// Detection pipeline settings (`[detect]`).
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct DetectConfig {
+    /// Pipeline used by `racc sniff`; defaults to [`DetectMode::PriorityTable`].
+    #[serde(default)]
+    pub mode: DetectMode,
+}
+
 impl RaccConfig {
     /// Load configuration from `RACCPACK_CONFIG`, the XDG default location, or
     /// fall back to [`RaccConfig::default`].
@@ -157,6 +172,7 @@ impl RaccConfig {
             source,
         })?;
         let migrated = migrate::migrate_to_current(raw)?;
+        validate::validate_detect_mode_raw(&migrated)?;
         let config: Self = migrated.try_into().map_err(|source| ConfigError::Parse {
             path: path.to_path_buf(),
             source,
@@ -219,5 +235,57 @@ impl RaccConfig {
     pub fn validate(&self) -> Result<(), ConfigError> {
         validate::validate_max_depth(self.scanner.max_depth)?;
         validate::validate_enabled_strategies(&self.cleanup.enabled_strategies)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+
+    fn write_config(dir: &std::path::Path, body: &str) -> PathBuf {
+        let path = dir.join("config.toml");
+        std::fs::write(&path, body).expect("write config fixture");
+        path
+    }
+
+    #[test]
+    fn config_without_detect_section_defaults_to_priority_table() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = write_config(
+            dir.path(),
+            "[paths]\nscan_root = '/tmp'\n[scanner]\nmax_depth = 3\n",
+        );
+        let config = RaccConfig::load_from_path(&path).unwrap();
+        assert_eq!(config.detect.mode, DetectMode::PriorityTable);
+    }
+
+    #[test]
+    fn detect_section_parses_both_canonical_modes() {
+        for (text, expected) in [
+            ("priority_table", DetectMode::PriorityTable),
+            ("composite_dag", DetectMode::CompositeDag),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = write_config(dir.path(), &format!("[detect]\nmode = \"{text}\"\n"));
+            let config = RaccConfig::load_from_path(&path).unwrap();
+            assert_eq!(config.detect.mode, expected);
+        }
+    }
+
+    #[test]
+    fn unknown_detect_mode_is_a_typed_config_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = write_config(dir.path(), "[detect]\nmode = \"bogus_pipeline\"\n");
+        let err = RaccConfig::load_from_path(&path).unwrap_err();
+        match err {
+            ConfigError::UnknownDetectMode { ref value } => {
+                assert_eq!(value, "bogus_pipeline")
+            }
+            other => panic!("expected UnknownDetectMode, got {other:?}"),
+        }
+        assert!(err.to_string().contains("priority_table"));
+        assert!(err.suggestion().is_some());
     }
 }

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use raccpack_core::{SecretExitPolicy, SensitiveRisk};
+use raccpack_core::{DetectMode, SecretExitPolicy, SensitiveRisk};
 
 /// Command-line interface for the `racc` binary.
 #[derive(Debug, Parser)]
@@ -88,6 +88,10 @@ pub struct SniffArgs {
     /// Override scanner.max_depth
     #[arg(long, value_name = "N")]
     pub max_depth: Option<usize>,
+
+    /// Detection pipeline (default: priority_table)
+    #[arg(long, value_name = "MODE", value_enum)]
+    pub detect_mode: Option<DetectModeArg>,
 }
 
 /// Options specific to `racc dig`.
@@ -285,6 +289,27 @@ pub enum FailOnPolicy {
     High,
 }
 
+/// Detection pipeline selected via `--detect-mode`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum DetectModeArg {
+    /// Marker priority table (default)
+    #[value(name = "priority_table")]
+    PriorityTable,
+    /// Composite DAG pipeline (Detect v2)
+    #[value(name = "composite_dag", alias = "dag")]
+    CompositeDag,
+}
+
+impl DetectModeArg {
+    /// Map the CLI value to the core detection mode.
+    pub fn to_detect_mode(self) -> DetectMode {
+        match self {
+            Self::PriorityTable => DetectMode::PriorityTable,
+            Self::CompositeDag => DetectMode::CompositeDag,
+        }
+    }
+}
+
 impl FailOnPolicy {
     /// Map the CLI value to the core exit policy.
     pub fn to_exit_policy(self) -> SecretExitPolicy {
@@ -306,6 +331,47 @@ mod tests {
         let args = SniffArgs::default();
         assert!(!args.force_refresh);
         assert_eq!(args.max_depth, None);
+        assert!(
+            args.detect_mode.is_none(),
+            "detect_mode stays unset by default"
+        );
+    }
+
+    #[test]
+    fn clap_parse_sniff_detect_mode_values_and_dag_alias() {
+        for (input, expected) in [
+            ("priority_table", DetectModeArg::PriorityTable),
+            ("composite_dag", DetectModeArg::CompositeDag),
+            ("dag", DetectModeArg::CompositeDag),
+        ] {
+            let cli = Cli::try_parse_from(["racc", "sniff", "--detect-mode", input])
+                .unwrap_or_else(|err| panic!("--detect-mode {input} should parse: {err}"));
+            match cli.command {
+                Commands::Sniff(args) => assert_eq!(args.detect_mode, Some(expected)),
+                _ => panic!("expected sniff command"),
+            }
+        }
+    }
+
+    #[test]
+    fn detect_mode_arg_maps_to_core_detect_mode() {
+        assert_eq!(
+            DetectModeArg::PriorityTable.to_detect_mode(),
+            DetectMode::PriorityTable
+        );
+        assert_eq!(
+            DetectModeArg::CompositeDag.to_detect_mode(),
+            DetectMode::CompositeDag
+        );
+    }
+
+    #[test]
+    fn clap_rejects_unknown_detect_mode_value() {
+        let result = Cli::try_parse_from(["racc", "sniff", "--detect-mode", "bogus"]);
+        assert!(
+            result.is_err(),
+            "unknown --detect-mode value must be rejected"
+        );
     }
 
     #[test]
