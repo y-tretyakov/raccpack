@@ -45,7 +45,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 [ ] D4.4 wiki + E2E = Detect v2 EXIT               → 0.4.0
 ```
 
-Спеки: `docs/detect/detect-v2-index.md` и `d1.*` / `d2.*` / `d3.*`.
+Спеки: `docs/detect/detect-v2-index.md` и `d1.*` / `d2.*` / `d3.*` / `d4.*`.
 
 ### Follow-ups (открытые)
 
@@ -207,7 +207,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 #### Сделано
 - VERSION_ROADMAP: D4.1–D4.4 добавлены; D3.3 перенумерован 0.4.0 → 0.3.9 (фикстуры); exit вехи = **D4.4 → 0.4.0**; якорь/≥-таблица упомянуты batch raid.
 - roadmap-v1: секция «Фаза D4», ASCII-карта, exit criteria + `racc raid --root`.
-- `docs/detect/detect-v2-index.md`: строка фазы D4 (+ ссылка `d4-index.md`, спеки положит человек), линия пайплайна до D4.4, exit-criteria пункт.
+- `docs/detect/detect-v2-index.md`: строка фазы D4 (+ ссылка `d4-index.md`), линия пайплайна до D4.4, exit-criteria пункт. Спеки d4.* залиты следом (4be1f58).
 - README + wiki roadmap (ru/en): «+ batch raid» как planned, без заявлений о shipped.
 - WORKLOG: backlog `[ ]` D4.1–D4.4, exit criteria.
 
