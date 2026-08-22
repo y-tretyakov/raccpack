@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::domain::{Error, Stack};
 use crate::scan::MarkerHit;
 
-use super::types::StackDetector;
+use super::traits::StackDetector;
 
 /// Detector for git repositories (carries no language and no frameworks).
 pub struct GitDetector;

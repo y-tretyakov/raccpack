@@ -39,7 +39,9 @@ pub use den::{
     write_manifest, DenManifest, DenPaths, ManifestArtifacts, ManifestStage, PlacePackRequest,
     PlacePackResult, PlaceSecretsRequest, PlaceSecretsResult, DEN_VERSION, MANIFEST_SCHEMA_VERSION,
 };
-pub use detect::{candidate_to_project, detect_stack, detect_stacks, stack_from_candidate};
+pub use detect::{
+    candidate_to_project, detect_stack, detect_stacks, detector_registry, stack_from_candidate,
+};
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};
 pub use git::{
     find_repo_root, GitClient, GitFileStatus, GitState, MockGitClient, ProcessGitClient,

@@ -9,7 +9,7 @@
 //! # Merge policy
 //!
 //! Detectors are organized per ecosystem — one `*.rs` per language — and this
-//! module is the only place that enumerates them ([`all_detectors()`]) and
+//! module is the only place that enumerates them ([`detector_registry()`]) and
 //! merges their contributions into a single [`Stack`]:
 //!
 //! - **language** — resolved centrally from marker `language_hint`s by the §4.1
@@ -52,9 +52,10 @@ mod php;
 mod python;
 mod ruby;
 mod rust;
+mod traits;
 mod types;
 
-pub use types::StackDetector;
+pub use traits::StackDetector;
 
 use cpp::CppDetector;
 use git::GitDetector;
@@ -68,12 +69,12 @@ use ruby::RubyDetector;
 use rust::RustDetector;
 use types::resolve_language;
 
-/// All ecosystem detectors in stable registry order.
+/// Stable order registry (ecosystem modules).
 ///
 /// Order is fixed (rust, node, go, python, jvm, ruby, php, cpp, make, git) and
 /// mirrors the marker registry order, so the framework union order is
 /// deterministic.
-pub fn all_detectors() -> &'static [&'static dyn StackDetector] {
+pub fn detector_registry() -> &'static [&'static dyn StackDetector] {
     &[
         &RustDetector,
         &NodeDetector,
@@ -125,7 +126,7 @@ pub fn detect_stack(path: &Path, markers: &[MarkerHit]) -> Result<Stack> {
 
     let probe_all = markers.is_empty();
     let mut frameworks: Vec<String> = Vec::new();
-    for detector in all_detectors() {
+    for detector in detector_registry() {
         if !probe_all && !detector.matches(markers) {
             continue;
         }
