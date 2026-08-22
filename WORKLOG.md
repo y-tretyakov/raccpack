@@ -878,6 +878,23 @@ CLI `racc rinse`: DryRun default, `--yes` → Commit (удаление trash-dir
 **Follow-up:** raid_atomic.rs (1036 строк) / cli_raid.rs (714) — тест-файлы сверх soft-limit, split при следующем касании; инструментация raid/rinse/pack info-событиями — без отдельного этапа.
 **Синхронизация:** по чеклисту §3.9 — Cargo.toml/Cargo.lock 0.3.0, README (badge + Status + roadmap-блок Alpha ✅), VERSION_ROADMAP (A4.4 ✅ 0.3.0, «ВЫ ЗДЕСЬ» на Alpha exit), raccpack-roadmap-v1 (A4.4 ✅), WORKLOG (шапка/бэклог/запись), wiki (страница Git/init/DX из прототипа, roadmap/introduction 0.3.0), бинарник переустановлен.
 
+---
+
+### 2026-08-22 — docs: архивация спек Alpha + каркасы Detect v2 / Beta
+
+**Задача:** консолидация dev-docs после Alpha exit: спеки A1–A4 → archive, новые спеки Detect v2 (D1–D3) и Beta (B1–B4). Ветка `docs-archive-alpha-specs` от `dev`, PR #91 → `dev` (squash).
+
+**Сделано:**
+- `docs/alpha/` → `docs/archive/alpha/` (A1–A4 + `a3_new` слит в `archive/alpha/a3/`, SHIPPED/SUPERSEDED пометки сохранены).
+- `docs/detect/` (NEW): `detect-v2-index.md`, D1 (StackDetector trait / DTO / detect.mode), D2 (workspace DAG / conflict merge / flat compat), D3 (rinse DAG / sniff tree / fixtures).
+- `docs/beta/` (NEW): `beta-index.md`, B1 (TUI), B2 (Tauri desktop), B3 (security/reveal), B4 (den GC / parallel / beta tag).
+- `examples/raid-all.fish` (NEW): fish-скрипт raid по всем проектам из sniff (источник примера из `wiki/cookbook.md`).
+- Убраны дубликаты (не коммичены): корневые `RP.webp` / `alpha-banner.webp` (≡ `wiki/public/*`), `a3.1-facade-raid-SHIPPED (1).md` (≡ оригинал).
+
+**Файлы:** `docs/alpha/**` (deleted, rename), `docs/archive/alpha/**` (created), `docs/detect/**` (created), `docs/beta/**` (created), `examples/raid-all.fish` (created), `WORKLOG.md`
+**Версия:** без bump (docs-only).
+**Follow-up:** doc-comment ссылки на `docs/alpha/…` в тестах (`crates/*/tests/*.rs`) теперь указывают на старый путь — актуализировать при следующем касании файлов.
+
 ## Принятые решения (Alpha+)
 
 | Дата | Решение |
