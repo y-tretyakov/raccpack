@@ -91,8 +91,8 @@ Paths may contain `~` and relative components — raccpack resolves them to abso
 |-----|---------|-------------|
 | `mode` | `"priority_table"` | Detection pipeline for `racc sniff`. Values: `"priority_table"`, `"composite_dag"` |
 
-::: warning
-`"composite_dag"` is **not available yet** (Detect v2, `0.4.x`). An unknown value fails with an error listing the valid ones.
+::: info
+`"composite_dag"` is **experimental** (since `0.3.4`): `racc sniff` additionally fills the recursive `stack_tree` per project. An unknown value fails with an error listing the valid ones.
 :::
 
 ### The `[cleanup]` section

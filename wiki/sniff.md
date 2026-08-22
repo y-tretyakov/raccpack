@@ -63,7 +63,7 @@ Depth priority: `--max-depth` for this run → `scanner.max_depth` in config →
 Mode priority: `--detect-mode` for this run → `detect.mode` in config → built-in default of `priority_table`.
 
 ::: warning
-The `composite_dag` pipeline is **not available yet** — it lands in Detect v2 (`0.4.x`). Selecting it fails with an error suggesting `priority_table`.
+**`composite_dag` is experimental** (since `0.3.4`): the run additionally fills the recursive `stack_tree` for every project (composite DAG), while the flat `stack` summary stays filled in both modes. Semantics may still evolve until Detect v2 exits at `0.4.0`.
 :::
 
 ### Global flags

@@ -273,7 +273,7 @@ After each raid a manifest is written to `den/manifests/{yyyy}/{mm}/`. Example (
   "stash_manifest": [
     { "original_path": "/home/user/DEV/PROJS/my-api/.env", "risk": "High", "size_bytes": 412 }
   ],
-  "tool": { "name": "raccpack", "core_version": "0.3.3" }
+  "tool": { "name": "raccpack", "core_version": "0.3.4" }
 }
 ```
 

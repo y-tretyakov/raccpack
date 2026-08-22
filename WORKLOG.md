@@ -16,10 +16,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.3.3`** (Detect v2, фаза D1 закрыта) |
-| **Веха** | **Detect v2 → 0.4.0**, далее фаза D2 |
-| **Следующий этап** | **D2.1** — WorkspaceDetector → DAG → bump **`0.3.4`** |
-| **Предыдущий** | D1.3 `detect.mode` config + CLI (PR #94) |
+| **Версия** | **`0.3.4`** (Detect v2, D2.1 закрыт) |
+| **Веха** | **Detect v2 → 0.4.0**, идёт фаза D2 |
+| **Следующий этап** | **D2.2** — conflict merge → bump **`0.3.5`** |
+| **Предыдущий** | D2.1 WorkspaceDetector (PR #95) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
@@ -33,7 +33,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 [x] D1.1 StackDetector trait + registry          → 0.3.1
 [x] D1.2 Detection / StackNode DTO                 → 0.3.2
 [x] D1.3 detect.mode config + CLI                  → 0.3.3
-[ ] D2.1 WorkspaceDetector → DAG                   → 0.3.4
+[x] D2.1 WorkspaceDetector → DAG                   → 0.3.4
 [ ] D2.2 conflict merge                            → 0.3.5
 [ ] D2.3 flat stack + stack_tree compat            → 0.3.6
 [ ] D3.1 rinse по DAG scopes                       → 0.3.7
@@ -78,6 +78,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 | 2026-08-22 | docs: фаза **D4 batch raid** встроена в конец Detect v2 (roadmap/versions/index/wiki); exit вехи перенесён D3.3 → **D4.4 = 0.4.0**; без bump |
 | 2026-08-22 | docs: спеки d4.* залиты (4be1f58); полировка формулировок (48cc26d) |
 | 2026-08-22 | **D1.3** `detect.mode` config + `racc sniff --detect-mode` → **0.3.3** (PR #94); composite_dag до D2.x = явная ошибка; wiki обновлён (UX-этап) |
+| 2026-08-22 | **D2.1** WorkspaceDetector → tree, composite_dag исполняется → **0.3.4** (PR #95); breaking: убран `Error::DetectPipelineUnavailable`; wiki обновлён (UX-этап) |
 
 ---
 
@@ -244,3 +245,38 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 
 #### Follow-up
 - Wiki обновлён в этом же этапе (UX-этап): cli-usage / sniff / configuration.
+
+### 2026-08-22 — D2.1 — WorkspaceDetector → tree (composite_dag)
+
+- **Дата:** 2026-08-22
+- **Ветка / PR:** `d2-workspace-detector` / **#95** (squash в `dev`)
+- **Статус:** CLOSED — фаза D2 начата
+- **Версия:** 0.3.4
+
+#### Сделано
+- `detect/workspace.rs`: `WorkspaceDetector::detect_tree(project_root, markers_by_path) -> Result<StackNode>` — один узел на scope; ecosystem = первый применимый детектор по реестру (`"unknown"` если нет), frameworks = union в порядке реестра, language через `resolve_language`, confidence 1.0/0.0; корень без маркеров → placeholder unknown; привязка к ближайшему строго содержащему предку; дети отсортированы по нормализованному ключу компонентов (детерминизм). FS сам не обходит.
+- Containment: scope вне project_root → `Error::Other`; переиспользованы `ensure_scan_root` + `is_path_under_root` (без клонов).
+- Facade `app/sniff.rs`: guard удалён; ветка CompositeDag заполняет `project.stack_tree` per candidate через re-use `find_candidates` (те же max_depth/policy); плоский stack заполнен в обоих режимах; priority_table путь не тронут; кэш-fingerprint прежний.
+- **Breaking:** убран публичный `Error::DetectPipelineUnavailable` (composite_dag теперь исполняется, experimental). Зачистка доков: detect/mod, mode, project.stack_tree, config/init шаблон.
+- Re-export: `raccpack_core::detect::WorkspaceDetector`.
+
+#### Решения Orchestrator
+- Семантика sniff: nested candidates НЕ схлопываются (инвариант find_candidates «nested projects are not collapsed»); каждый кандидат получает своё дерево — collapse/multi-opinion merge → D2.2.
+- Multi-ecosystem мнения на одной scope схлопываются в один узел (primary + union frameworks) — зафиксировано в rustdoc как текущее ограничение до D2.2.
+- Гонка Test→Dev: ретракты Test проверены по merge-ready tip (§5.2 AGENTS) — все три сняты (тест уже перевёрнут в коммите Dev; fmt/clippy чистые).
+
+#### Тесты
+- Юниты: `detect/workspace_tests.rs` (9 кейсов); перевёрнуты `tests/detect_mode_config.rs` Case 4/5 и sniff success-path тест.
+- Integration: новый `tests/workspace_detect.rs` (11 кейсов: монорепо rust+web, single project, placeholder root, containment reject, typed errors, сортировка/детерминизм, nearest-ancestor, serde roundtrip, facade composite/priority_table, symlink never a scope).
+- `cargo test --workspace` green (все suite'ы 0 failed) · fmt clean · clippy core+cli all-targets `-D warnings` clean.
+
+#### DoD
+- [x] WorkspaceDetector returns StackNode
+- [x] composite_dag mode uses this path
+- [x] priority_table path untouched
+- [x] Tests green
+
+#### Follow-up
+- `composite_stack_tree` перезапускает find_candidates для каждого кандидата (двойной обход при вложенных проектах) — производительность, рассмотреть в D3/D4.
+- `tests/workspace_detect.rs` 540 строк — крупный integration-файл (в духе F-TEST-SIZE, next touch).
+- Расхождение лексического linking vs канонизирующего containment на symlink-scope — задокументировано в rustdoc; вернуться при D2.2/D3.1.
