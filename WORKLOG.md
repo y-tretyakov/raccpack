@@ -16,10 +16,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.3.4`** (Detect v2, D2.1 закрыт) |
+| **Версия** | **`0.3.5`** (Detect v2, D2.2 закрыт) |
 | **Веха** | **Detect v2 → 0.4.0**, идёт фаза D2 |
-| **Следующий этап** | **D2.2** — conflict merge → bump **`0.3.5`** |
-| **Предыдущий** | D2.1 WorkspaceDetector (PR #95) |
+| **Следующий этап** | **D2.3** — flat stack + stack_tree compat → bump **`0.3.6`** |
+| **Предыдущий** | D2.2 conflict merge (PR #96) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
@@ -34,7 +34,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 [x] D1.2 Detection / StackNode DTO                 → 0.3.2
 [x] D1.3 detect.mode config + CLI                  → 0.3.3
 [x] D2.1 WorkspaceDetector → DAG                   → 0.3.4
-[ ] D2.2 conflict merge                            → 0.3.5
+[x] D2.2 conflict merge                            → 0.3.5
 [ ] D2.3 flat stack + stack_tree compat            → 0.3.6
 [ ] D3.1 rinse по DAG scopes                       → 0.3.7
 [ ] D3.2 sniff tree output                         → 0.3.8
@@ -79,6 +79,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 | 2026-08-22 | docs: спеки d4.* залиты (4be1f58); полировка формулировок (48cc26d) |
 | 2026-08-22 | **D1.3** `detect.mode` config + `racc sniff --detect-mode` → **0.3.3** (PR #94); composite_dag до D2.x = явная ошибка; wiki обновлён (UX-этап) |
 | 2026-08-22 | **D2.1** WorkspaceDetector → tree, composite_dag исполняется → **0.3.4** (PR #95); breaking: убран `Error::DetectPipelineUnavailable`; wiki обновлён (UX-этап) |
+| 2026-08-25 | **D2.2** conflict merge policy → `detect/merge.rs` (правила 1–5 в rustdoc; клон union+dedup устранён: `extend_frameworks_union`; дубликаты scope теперь merge хитов вместо keep-first) → **0.3.5** (PR #96); 10 новых тестов, `detect::` 48 green, workspace 860 green; wiki не трогали (без изменений CLI) |
 
 ---
 
