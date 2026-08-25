@@ -21,8 +21,9 @@ pub use dig::{
 pub use pack::{pack, PackOptions, PackResult};
 pub use progress::{NullProgress, OperationKind, ProgressEvent, ProgressSink};
 pub use raid::{
-    raid, OrchestrationMode, PackPhaseOpts, RaidOptions, RaidResult, RaidStageResult,
-    RinsePhaseOpts, StashPhaseOpts,
+    raid, raid_batch, OrchestrationMode, PackPhaseOpts, RaidBatchItem, RaidBatchOptions,
+    RaidBatchOutcome, RaidBatchResult, RaidOptions, RaidResult, RaidStageResult, RinsePhaseOpts,
+    StashPhaseOpts,
 };
 pub use resolve::resolve_stack_tree;
 pub use rinse::{rinse, RinseOptions, RinseResult};

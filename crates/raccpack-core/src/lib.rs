@@ -13,9 +13,10 @@ pub mod scan;
 pub mod secrets;
 
 pub use app::{
-    dig, dig_with_git, exit_code_for_secrets, pack, raid, resolve_stack_tree, rinse, sniff, stash,
-    AgeIdentity, AppContext, DigOptions, DigResult, NullProgress, OperationKind, OrchestrationMode,
-    PackOptions, PackPhaseOpts, PackResult, ProgressEvent, ProgressSink, RaidOptions, RaidResult,
+    dig, dig_with_git, exit_code_for_secrets, pack, raid, raid_batch, resolve_stack_tree, rinse,
+    sniff, stash, AgeIdentity, AppContext, DigOptions, DigResult, NullProgress, OperationKind,
+    OrchestrationMode, PackOptions, PackPhaseOpts, PackResult, ProgressEvent, ProgressSink,
+    RaidBatchItem, RaidBatchOptions, RaidBatchOutcome, RaidBatchResult, RaidOptions, RaidResult,
     RaidStageResult, RepeatedSecret, RinseOptions, RinsePhaseOpts, RinseResult, RunMode,
     SecretExitPolicy, SensitiveFile, SniffOptions, SniffResult, StashOptions, StashPhaseOpts,
     StashResult, WorkspacePaths,
