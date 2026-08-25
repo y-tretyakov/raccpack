@@ -23,7 +23,7 @@ CLI / TUI / Desktop tool for scanning project trees, finding secrets, cleaning b
 
 ## Status
 
-**Version `0.3.8`** — MVP `0.1.0` closed; **Alpha `0.3.0` closed** (stash / rinse / raid / git+DX). Detect v2 in progress toward `0.4.0`: D1 complete (trait+registry, Detection/StackNode DTO, `detect.mode` config + `racc sniff --detect-mode`); **D2 complete** — D2.1 WorkspaceDetector ships the composite DAG pipeline (`--detect-mode composite_dag` fills `stack_tree`, experimental); D2.2 conflict-merge policy (`detect::merge`); D2.3 compat: flat `stack` always filled, indent tree in composite_dag human output. **D3 complete** — D3.1 rinse by DAG scopes: scoped trash discovery per ecosystem; D3.2 sniff tree output; D3.3 fixtures monorepo. D3 phase exit gate closed; next: D4 batch raid → `0.4.0`.
+**Version `0.3.8`** — MVP `0.1.0` closed; **Alpha `0.3.0` closed** (stash / rinse / raid / git+DX). Detect v2 in progress toward `0.4.0`: D1 complete (trait+registry, Detection/StackNode DTO, `detect.mode` config + `racc sniff --detect-mode`); **D2 complete** — D2.1 WorkspaceDetector ships the composite DAG pipeline (`--detect-mode composite_dag` fills `stack_tree`, experimental); D2.2 conflict-merge policy (`detect::merge`); D2.3 compat: flat `stack` always filled, indent tree in composite_dag human output. **D3 complete** — D3.1 rinse by DAG scopes: scoped trash discovery per ecosystem; D3.2 sniff tree output; D3.3 fixtures monorepo. **D4 in progress** — D4.1 batch raid design; D4.2 facade `raid_batch` (sequential, continue-on-error). Next: D4.3 CLI `racc raid --root`.
 
 | Command | Status | Role |
 |---------|--------|------|

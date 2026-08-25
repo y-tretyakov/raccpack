@@ -24,20 +24,20 @@
 
 ## Текущая позиция
 
-> **Сделано до D3.3 включительно (фаза D3 ЗАКРЫТА — exit gate пайплайна).** **Alpha exit: 0.3.0.**
+> **Сделано до D4.2 включительно (D4.2 raid_batch impl done).** **Alpha exit: 0.3.0.**
 
 | | |
 |--|--|
 | **Текущая версия workspace** | **`0.3.8`** |
-| Последний этап | **D3.3** — fixtures monorepo (D3 phase done) |
-| Следующий этап | **D4.2** → facade raid_batch → `0.3.10` |
-| Detect v2 exit | после **D4.4** → **`0.4.0`** (batch raid включён) |
+| Последний этап | **D4.2** — facade raid_batch (impl + tests B1–B7) |
+| Следующий этап | **D4.3** → CLI `racc raid --root` → `0.3.9` |
+| Detect v2 exit | после **D4.4** → **`0.4.0`** (batch raid CLI + wiki) |
 
 ```text
 0.1.0  MVP
 0.2.0 … 0.2.11  Alpha A1–A3
 0.2.12 … 0.3.0  Alpha A4
-0.3.1 …        Detect v2   ← ВЫ ЗДЕСЬ (0.3.8, D4.1 done; далее D4.2 facade raid_batch)
+0.3.1 …        Detect v2   ← ВЫ ЗДЕСЬ (0.3.8, D4.2 done; далее D4.3 CLI raid --root)
 0.5.0 …        Beta
 0.9.0 …        RC
 1.0.0          Stable
@@ -116,11 +116,11 @@
 | D2.2 | **0.3.5** | ✅ | conflict merge (`detect::merge`) |
 | D2.3 | **0.3.6** | ✅ | flat stack + stack_tree compat + tree render |
 | D3.1 | **0.3.7** | ✅ | rinse по DAG scopes |
-| D3.2 | **0.3.8** | ✅ | sniff tree output |
-| D3.3 | **0.3.9** | ✅ | fixtures монорепо |
+| D3.2 | **0.3.6** | ✅ | sniff tree output (shipped in D2.3, closed as D3.2) |
+| D3.3 | **0.3.8** | ✅ | fixtures монорепо (D3 phase done) |
 | D4.1 | — | ✅ | batch raid design (`--root` vs `--project`; docs) — design-only (без bump) |
-| D4.2 | **0.3.10** | ⬜ | facade `raid_batch` (1 project = 1 raid, sequential, continue-on-error) |
-| D4.3 | **0.3.11** | ⬜ | CLI `racc raid --root` (+ `--only`/`--limit`/`--stop-on-error`) |
+| D4.2 | **0.3.8** | ✅ | facade `raid_batch` (1 project = 1 raid, sequential, continue-on-error; без bump) |
+| D4.3 | **0.3.9** | ⬜ | CLI `racc raid --root` (+ `--only`/`--limit`/`--stop-on-error`) |
 | D4.4 | **0.4.0** | ⬜ | wiki + E2E = **Detect v2 exit** |
 
 ---
@@ -213,7 +213,7 @@ version = "0.3.8"
 
 ```bash
 cargo run -p raccpack-cli -- --version
-# raccpack-cli 0.3.8   →  D3.3 (fixtures monorepo; D3 phase done)
+# raccpack-cli 0.3.8   →  D4.2 (facade raid_batch; без CLI changes, нет bump)
 ```
 
 | Версия | Значит «есть» |
@@ -235,8 +235,9 @@ cargo run -p raccpack-cli -- --version
 | ≥ 0.3.5 | Merge policy `detect::merge` (nesting, framework union, same-scope merge; внутреннее, без изменений CLI) |
 | ≥ 0.3.6 | Compat flat `stack`/`stack_tree` + indent tree render для `composite_dag` в human sniff output |
 | ≥ 0.3.7 | Rinse по DAG scopes (scoped trash discovery per ecosystem) |
-| ≥ 0.3.8 | D3 phase done: sniff tree output + fixtures monorepo (D3.2 + D3.3) |
-| ≥ 0.4.0 | Detect DAG + batch raid (`racc raid --root`) |
+| ≥ 0.3.8 | D3 phase done + D4.2 facade raid_batch (sniff tree output, fixtures, batch raid core) |
+| ≥ 0.3.9 | CLI `racc raid --root` (D4.3) |
+| ≥ 0.4.0 | Detect v2 exit: batch raid CLI + wiki + E2E (D4.4) |
 | ≥ 0.5.0 | TUI + Desktop + reveal |
 
 ---
@@ -258,6 +259,6 @@ cargo run -p raccpack-cli -- --version
 
 ```text
 Текущая версия:  0.3.8
-Этап:            D3.3 (fixtures monorepo; D3 phase done) — CLOSED
-Следующий bump:  0.3.10 (D4.2 facade raid_batch)
+Этап:            D4.2 (facade raid_batch) — CLOSED, без bump
+Следующий bump:  0.3.9 (D4.3 CLI raid --root)
 ```
