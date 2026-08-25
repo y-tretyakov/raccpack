@@ -5,7 +5,7 @@ description: "Practical raccpack scenarios: onboarding, dry-run safety, a full r
 
 # Usage cookbook — scenarios and scripts
 
-Status: accurate for **raccpack 0.3.5** (Detect v2, D2.2 closed).
+Status: accurate for **raccpack 0.3.6** (Detect v2, D2 phase complete).
 
 Ready-made recipes on top of the command surface. If a flag isn't described here or on
 the command's page, it doesn't exist in the current version.

@@ -8,7 +8,7 @@ description: How raccpack is evolving toward version 1.0.0 — what is already a
 How raccpack is evolving toward version 1.0.0 — and what you can use today.
 
 ::: info
-Current version: **0.3.5** — Alpha complete; Detect v2 in progress (phase D1 closed; D2 started: `--detect-mode composite_dag` now executes and fills `stack_tree`, experimental; D2.2 conflict-merge policy fixed in core).
+Current version: **0.3.6** — Alpha complete; Detect v2 in progress (D1 ✅; D2 ✅ — WorkspaceDetector + composite_dag pipeline + conflict-merge policy + flat stack compat with indent tree render; next: D3 impact layer).
 Dates are approximate. "Available" status means the functionality can be used in the current version built from source.
 :::
 

@@ -1,8 +1,8 @@
 # Raccpack — roadmap до 1.0.0
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
-**Текущая точка:** Alpha 0.3.0 закрыт; идёт **Detect v2** (фаза D1 ✅; D2.1 WorkspaceDetector ✅ 0.3.4, D2.2 conflict merge ✅ 0.3.5, далее D2.3).  
-**Текущая версия:** `0.3.5` — сверять `docs/VERSION_ROADMAP.md`.
+**Текущая точка:** Alpha 0.3.0 закрыт; идёт **Detect v2** (фаза D1 ✅; **фаза D2 ✅** — D2.1 WorkspaceDetector ✅ 0.3.4, D2.2 conflict merge ✅ 0.3.5, D2.3 flat stack compat ✅ 0.3.6; далее D3.1).  
+**Текущая версия:** `0.3.6` — сверять `docs/VERSION_ROADMAP.md`.
 
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
 
@@ -118,7 +118,7 @@
 
 - D2.1 — `WorkspaceDetector`: опрашивает все модули, строит направленный граф (DAG) технологий. ✅ **0.3.4** (`composite_dag` исполняется в `sniff`, experimental)
 - D2.2 — Фаза разрешения конфликтов: слияние экспертных мнений в богатое дерево проекта (не «один победитель»). ✅ **0.3.5** (политика в `detect::merge`; правила 1–5 в rustdoc)
-- D2.3 — Обратная совместимость: плоский `stack: String` остаётся в JSON; добавляется `stack_tree`.
+- D2.3 — Обратная совместимость: плоский `stack: String` остаётся в JSON; добавляется `stack_tree` + indent tree render в composite_dag human output. ✅ **0.3.6** (PR #97; D2 phase closed)
 
 ## Фаза D3 — Влияние на rinse / pack / sniff
 

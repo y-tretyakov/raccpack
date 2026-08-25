@@ -24,20 +24,20 @@
 
 ## Текущая позиция
 
-> **Сделано до D2.2 включительно** (фаза D2 идёт). **Alpha exit: 0.3.0.**
+> **Сделано до D2.3 включительно (фаза D2 закрыта).** **Alpha exit: 0.3.0.**
 
 | | |
 |--|--|
-| **Текущая версия workspace** | **`0.3.5`** |
-| Последний этап | **D2.2** — conflict merge policy (`detect::merge`) |
-| Следующий этап | **D2.3** → версия **`0.3.6`** (flat stack + stack_tree compat) |
+| **Текущая версия workspace** | **`0.3.6`** |
+| Последний этап | **D2.3** — flat stack + stack_tree compat + tree render |
+| Следующий этап | **D3.1** → версия **`0.3.7`** (rinse по DAG scopes) |
 | Detect v2 exit | после **D4.4** → **`0.4.0`** (batch raid включён) |
 
 ```text
 0.1.0  MVP
 0.2.0 … 0.2.11  Alpha A1–A3
 0.2.12 … 0.3.0  Alpha A4
-0.3.1 …        Detect v2   ← ВЫ ЗДЕСЬ (0.3.5, D2.2 done; далее D2.3)
+0.3.1 …        Detect v2   ← ВЫ ЗДЕСЬ (0.3.6, D2 done; далее D3.1)
 0.5.0 …        Beta
 0.9.0 …        RC
 1.0.0          Stable
@@ -114,7 +114,7 @@
 | D1.3 | **0.3.3** | ✅ | `detect.mode` config + CLI |
 | D2.1 | **0.3.4** | ✅ | WorkspaceDetector → tree |
 | D2.2 | **0.3.5** | ✅ | conflict merge (`detect::merge`) |
-| D2.3 | **0.3.6** | ⬜ | flat stack + stack_tree compat |
+| D2.3 | **0.3.6** | ✅ | flat stack + stack_tree compat + tree render |
 | D3.1 | **0.3.7** | ⬜ | rinse по DAG scopes |
 | D3.2 | **0.3.8** | ⬜ | sniff tree output |
 | D3.3 | **0.3.9** | ⬜ | fixtures монорепо |
@@ -198,7 +198,7 @@
 ```toml
 # Cargo.toml (workspace)
 [workspace.package]
-version = "0.3.5"
+version = "0.3.6"
 ```
 
 Все crates: `version.workspace = true`.
@@ -213,7 +213,7 @@ version = "0.3.5"
 
 ```bash
 cargo run -p raccpack-cli -- --version
-# raccpack-cli 0.3.5   →  D2.2 (conflict merge policy; composite_dag исполняется, experimental)
+# raccpack-cli 0.3.6   →  D2.3 (flat stack compat + tree render; composite_dag experimental)
 ```
 
 | Версия | Значит «есть» |
@@ -233,6 +233,7 @@ cargo run -p raccpack-cli -- --version
 | ≥ 0.3.3 | `detect.mode` config + `racc sniff --detect-mode` (`composite_dag` = заглушка до D2.x) |
 | ≥ 0.3.4 | Composite DAG pipeline: `sniff --detect-mode composite_dag` заполняет `stack_tree` (experimental) |
 | ≥ 0.3.5 | Merge policy `detect::merge` (nesting, framework union, same-scope merge; внутреннее, без изменений CLI) |
+| ≥ 0.3.6 | Compat flat `stack`/`stack_tree` + indent tree render для `composite_dag` в human sniff output |
 | ≥ 0.4.0 | Detect DAG + batch raid (`racc raid --root`) |
 | ≥ 0.5.0 | TUI + Desktop + reveal |
 
@@ -254,7 +255,7 @@ cargo run -p raccpack-cli -- --version
 ## Сводка «сейчас»
 
 ```text
-Текущая версия:  0.3.5
-Этап:            D2.2 (conflict merge, detect::merge) — CLOSED, фаза D2 идёт
-Следующий bump:  0.3.6   при закрытии D2.3 (flat stack + stack_tree compat)
+Текущая версия:  0.3.6
+Этап:            D2.3 (flat stack compat + tree render) — CLOSED, фаза D2 ЗАКРЫТА
+Следующий bump:  0.3.7   при закрытии D3.1 (rinse по DAG scopes)
 ```

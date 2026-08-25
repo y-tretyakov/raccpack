@@ -63,7 +63,7 @@ Depth priority: `--max-depth` for this run → `scanner.max_depth` in config →
 Mode priority: `--detect-mode` for this run → `detect.mode` in config → built-in default of `priority_table`.
 
 ::: warning
-**`composite_dag` is experimental** (since `0.3.4`): the run additionally fills the recursive `stack_tree` for every project (composite DAG), while the flat `stack` summary stays filled in both modes. Semantics may still evolve until Detect v2 exits at `0.4.0`.
+**`composite_dag` is experimental** (since `0.3.6`): the run additionally fills the recursive `stack_tree` for every project (composite DAG), while the flat `stack` summary stays filled in both modes. Semantics may still evolve until Detect v2 exits at `0.4.0`.
 :::
 
 ### Global flags
@@ -117,6 +117,10 @@ app   Rust   137 B  no   /tmp/projects/app
 - `GIT` — `yes` if the project root contains a `.git` directory, otherwise `no`.
 - `SIZE` — human-readable size with binary units (`B`, `KiB`, `MiB`, `GiB`, `TiB`).
 
+::: tip composite_dag tree output
+In `composite_dag` mode (since `0.3.6`), after the project table an indented box-drawing tree is printed for each project showing the recursive stack hierarchy. In `priority_table` mode the output is unchanged — only the flat table is shown.
+:::
+
 ### JSON (`--json`)
 
 Top-level fields:
@@ -147,6 +151,7 @@ Fields of each `projects[]` entry:
 | `stack.markers` | array | Markers matched during detection |
 | `size_bytes` | number | Project size in bytes |
 | `is_git_repo` | bool | Whether a `.git` directory exists in the root |
+| `stack_tree` | object/null | Recursive stack tree for the project; `null` in `priority_table` mode, populated object in `composite_dag` mode ([see concepts](/concepts#stack-tree)) |
 
 Example:
 
@@ -160,7 +165,8 @@ Example:
         "name": "app",
         "stack": { "language": "Rust", "frameworks": [], "markers": ["Cargo.toml"] },
         "size_bytes": 137,
-        "is_git_repo": false
+        "is_git_repo": false,
+        "stack_tree": null
       }
     ],
     "total_size_bytes": 137,
