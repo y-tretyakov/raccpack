@@ -50,6 +50,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 ### Follow-ups (открытые)
 
 - [x] hygiene: `detect/mod.rs` 435 строк — инлайн unit-тесты вынесены в `detect/tests.rs` (mod.rs 442→191; закрыто после D1.3)
+- [ ] perf (deferred): detect merge после D2.2 — `merge_same_scope` корректен и достаточно быстр (не hot path); при реальном профиле оптимизировать сначала `extend_frameworks_union` (линейный contains, вызывается на каждый detector) и повторный `normalization_key` в `attach_draft` (на каждый child/уровень), НЕ merge. Анализ 2026-08-25: O(F²+M log M) на вызов при F≤20/M≤50 — микросекунды vs walk/IO
 
 ### Exit criteria Detect v2
 
