@@ -69,9 +69,12 @@ mod types;
 mod workspace;
 
 pub use mode::DetectMode;
+pub use scopes::scopes_for_rinse;
 pub use traits::StackDetector;
 pub use types::{clamp_confidence, Detection, StackNode};
 pub use workspace::WorkspaceDetector;
+
+pub mod scopes;
 
 use cpp::CppDetector;
 use git::GitDetector;

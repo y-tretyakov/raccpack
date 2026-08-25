@@ -281,6 +281,7 @@ fn run_atomic_rinse_phase(
         strategies: None,
         include_custom_patterns: false,
         collect_only: true,
+        stack_tree: None,
     };
     rinse(ctx, &rinse_opts, progress)
 }

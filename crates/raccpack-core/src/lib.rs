@@ -25,8 +25,8 @@ pub use archive::{
 };
 pub use cache::{store_sniff_cache, try_load_sniff_cache};
 pub use clean::{
-    find_trash_dirs, remove_trash_dir, DetectTrashOptions, StrategyDef, StrategyId, TrashDir,
-    TrashMatchKind, TrashPattern, DEFAULT_STRATEGIES,
+    find_trash_dirs, find_trash_dirs_scoped, remove_trash_dir, DetectTrashOptions, ScopeEntry,
+    StrategyDef, StrategyId, TrashDir, TrashMatchKind, TrashPattern, DEFAULT_STRATEGIES,
 };
 pub use config::{
     default_config_path, default_config_version, default_toml, init_config, migrate_to_current,
@@ -41,7 +41,7 @@ pub use den::{
 };
 pub use detect::{
     candidate_to_project, clamp_confidence, detect_stack, detect_stacks, detector_registry,
-    stack_from_candidate, DetectMode, Detection, StackNode, WorkspaceDetector,
+    scopes_for_rinse, stack_from_candidate, DetectMode, Detection, StackNode, WorkspaceDetector,
 };
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};
 pub use git::{
