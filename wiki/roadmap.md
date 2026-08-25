@@ -8,7 +8,7 @@ description: How raccpack is evolving toward version 1.0.0 — what is already a
 How raccpack is evolving toward version 1.0.0 — and what you can use today.
 
 ::: info
-Current version: **0.3.8** — Alpha complete; Detect v2 in progress (D1 ✅; D2 ✅; D3 ✅; D4.1 ✅ design; D4.2 ✅ facade raid_batch; next: D4.3 CLI `racc raid --root`).
+Current version: **0.3.9** — Alpha complete; Detect v2 in progress (D1 ✅; D2 ✅; D3 ✅; D4.1 ✅ design; D4.2 ✅ facade raid_batch; D4.3 ✅ CLI `racc raid --root`; next: D4.4 wiki + E2E = Detect v2 exit).
 Dates are approximate. "Available" status means the functionality can be used in the current version built from source.
 :::
 

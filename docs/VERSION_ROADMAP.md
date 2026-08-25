@@ -24,20 +24,20 @@
 
 ## Текущая позиция
 
-> **Сделано до D4.2 включительно (D4.2 raid_batch impl done).** **Alpha exit: 0.3.0.**
+> **Сделано до D4.3 включительно (CLI `racc raid --root` done).** **Alpha exit: 0.3.0.**
 
 | | |
 |--|--|
-| **Текущая версия workspace** | **`0.3.8`** |
-| Последний этап | **D4.2** — facade raid_batch (impl + tests B1–B7) |
-| Следующий этап | **D4.3** → CLI `racc raid --root` → `0.3.9` |
+| **Текущая версия workspace** | **`0.3.9`** |
+| Последний этап | **D4.3** — CLI `racc raid --root` (batch mode) |
+| Следующий этап | **D4.4** → wiki + E2E = Detect v2 exit → `0.4.0` |
 | Detect v2 exit | после **D4.4** → **`0.4.0`** (batch raid CLI + wiki) |
 
 ```text
 0.1.0  MVP
 0.2.0 … 0.2.11  Alpha A1–A3
 0.2.12 … 0.3.0  Alpha A4
-0.3.1 …        Detect v2   ← ВЫ ЗДЕСЬ (0.3.8, D4.2 done; далее D4.3 CLI raid --root)
+0.3.1 … 0.3.9   Detect v2   ← ВЫ ЗДЕСЬ (0.3.9, D4.3 done; далее D4.4 wiki + E2E)
 0.5.0 …        Beta
 0.9.0 …        RC
 1.0.0          Stable
@@ -120,7 +120,7 @@
 | D3.3 | **0.3.8** | ✅ | fixtures монорепо (D3 phase done) |
 | D4.1 | — | ✅ | batch raid design (`--root` vs `--project`; docs) — design-only (без bump) |
 | D4.2 | **0.3.8** | ✅ | facade `raid_batch` (1 project = 1 raid, sequential, continue-on-error; без bump) |
-| D4.3 | **0.3.9** | ⬜ | CLI `racc raid --root` (+ `--only`/`--limit`/`--stop-on-error`) |
+| D4.3 | **0.3.9** | ✅ | CLI `racc raid --root` (+ `--only`/`--limit`/`--stop-on-error`) |
 | D4.4 | **0.4.0** | ⬜ | wiki + E2E = **Detect v2 exit** |
 
 ---
@@ -198,7 +198,7 @@
 ```toml
 # Cargo.toml (workspace)
 [workspace.package]
-version = "0.3.8"
+version = "0.3.9"
 ```
 
 Все crates: `version.workspace = true`.
@@ -213,7 +213,7 @@ version = "0.3.8"
 
 ```bash
 cargo run -p raccpack-cli -- --version
-# raccpack-cli 0.3.8   →  D4.2 (facade raid_batch; без CLI changes, нет bump)
+# raccpack-cli 0.3.9   →  D4.3 (CLI raid --root, batch mode)
 ```
 
 | Версия | Значит «есть» |
@@ -258,7 +258,7 @@ cargo run -p raccpack-cli -- --version
 ## Сводка «сейчас»
 
 ```text
-Текущая версия:  0.3.8
-Этап:            D4.2 (facade raid_batch) — CLOSED, без bump
-Следующий bump:  0.3.9 (D4.3 CLI raid --root)
+Текущая версия:  0.3.9
+Этап:            D4.3 (CLI raid --root, batch mode) — CLOSED
+Следующий bump:  0.4.0 (D4.4 wiki + E2E = Detect v2 exit)
 ```

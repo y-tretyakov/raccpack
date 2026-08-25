@@ -1,9 +1,9 @@
 # Raccpack — roadmap до 1.0.0
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
-**Текущая точка:** Alpha 0.3.0 закрыт; идёт **Detect v2** (фаза D1 ✅; фаза D2 ✅; D3 ✅ 0.3.8; D4.1 ✅ design; D4.2 ✅ facade raid_batch; далее D4.3 CLI `racc raid --root`).  
+**Текущая точка:** Alpha 0.3.0 закрыт; идёт **Detect v2** (фаза D1 ✅; фаза D2 ✅; D3 ✅ 0.3.8; D4.1 ✅ design; D4.2 ✅ facade raid_batch; D4.3 ✅ CLI `racc raid --root`; далее D4.4 wiki + E2E).  
 
-**Текущая версия:** `0.3.8` — сверять `docs/VERSION_ROADMAP.md`.
+**Текущая версия:** `0.3.9` — сверять `docs/VERSION_ROADMAP.md`.
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
 
 Версионирование до 1.0.0 — **0.x** (ломающие изменения API допустимы).  
@@ -134,7 +134,7 @@
 
 - D4.1 — Design: `--root` vs `--project`; 1 project = 1 raid; sequential; continue-on-error (docs, без bump). ✅ design-only
 - D4.2 — Core: `raid_batch()` поверх sniff list + `raid()`. ✅ 0.3.8 (impl, без bump)
-- D4.3 — CLI: `racc raid --root` + `--only`/`--limit`/`--stop-on-error`. ⬜ → 0.3.9
+- D4.3 — CLI: `racc raid --root` + `--only`/`--limit`/`--stop-on-error`. ✅ **0.3.9**
 - D4.3 — CLI: `racc raid --root` (+ `--only` / `--limit` / `--stop-on-error`).
 - D4.4 — Wiki + E2E = **Detect v2 exit 0.4.0**.
 
