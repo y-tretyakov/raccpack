@@ -129,6 +129,10 @@ The first run is a **dry-run** (nothing is deleted); the `--yes` flag deletes bu
 
 The CLI currently supports `sniff`, `dig`, `pack`, `stash`, `rinse`, and `raid`; on the roadmap — `den`, `init`. For a command overview see [CLI usage](/cli-usage); details on each command are on the `/sniff`, `/dig`, `/pack`, `/stash`, `/rinse`, and `/raid` pages:
 
+::: tip
+To run the full cycle on all projects at once, use `racc raid --root ~/DEV/PROJS --yes` — it discovers projects under the given root automatically and processes each one through stash → rinse → pack → den.
+:::
+
 - [CLI usage](/cli-usage) — full command reference.
 - [Core concepts](/concepts) — what den, risks, and phases are.
 - [Configuration](/configuration) — all settings.

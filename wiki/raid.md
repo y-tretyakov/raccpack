@@ -6,7 +6,7 @@ description: "The racc raid command — stash → rinse → pack → move in one
 # Raid - full cycle in one command
 
 Command: `racc raid`  
-Status: implemented (Alpha).
+Status: implemented (Alpha). Batch mode available (`--root`).
 
 This page describes **exactly the behavior** that `raccpack` implements today. If a flag or path is not listed here, it does not exist in the current version.
 
@@ -41,6 +41,17 @@ By default `racc raid` runs in **dry-run**: nothing is written and nothing is de
 The default mode is **atomic**: all intermediate files live in `den/staging/{id}/`, deletion of sources and trash is postponed to commit, and every commit step is recorded in a journal (WAL). If commit fails halfway, the placed artifacts are **rolled back** (`rolled_back`). See [Orphan green](#atomic-vs-fail-fast-orphan-green).
 :::
 
+### Batch mode
+
+`racc raid` also supports batch mode: process multiple projects under a root directory in one run.
+
+```bash
+# Raid all projects under a root
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den
+```
+
+Batch mode is mutually exclusive with `--project`. Use `--only` to filter and `--limit` to cap the number of projects processed.
+
 ## Quick start
 
 ```bash
@@ -58,11 +69,21 @@ By default `racc raid` runs in **dry-run**: it writes nothing to the den, delete
 
 ## Syntax
 
+### Single project
+
 ```text
 racc raid --project <PATH> [OPTIONS]
 ```
 
 `--project <PATH>` is **required**: the project directory the pipeline is executed against.
+
+### Batch mode
+
+```text
+racc raid --root <PATH> [OPTIONS]
+```
+
+`--root <PATH>` is **required** in batch mode: the root directory containing projects to raid. Mutually exclusive with `--project`.
 
 ## Options and flags
 
@@ -70,8 +91,17 @@ racc raid --project <PATH> [OPTIONS]
 
 | Option | Description |
 |----------|----------|
-| `--project <PATH>` | Project directory (required) |
+| `--project <PATH>` | Project directory (required for single-project mode) |
 | `--den <PATH>` | Den root. If omitted — taken from the config (`paths.den_dir`) |
+
+### Batch mode
+
+| Option | Description |
+|----------|----------|
+| `--root <PATH>` | Root directory containing projects to raid. Mutually exclusive with `--project`. |
+| `--only <SUBSTR>` | Only raid projects whose name or path contains this substring. Repeatable. |
+| `--limit <N>` | Maximum number of projects to raid in batch mode. |
+| `--stop-on-error` | Stop the batch after the first project failure. |
 
 ### Write mode
 
@@ -181,7 +211,63 @@ Failed
 
 Fields of `RaidResult`: `stages` (name/success/message), `stash`/`rinse`/`pack` sub-results, `den_artifacts`, `success`, `dry_run`, `rolled_back`, `rollback_warnings`. There are no raw secrets in the JSON.
 
+### Batch mode output
+
+#### Human-readable
+
+During batch mode, per-project progress is printed with a summary at the end:
+
+```text
+→ [1/4] alpha — ok
+  ✓ stash: 1 secret archived
+  ✓ rinse: 3 paths cleaned
+  ✓ pack: archive created
+→ [2/4] beta — skipped (no secrets found)
+→ [3/4] gamma — ok
+→ [4/4] webapp — FAILED
+  ✗ rinse: path not found
+
+Batch: 2 ok, 1 skipped, 1 failed, 0 errors
+```
+
+#### JSON (`--json`)
+
+```json
+{
+  "root": "/home/user/DEV/PROJS",
+  "dry_run": true,
+  "projects_total": 4,
+  "projects_run": 3,
+  "results": [
+    {
+      "project_path": "/home/user/DEV/PROJS/alpha",
+      "project_name": "alpha",
+      "outcome": {
+        "Raided": {
+          "stashed": 1,
+          "rinsed": 3,
+          "packed": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "project_path": "/home/user/DEV/PROJS/beta",
+      "project_name": "beta",
+      "outcome": {
+        "Skipped": {
+          "reason": "no secrets found"
+        }
+      }
+    }
+  ],
+  "success": true
+}
+```
+
 ## Examples
+
+### Single project
 
 ```bash
 # Dry-run: show the whole pipeline, write nothing
@@ -209,6 +295,28 @@ racc raid --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes --min-risk cr
 
 # Exit code: success=false → 1
 racc raid --project /bad --den /tmp/den --yes ; echo $?
+```
+
+### Batch mode
+
+```bash
+# Raid all projects under a root directory
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den
+
+# Dry run (default)
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den
+
+# Commit batch raid
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den --yes
+
+# Filter by name substring
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den --yes --only api
+
+# Limit to 3 projects
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den --yes --limit 3
+
+# Stop on first failure
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den --yes --stop-on-error
 ```
 
 ## Security

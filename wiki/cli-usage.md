@@ -211,9 +211,27 @@ Details: [Rinse](/rinse)
 
 Runs the whole pipeline on a project in one command: **stash → rinse → pack → move**. Default mode is **atomic**: intermediate files go to `den/staging/{id}/`, removals are deferred to commit, and a failed commit is rolled back (`rolled_back`). After a successful commit, a manifest is written to `den/manifests/{yyyy}/{mm}/`. Runs as **dry-run** by default — commit requires `--yes`.
 
+Two modes:
+
+- **Single project** (`--project`): raid one project directory.
+- **Batch** (`--root`): discover all projects under a directory and raid each one sequentially.
+
 ```text
+# Single project
 racc raid --project PATH [--den PATH] [--yes] [--dry-run] [--no-stash] [--no-rinse] [--no-pack] [--min-risk LEVEL] [--keep-sources] [--no-content-deny] [--fail-fast]
+
+# Batch (all projects under root)
+racc raid --root PATH [--den PATH] [--yes] [--dry-run] [--no-stash] [--no-rinse] [--no-pack] [--min-risk LEVEL] [--keep-sources] [--no-content-deny] [--fail-fast] [--only SUBSTR] [--limit N] [--stop-on-error]
 ```
+
+Batch-specific flags:
+
+| Flag | Meaning |
+|------|---------|
+| `--root PATH` | Root directory containing projects (mutually exclusive with `--project`) |
+| `--only SUBSTR` | Only raid projects whose name or path contains `SUBSTR` (repeatable) |
+| `--limit N` | Maximum number of projects to raid |
+| `--stop-on-error` | Stop the batch after the first project failure |
 
 ```bash
 # Dry-run: show the whole pipeline (nothing written)
@@ -228,6 +246,13 @@ racc raid --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes --no-stash
 
 # Do not remove the original secrets
 racc raid --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes --keep-sources
+
+# Batch: raid all projects under ~/DEV/PROJS (dry-run first)
+racc raid --root ~/DEV/PROJS
+racc raid --root ~/DEV/PROJS --yes
+
+# Batch: only Rust projects, stop on first error
+racc raid --root ~/DEV/PROJS --only rust --stop-on-error --yes
 ```
 
 Exit: `0` on `success == true`, `1` on error or `success == false` (including a rolled-back commit).

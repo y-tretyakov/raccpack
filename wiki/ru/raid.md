@@ -6,7 +6,7 @@ description: "Команда racc raid — stash → rinse → pack → move з�
 # Raid - полный цикл одной командой
 
 Команда: `racc raid`  
-Статус: реализовано (Alpha).
+Статус: реализовано (Alpha). Batch-режим доступен (`--root`).
 
 Эта страница описывает **ровно то поведение**, которое реализует `raccpack` сейчас. Если флаг или путь не указаны здесь — их нет в текущей версии.
 
@@ -41,6 +41,17 @@ stash  →  rinse  →  pack  →  move
 По умолчанию используется **atomic** режим: все промежуточные файлы живут в `den/staging/{id}/`, удаление исходников и мусора откладывается в commit, а каждый шаг commit записывается в журнал (WAL). Если commit падает на середине — размещённые артефакты **откатываются** (`rolled_back`). См. [Atomic vs fail-fast (orphan green)](#atomic-vs-fail-fast-orphan-green).
 :::
 
+### Batch-режим
+
+`racc raid` также поддерживает batch-режим: обработка нескольких проектов под корневым каталогом за один запуск.
+
+```bash
+# Raid всех проектов под корнем
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den
+```
+
+Batch-режим взаимоисключающий с `--project`. Используйте `--only` для фильтрации и `--limit` для ограничения количества обрабатываемых проектов.
+
 ## Быстрый старт
 
 ```bash
@@ -58,11 +69,21 @@ racc raid --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes
 
 ## Синтаксис
 
+### Одиночный проект
+
 ```text
 racc raid --project <PATH> [OPTIONS]
 ```
 
 `--project <PATH>` — **обязательный**: каталог проекта, над которым выполняется конвейер.
+
+### Batch-режим
+
+```text
+racc raid --root <PATH> [OPTIONS]
+```
+
+`--root <PATH>` — **обязательный** в batch-режиме: корневой каталог с проектами для raid. Взаимоисключающий с `--project`.
 
 ## Параметры и флаги
 
@@ -70,8 +91,17 @@ racc raid --project <PATH> [OPTIONS]
 
 | Параметр | Описание |
 |----------|----------|
-| `--project <PATH>` | Каталог проекта (обязательно) |
+| `--project <PATH>` | Каталог проекта (обязательно для одиночного режима) |
 | `--den <PATH>` | Корень den. Если не указан — из config (`paths.den_dir`) |
+
+### Batch-режим
+
+| Параметр | Описание |
+|----------|----------|
+| `--root <PATH>` | Корневой каталог с проектами для raid. Взаимоисключающий с `--project`. |
+| `--only <SUBSTR>` | Обрабатывать только проекты, чьё имя или путь содержит эту подстроку. Можно указать несколько раз. |
+| `--limit <N>` | Максимальное количество проектов в batch-режиме. |
+| `--stop-on-error` | Остановить batch после первого падения проекта. |
 
 ### Режим записи
 
@@ -181,7 +211,63 @@ Failed
 
 Поля `RaidResult`: `stages` (имя/успех/сообщение), `stash`/`rinse`/`pack` подрезультаты, `den_artifacts`, `success`, `dry_run`, `rolled_back`, `rollback_warnings`. Raw-секретов в JSON нет.
 
+### Вывод в batch-режиме
+
+#### Человекочитаемый
+
+В batch-режиме печатается прогресс по каждому проекту, затем итог:
+
+```text
+→ [1/4] alpha — ok
+  ✓ stash: 1 secret archived
+  ✓ rinse: 3 paths cleaned
+  ✓ pack: archive created
+→ [2/4] beta — skipped (no secrets found)
+→ [3/4] gamma — ok
+→ [4/4] webapp — FAILED
+  ✗ rinse: path not found
+
+Batch: 2 ok, 1 skipped, 1 failed, 0 errors
+```
+
+#### JSON (`--json`)
+
+```json
+{
+  "root": "/home/user/DEV/PROJS",
+  "dry_run": true,
+  "projects_total": 4,
+  "projects_run": 3,
+  "results": [
+    {
+      "project_path": "/home/user/DEV/PROJS/alpha",
+      "project_name": "alpha",
+      "outcome": {
+        "Raided": {
+          "stashed": 1,
+          "rinsed": 3,
+          "packed": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "project_path": "/home/user/DEV/PROJS/beta",
+      "project_name": "beta",
+      "outcome": {
+        "Skipped": {
+          "reason": "no secrets found"
+        }
+      }
+    }
+  ],
+  "success": true
+}
+```
+
 ## Примеры
+
+### Одиночный проект
 
 ```bash
 # Dry-run: показать весь конвейер, ничего не писать
@@ -209,6 +295,28 @@ racc raid --project ~/DEV/PROJS/my-api --den ~/.raccpack/den --yes --min-risk cr
 
 # Exit code: success=false → 1
 racc raid --project /bad --den /tmp/den --yes ; echo $?
+```
+
+### Batch-режим
+
+```bash
+# Raid всех проектов под корневым каталогом
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den
+
+# Dry run (по умолчанию)
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den
+
+# Commit batch raid
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den --yes
+
+# Фильтр по подстроке имени
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den --yes --only api
+
+# Ограничить до 3 проектов
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den --yes --limit 3
+
+# Остановиться при первом падении
+racc raid --root ~/DEV/PROJS --den ~/.raccpack/den --yes --stop-on-error
 ```
 
 ## Безопасность

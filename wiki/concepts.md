@@ -148,6 +148,10 @@ By default, `rust`, `node`, and `python` are enabled; `jvm`, `go`, and `generic`
 
 By default raid runs **atomically**: artifacts are written to a temporary `den/staging/{id}/` and only moved into the den during the commit phase; if commit fails, the effect is rolled back (`rolled_back: true` in the report). The `--fail-fast` flag enables the old mode: stop at the first failed phase, leaving already-written artifacts in the den. The manifest is written **only** after a successful commit and only if artifacts were actually placed in the den — it lists artifacts and phase statuses, with no raw secrets.
 
+::: tip
+`racc raid --root <dir>` runs the full cycle on all discovered projects under `<dir>` at once — no need to invoke `raid` for each project individually.
+:::
+
 ## CLI exit codes
 
 | Code | Meaning |

@@ -211,9 +211,27 @@ racc rinse --project ~/DEV/PROJS/app-api --strategy node --yes
 
 Запускает весь конвейер по проекту одной командой: **stash → rinse → pack → move**. По умолчанию — **atomic**: промежуточные файлы в `den/staging/{id}/`, удаления откладываются в commit, падение commit откатывается (`rolled_back`). После успешного commit пишется манифест в `den/manifests/{yyyy}/{mm}/`. По умолчанию работает в **dry-run** — commit только с `--yes`.
 
+Два режима:
+
+- **Один проект** (`--project`): рейд одной директории проекта.
+- **Пакетный** (`--root`): находит все проекты под директорией и рейдит последовательно.
+
 ```text
+# Один проект
 racc raid --project PATH [--den PATH] [--yes] [--dry-run] [--no-stash] [--no-rinse] [--no-pack] [--min-risk LEVEL] [--keep-sources] [--no-content-deny] [--fail-fast]
+
+# Пакетный (все проекты под root)
+racc raid --root PATH [--den PATH] [--yes] [--dry-run] [--no-stash] [--no-rinse] [--no-pack] [--min-risk LEVEL] [--keep-sources] [--no-content-deny] [--fail-fast] [--only SUBSTR] [--limit N] [--stop-on-error]
 ```
+
+Пакетные флаги:
+
+| Флаг | Смысл |
+|------|-------|
+| `--root PATH` | Директория с проектами (взаимоисключающе с `--project`) |
+| `--only SUBSTR` | Рейдить только проекты, имя или путь которых содержит `SUBSTR` (повторяемый) |
+| `--limit N` | Максимальное число проектов для рейда |
+| `--stop-on-error` | Остановить пакет после первой ошибки проекта |
 
 ```bash
 # Dry-run: показать весь конвейер (ничего не пишется)
@@ -228,6 +246,13 @@ racc raid --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes --no-stash
 
 # Не удалять исходные секреты
 racc raid --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes --keep-sources
+
+# Пакетный: рейд всех проектов под ~/DEV/PROJS (сначала dry-run)
+racc raid --root ~/DEV/PROJS
+racc raid --root ~/DEV/PROJS --yes
+
+# Пакетный: только Rust-проекты, остановка при первой ошибке
+racc raid --root ~/DEV/PROJS --only rust --stop-on-error --yes
 ```
 
 Exit: `0` при `success == true`, `1` при ошибке или `success == false` (в т.ч. откат commit).

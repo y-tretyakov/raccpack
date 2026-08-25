@@ -129,6 +129,10 @@ racc rinse --project ~/DEV/PROJS/app-api --yes
 
 Сейчас CLI умеет `sniff`, `dig`, `pack`, `stash`, `rinse` и `raid`; по roadmap — `den`, `init`. Обзор команд — в [Использование CLI](/ru/cli-usage), подробности по каждой — на страницах `/sniff`, `/dig`, `/pack`, `/stash`, `/rinse` и `/raid`:
 
+::: tip
+Чтобы запустить полный цикл сразу для всех проектов, используйте `racc raid --root ~/DEV/PROJS --yes` — он автоматически найдёт проекты под указанным каталогом и обработает каждый через stash → rinse → pack → den.
+:::
+
 - [Использование CLI](/ru/cli-usage) — полный справочник команд.
 - [Основные понятия](/ru/concepts) — что такое den, риски и фазы.
 - [Конфигурация](/ru/configuration) — все настройки.

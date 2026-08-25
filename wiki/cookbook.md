@@ -72,8 +72,40 @@ The passphrase cannot be recovered. Lose it — and the age secret archives beco
 
 ## 4. Raid of all projects from scan_root
 
-Projects are read from `racc sniff --json --force-refresh` — paths come from the
-config (`scan_root`), so there's no need to pass a CLI root.
+The simplest way to raid every project under a directory is `racc raid --root`:
+
+```bash
+# Dry-run first (the default)
+racc raid --root ~/DEV/PROJS
+
+# Commit for real
+racc raid --root ~/DEV/PROJS --yes
+```
+
+`--root` discovers projects under the given directory (using the same markers as
+`sniff`), then raids each one sequentially. Combine with `--only` and `--limit`
+to narrow the list:
+
+```bash
+# Only Rust projects
+racc raid --root ~/DEV/PROJS --only rust --yes
+
+# First 5 projects, stop on first error
+racc raid --root ~/DEV/PROJS --limit 5 --stop-on-error --yes
+```
+
+::: tip Without stash
+If none of the projects contain secrets, skip stash to avoid the passphrase prompt:
+`racc raid --root ~/DEV/PROJS --yes --no-stash`.
+:::
+
+::: details Advanced: custom filter with a shell script
+When you need a filter that `--only` can't express (e.g. exclude a specific
+project, or use external metadata), loop over `racc raid --project` yourself.
+
+The scripts below read projects from `racc sniff --json --force-refresh`, loop
+over them, and raid each one. Set `EXTRA_RAID_ARGS="--no-stash"` if you don't
+need the stash phase.
 
 Environment variables:
 
@@ -126,9 +158,6 @@ done
 echo "Done. ok=$ok fail=$fail total=${#PROJECTS[@]}"
 [ "$fail" -gt 0 ] && { printf 'Failed: %s\n' "${failed[@]}"; exit 1; }
 ```
-
-Run: `bash raid-all.sh`; rehearsal: `DRY_RUN=1 bash raid-all.sh`;
-without secrets: `EXTRA_RAID_ARGS="--no-stash" bash raid-all.sh`.
 
 ### fish
 
@@ -266,15 +295,6 @@ def main [
 }
 ```
 
-Run: `nu raid-all.nu`; rehearsal: `nu raid-all.nu --dry-run`;
-without secrets: `EXTRA_RAID_ARGS='--no-stash' nu raid-all.nu`.
-
-A nu one-liner (just to look at the projects from config):
-
-```nu
-racc sniff --json --force-refresh | from json | get report.projects | select name stack.language size_bytes path
-```
-
 ### PowerShell 7+
 
 ```powershell
@@ -325,6 +345,7 @@ if ($fail -gt 0) { $failed | ForEach-Object { Write-Host "  - $_" }; exit 1 }
 The scripts deliberately repeat one semantics: sniff from config → raid loop →
 summary. Only the shell syntax differs; in nu the built-in `from json` replaces
 `jq`.
+:::
 :::
 
 ## 5. Targeted operations: stash only / rinse only / pack only
@@ -418,7 +439,13 @@ What goes inside the config — [Configuration](/configuration); config version 
 
 `sniff` may show both the monorepo root and nested packages (each with its own
 markers). Before a mass raid, narrow the list down to the "leaves" so you don't
-pack the same thing twice:
+pack the same thing twice.
+
+::: tip Simpler with `--root`
+`racc raid --root ~/path/to/monorepo --only subpkg` is usually enough to raid
+specific nested packages without a shell loop. Use the scripts below only when
+you need a custom exclude filter (e.g. skip a specific subfolder by path).
+:::
 
 ```bash
 # Show the candidate tree

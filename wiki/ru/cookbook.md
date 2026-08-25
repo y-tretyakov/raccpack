@@ -5,7 +5,7 @@ description: "Практические сценарии raccpack: onboarding, dr
 
 # Usage cookbook — сценарии и скрипты
 
-Статус: актуально для **raccpack 0.3.4** (Detect v2, D2.1 закрыт).
+Статус: актуально для **raccpack 0.3.9** (Detect v2, D4.3 пакетный рейд `racc raid --root`).
 
 Готовые рецепты поверх командной поверхности. Если флаг не описан здесь или на
 странице команды — его нет в текущей версии.
@@ -73,8 +73,39 @@ Passphrase не восстанавливается. Потеряли — age-а�
 
 ## 4. Raid всех проектов из scan_root
 
-Проекты читаются из `racc sniff --json --force-refresh` — пути берутся из
-config (`scan_root`), CLI-root указывать не нужно.
+Простейший способ отрейдить все проекты под директорией — `racc raid --root`:
+
+```bash
+# Сначала dry-run (по умолчанию)
+racc raid --root ~/DEV/PROJS
+
+# По-настоящему
+racc raid --root ~/DEV/PROJS --yes
+```
+
+`--root` находит проекты под указанной директорией (те же маркеры, что и `sniff`),
+затем рейдит их последовательно. Комбинируйте с `--only` и `--limit` для фильтрации:
+
+```bash
+# Только Rust-проекты
+racc raid --root ~/DEV/PROJS --only rust --yes
+
+# Первые 5 проектов, остановка при первой ошибке
+racc raid --root ~/DEV/PROJS --limit 5 --stop-on-error --yes
+```
+
+::: tip Без stash
+Если ни в одном проекте нет секретов, отключите stash чтобы не запрашивать passphrase:
+`racc raid --root ~/DEV/PROJS --yes --no-stash`.
+:::
+
+::: details Продвинутое: кастомный фильтр через скрипт
+Когда нужен фильтр, который `--only` не может выразить (например исключить
+конкретный проект или использовать внешние метаданные), зациклите `racc raid --project` сами.
+
+Скрипты ниже читают проекты из `racc sniff --json --force-refresh`, проходят
+циклом и рейдят каждый. Установите `EXTRA_RAID_ARGS="--no-stash"` если stash
+не нужен.
 
 Переменные окружения:
 
@@ -127,9 +158,6 @@ done
 echo "Done. ok=$ok fail=$fail total=${#PROJECTS[@]}"
 [ "$fail" -gt 0 ] && { printf 'Failed: %s\n' "${failed[@]}"; exit 1; }
 ```
-
-Запуск: `bash raid-all.sh`; репетиция: `DRY_RUN=1 bash raid-all.sh`;
-без секретов: `EXTRA_RAID_ARGS="--no-stash" bash raid-all.sh`.
 
 ### fish
 
@@ -267,15 +295,6 @@ def main [
 }
 ```
 
-Запуск: `nu raid-all.nu`; репетиция: `nu raid-all.nu --dry-run`;
-без секретов: `EXTRA_RAID_ARGS='--no-stash' nu raid-all.nu`.
-
-Однострочник nu (просто посмотреть проекты из config):
-
-```nu
-racc sniff --json --force-refresh | from json | get report.projects | select name stack.language size_bytes path
-```
-
 ### PowerShell 7+
 
 ```powershell
@@ -326,6 +345,7 @@ if ($fail -gt 0) { $failed | ForEach-Object { Write-Host "  - $_" }; exit 1 }
 Скрипты намеренно повторяют одну семантику: sniff из config → цикл raid →
 сводка. Отличается только синтаксис оболочки; в nu вместо `jq` — встроенный
 `from json`.
+:::
 :::
 
 ## 5. Точечные операции: только stash / только rinse / только pack
@@ -420,7 +440,13 @@ racc --config ~/.config/raccpack/work.toml sniff
 
 `sniff` может показать и корень монорепо, и вложенные пакеты (у каждого свои
 маркеры). Перед массовым raid отфильтруйте «листья», чтобы не упаковать одно и
-то же дважды:
+то же дважды.
+
+::: tip Проще через `--root`
+`racc raid --root ~/path/to/monorepo --only subpkg` обычно достаточно для рейда
+конкретных вложенных пакетов без shell-цикла. Скрипты ниже нужны только когда
+нужен кастомный фильтр (например исключить конкретную подпапку по пути).
+:::
 
 ```bash
 # Показать дерево кандидатов

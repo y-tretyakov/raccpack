@@ -8,7 +8,7 @@ description: How raccpack is evolving toward version 1.0.0 — what is already a
 How raccpack is evolving toward version 1.0.0 — and what you can use today.
 
 ::: info
-Current version: **0.3.9** — Alpha complete; Detect v2 in progress (D1 ✅; D2 ✅; D3 ✅; D4.1 ✅ design; D4.2 ✅ facade raid_batch; D4.3 ✅ CLI `racc raid --root`; next: D4.4 wiki + E2E = Detect v2 exit).
+Current version: **0.3.9** — Alpha complete; Detect v2 complete (D1 ✅; D2 ✅; D3 ✅; D4.1 ✅ design; D4.2 ✅ facade raid_batch; D4.3 ✅ CLI `racc raid --root`; D4.4 ✅ wiki + E2E).
 Dates are approximate. "Available" status means the functionality can be used in the current version built from source.
 :::
 
@@ -54,7 +54,7 @@ Dates are approximate. "Available" status means the functionality can be used in
 |-----------|---------|---------------|
 | **MVP** | 0.1.x | sniff → dig → pack → den |
 | **Alpha** | 0.3.x | Full `raid` (atomic: staging + WAL + rollback, JSON manifests), age-stash, rinse, git integration, CLI only |
-| **Detect v2** | 0.4.x | Composite detectors / DAG for monorepositories; batch raid `racc raid --root` (planned) |
+| **Detect v2** | 0.4.x | Composite detectors / DAG for monorepositories; batch raid `racc raid --root` |
 | **Beta** | 0.5.x | TUI, Desktop, security hardening |
 | **RC** | 0.9.x | Contract freeze, polishing |
 | **Stable** | 1.0.0 | Stable public API |
