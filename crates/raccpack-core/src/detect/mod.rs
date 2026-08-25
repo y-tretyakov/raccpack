@@ -25,6 +25,10 @@
 //!   detectors, in registry order, deduplicated (first occurrence wins).
 //! - **markers** — the names of every hit, sorted lexically and deduplicated.
 //!
+//! Conflicts between several opinions — nested scopes, repeated ecosystems at
+//! one scope, duplicate scope spellings — resolve by the rules documented in
+//! [`merge`]; there is never a single winner for a whole monorepo.
+//!
 //! A detector applies when it matches the hits (one of its ecosystem markers is
 //! present). When `markers` is empty — the path-only [`detect_stack`] case the
 //! spec describes as "markers ещё не собраны" — every detector probes the
@@ -53,6 +57,7 @@ mod git;
 mod go;
 mod jvm;
 mod make;
+pub mod merge;
 mod mode;
 mod node;
 mod php;
@@ -73,6 +78,7 @@ use git::GitDetector;
 use go::GoDetector;
 use jvm::JvmDetector;
 use make::MakeDetector;
+use merge::{extend_frameworks_union, sorted_unique_names};
 use node::NodeDetector;
 use php::PhpDetector;
 use python::PythonDetector;
@@ -142,11 +148,7 @@ pub fn detect_stack(path: &Path, markers: &[MarkerHit]) -> Result<Stack> {
             continue;
         }
         let contribution = detector.detect(markers, path)?;
-        for framework in contribution.frameworks {
-            if !frameworks.contains(&framework) {
-                frameworks.push(framework);
-            }
-        }
+        extend_frameworks_union(&mut frameworks, contribution.frameworks);
     }
 
     let language = resolve_language(markers);
@@ -186,12 +188,11 @@ pub fn candidate_to_project(candidate: ProjectCandidate, stack: Stack, size_byte
 
 /// Names of every hit, sorted lexically and deduplicated.
 fn sorted_unique_marker_names(markers: &[MarkerHit]) -> Vec<String> {
-    let mut names: Vec<String> = markers.iter().map(|hit| hit.name.clone()).collect();
-    names.sort();
-    names.dedup();
-    names
+    sorted_unique_names(markers.iter().map(|hit| hit.name.clone()).collect())
 }
 
+#[cfg(test)]
+mod merge_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
