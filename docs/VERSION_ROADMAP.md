@@ -30,14 +30,14 @@
 |--|--|
 | **Текущая версия workspace** | **`0.3.8`** |
 | Последний этап | **D3.3** — fixtures monorepo (D3 phase done) |
-| Следующий этап | **D4.1** → batch raid design (без bump) |
+| Следующий этап | **D4.2** → facade raid_batch → `0.3.10` |
 | Detect v2 exit | после **D4.4** → **`0.4.0`** (batch raid включён) |
 
 ```text
 0.1.0  MVP
 0.2.0 … 0.2.11  Alpha A1–A3
 0.2.12 … 0.3.0  Alpha A4
-0.3.1 …        Detect v2   ← ВЫ ЗДЕСЬ (0.3.8, D3.3 done; далее D4.1 batch raid design)
+0.3.1 …        Detect v2   ← ВЫ ЗДЕСЬ (0.3.8, D4.1 done; далее D4.2 facade raid_batch)
 0.5.0 …        Beta
 0.9.0 …        RC
 1.0.0          Stable
@@ -118,7 +118,7 @@
 | D3.1 | **0.3.7** | ✅ | rinse по DAG scopes |
 | D3.2 | **0.3.8** | ✅ | sniff tree output |
 | D3.3 | **0.3.9** | ✅ | fixtures монорепо |
-| D4.1 | — | ⬜ | batch raid design (`--root` vs `--project`; docs) — **без bump** |
+| D4.1 | — | ✅ | batch raid design (`--root` vs `--project`; docs) — design-only (без bump) |
 | D4.2 | **0.3.10** | ⬜ | facade `raid_batch` (1 project = 1 raid, sequential, continue-on-error) |
 | D4.3 | **0.3.11** | ⬜ | CLI `racc raid --root` (+ `--only`/`--limit`/`--stop-on-error`) |
 | D4.4 | **0.4.0** | ⬜ | wiki + E2E = **Detect v2 exit** |
@@ -259,5 +259,5 @@ cargo run -p raccpack-cli -- --version
 ```text
 Текущая версия:  0.3.8
 Этап:            D3.3 (fixtures monorepo; D3 phase done) — CLOSED
-Следующий bump:  без bump (D4.1 design only); далее D4.2 → 0.3.10
+Следующий bump:  0.3.10 (D4.2 facade raid_batch)
 ```

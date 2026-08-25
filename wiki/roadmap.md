@@ -8,7 +8,7 @@ description: How raccpack is evolving toward version 1.0.0 — what is already a
 How raccpack is evolving toward version 1.0.0 — and what you can use today.
 
 ::: info
-Current version: **0.3.8** — Alpha complete; Detect v2 in progress (D1 ✅; D2 ✅; D3 ✅ — sniff tree output + fixtures monorepo; D3 phase done; next: D4.1 batch raid design).
+Current version: **0.3.8** — Alpha complete; Detect v2 in progress (D1 ✅; D2 ✅; D3 ✅ — sniff tree output + fixtures monorepo; D3 phase done; D4.1 design done; next: D4.2 facade raid_batch).
 Dates are approximate. "Available" status means the functionality can be used in the current version built from source.
 :::
 

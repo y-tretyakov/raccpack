@@ -1,7 +1,7 @@
 # Raccpack — roadmap до 1.0.0
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
-**Текущая точка:** Alpha 0.3.0 закрыт; идёт **Detect v2** (фаза D1 ✅; фаза D2 ✅; D3 ✅ 0.3.8 — sniff tree output + fixtures monorepo; D3 phase done; далее D4.1 batch raid design).  
+**Текущая точка:** Alpha 0.3.0 закрыт; идёт **Detect v2** (фаза D1 ✅; фаза D2 ✅; D3 ✅ 0.3.8 — sniff tree output + fixtures monorepo; D3 phase done; D4.1 design done; далее D4.2 facade raid_batch).  
 
 **Текущая версия:** `0.3.8` — сверять `docs/VERSION_ROADMAP.md`.
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
@@ -132,7 +132,7 @@
 
 Убирает обязательный shell-цикл для multi-project raid: один вызов проходит весь scan root, **каждый** проект — отдельный raid (свои secrets + pack).
 
-- D4.1 — Design: `--root` vs `--project`; 1 project = 1 raid; sequential; continue-on-error (docs, без bump).
+- D4.1 — Design: `--root` vs `--project`; 1 project = 1 raid; sequential; continue-on-error (docs, без bump). ✅ design-only
 - D4.2 — Core: `raid_batch()` поверх sniff list + `raid()`.
 - D4.3 — CLI: `racc raid --root` (+ `--only` / `--limit` / `--stop-on-error`).
 - D4.4 — Wiki + E2E = **Detect v2 exit 0.4.0**.
