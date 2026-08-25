@@ -235,6 +235,58 @@ pub fn raid(ctx: &AppContext, opts: &RaidOptions, identity: Option<&AgeIdentity>
 
 **Статус: реализовано.** CLI: `racc raid`.
 
+### `raid_batch` - пакетный raid по проектам
+
+Находит все проекты под корневым каталогом и запускает `raid()` на каждом. Проекты определяются тем же механизмом кандидатов, что и в `sniff`. Ошибки отдельных проектов попадают в результат и не прерывают пакет (если не установлен `stop_on_project_failure`).
+
+```rust
+pub struct RaidBatchOptions {
+    pub root: PathBuf,                        // корневой каталог для поиска проектов
+    pub raid: RaidOptions,                    // общая конфигурация raid; поле `project` перезаписывается для каждого кандидата
+    pub only: Vec<String>,                    // фильтр по подстроке в имени или пути проекта
+    pub limit: Option<usize>,                 // ограничение на количество проектов
+    pub stop_on_project_failure: bool,        // остановить пакет при первой ошибке проекта
+}
+
+pub struct RaidBatchResult {
+    pub root: PathBuf,
+    pub dry_run: bool,
+    pub projects_total: usize,                // всего найдено кандидатов
+    pub projects_run: usize,                  // после фильтрации и ограничения
+    pub results: Vec<RaidBatchItem>,
+    pub success: bool,                        // false, если хотя бы один проект упал или ошибся
+}
+
+pub struct RaidBatchItem {
+    pub project_path: PathBuf,
+    pub project_name: String,
+    pub outcome: RaidBatchOutcome,
+}
+
+pub enum RaidBatchOutcome {
+    Raided(Box<RaidResult>),                  // raid завершён (см. RaidResult::success)
+    Skipped { reason: String },               // отфильтрован или лимит достигнут
+    Error { message: String },                // raid вернул Err
+}
+
+pub fn raid_batch(
+    ctx: &AppContext,
+    opts: &RaidBatchOptions,
+    identity: Option<&AgeIdentity>,
+    progress: &mut dyn ProgressSink,
+) -> Result<RaidBatchResult>;
+```
+
+Поведение:
+
+- Проекты находятся через `find_candidates` под `opts.root`.
+- Каждый кандидат фильтруется по `only` (подстрока в имени или пути) и ограничивается `limit`.
+- Общая конфигурация `opts.raid` клонируется для каждого проекта; поле `project` перезаписывается на путь кандидата.
+- Ошибки отдельных проектов попадают в `RaidBatchOutcome::Error` и не прерывают пакет, если `stop_on_project_failure: true`.
+- Поведение `DryRun` / `Commit` определяется вложенным `RaidOptions`.
+
+**Статус: реализовано.** Только facade (CLI-команды пока нет).
+
 ## Отчёты и данные
 
 ### Стабильные DTO (serde-friendly)

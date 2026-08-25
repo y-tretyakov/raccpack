@@ -235,6 +235,58 @@ Fixed phase order: **stash → rinse → pack → move**. In the default mode (`
 
 **Status: implemented.** CLI: `racc raid`.
 
+### `raid_batch` - batch raid across projects
+
+Discovers all projects under a root directory and runs `raid()` on each one. Projects are found via the same candidate discovery as `sniff`. Per-project errors are captured in the result and do not abort the batch (unless `stop_on_project_failure` is set).
+
+```rust
+pub struct RaidBatchOptions {
+    pub root: PathBuf,                        // root directory to scan for projects
+    pub raid: RaidOptions,                    // shared per-project raid config; `project` is overwritten per candidate
+    pub only: Vec<String>,                    // substring filter on project name or path
+    pub limit: Option<usize>,                 // cap on the number of projects to raid
+    pub stop_on_project_failure: bool,        // stop the batch after the first project failure
+}
+
+pub struct RaidBatchResult {
+    pub root: PathBuf,
+    pub dry_run: bool,
+    pub projects_total: usize,                // total candidates discovered
+    pub projects_run: usize,                  // after filtering and limiting
+    pub results: Vec<RaidBatchItem>,
+    pub success: bool,                        // false if any project failed or errored
+}
+
+pub struct RaidBatchItem {
+    pub project_path: PathBuf,
+    pub project_name: String,
+    pub outcome: RaidBatchOutcome,
+}
+
+pub enum RaidBatchOutcome {
+    Raided(Box<RaidResult>),                  // raid completed (check RaidResult::success)
+    Skipped { reason: String },               // filtered out or limit reached
+    Error { message: String },                // raid returned an Err
+}
+
+pub fn raid_batch(
+    ctx: &AppContext,
+    opts: &RaidBatchOptions,
+    identity: Option<&AgeIdentity>,
+    progress: &mut dyn ProgressSink,
+) -> Result<RaidBatchResult>;
+```
+
+Behavior:
+
+- Projects are discovered via `find_candidates` under `opts.root`.
+- Each candidate is filtered by `only` (substring match on name or path) and capped by `limit`.
+- The shared `opts.raid` config is cloned per project; the `project` field is overwritten to the candidate's path.
+- Per-project raid errors are captured as `RaidBatchOutcome::Error` and do not abort the batch unless `stop_on_project_failure: true`.
+- `DryRun` / `Commit` behavior follows the embedded `RaidOptions`.
+
+**Status: implemented.** Facade only (no CLI command yet).
+
 ## Reports and data
 
 ### Stable DTOs (serde-friendly)
