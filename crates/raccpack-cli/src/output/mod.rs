@@ -1,5 +1,7 @@
 //! Renders use-case results as JSON or human-readable text.
 
+mod tree_render;
+
 use raccpack_core::{DigResult, Project, RepeatedSecret, SensitiveFile, SniffResult, Stack};
 
 use crate::error::CliError;
@@ -42,6 +44,16 @@ fn format_human(result: &SniffResult) -> String {
     ));
     out.push('\n');
     format_table(&result.report.projects, &mut out);
+
+    for project in &result.report.projects {
+        if let Some(tree) = &project.stack_tree {
+            out.push('\n');
+            let size = human_size(project.size_bytes);
+            out.push_str(&format!("  {} ({size})\n", project.name));
+            out.push_str(&tree_render::render_tree(tree, &project.path));
+        }
+    }
+
     out
 }
 
