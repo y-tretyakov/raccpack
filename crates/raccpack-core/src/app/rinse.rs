@@ -23,8 +23,12 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::clean::{find_trash_dirs, remove_trash_dir, DetectTrashOptions, StrategyId, TrashDir};
+use crate::clean::{
+    find_trash_dirs, find_trash_dirs_scoped, remove_trash_dir, DetectTrashOptions, StrategyId,
+    TrashDir,
+};
 use crate::config::RaccConfig;
+use crate::detect::{scopes_for_rinse, DetectMode, StackNode};
 use crate::domain::{Error, Result};
 use crate::scan::is_path_under_root;
 
@@ -43,6 +47,13 @@ pub struct RinseOptions {
     /// Scan-only mode for atomic raid: report found dirs without deleting
     /// anything (removal is deferred to the raid commit). Ignored in DryRun.
     pub collect_only: bool,
+    /// Composite DAG tree for scoped rinse (D3.1).
+    ///
+    /// When `Some` and the config `detect.mode` is `CompositeDag`, rinse
+    /// walks each scope path with only its ecosystem's strategies. When
+    /// `None` or `detect.mode` is `PriorityTable`, the legacy flat walk is
+    /// used.
+    pub stack_tree: Option<StackNode>,
 }
 
 impl Default for RinseOptions {
@@ -53,6 +64,7 @@ impl Default for RinseOptions {
             strategies: None,
             include_custom_patterns: false,
             collect_only: false,
+            stack_tree: None,
         }
     }
 }
@@ -97,12 +109,32 @@ pub fn rinse(
     progress.emit(rinse_event(0, "Scanning for build artifacts…", false));
 
     let strategy_ids = resolve_strategy_ids(&opts.strategies, &ctx.config)?;
-    let dirs = find_trash_dirs(&DetectTrashOptions {
-        target: opts.target.clone(),
-        strategy_ids,
-        max_depth: ctx.config.scanner.max_depth,
-        compute_size: true,
-    })?;
+    let use_dag = ctx.config.detect.mode == DetectMode::CompositeDag && opts.stack_tree.is_some();
+
+    let dirs = if use_dag {
+        let tree = opts.stack_tree.as_ref().expect("checked above");
+        let scopes = scopes_for_rinse(tree, &strategy_ids);
+        progress.emit(rinse_event(
+            10,
+            format!("Scanning {} scoped paths…", scopes.len()),
+            false,
+        ));
+        find_trash_dirs_scoped(&DetectTrashOptions {
+            target: opts.target.clone(),
+            strategy_ids,
+            max_depth: ctx.config.scanner.max_depth,
+            compute_size: true,
+            scope_filter: Some(scopes),
+        })?
+    } else {
+        find_trash_dirs(&DetectTrashOptions {
+            target: opts.target.clone(),
+            strategy_ids,
+            max_depth: ctx.config.scanner.max_depth,
+            compute_size: true,
+            scope_filter: None,
+        })?
+    };
 
     let bytes = dirs.iter().map(|dir| dir.size_bytes).sum();
     progress.emit(rinse_event(
@@ -214,6 +246,7 @@ mod tests {
         assert!(opts.strategies.is_none());
         assert!(!opts.include_custom_patterns);
         assert!(!opts.collect_only);
+        assert!(opts.stack_tree.is_none());
     }
 
     #[test]

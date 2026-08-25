@@ -53,6 +53,7 @@ pub fn run_rinse(global: GlobalOpts, args: RinseArgs) -> Result<ExitCode, CliErr
         },
         include_custom_patterns: false,
         collect_only: false,
+        stack_tree: None,
     };
     let mut progress = NullProgress;
     let result = rinse(&ctx, &opts, &mut progress)?;
