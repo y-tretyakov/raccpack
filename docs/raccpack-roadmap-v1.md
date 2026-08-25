@@ -1,7 +1,7 @@
 # Raccpack — roadmap до 1.0.0
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
-**Текущая точка:** Alpha 0.3.0 закрыт; идёт **Detect v2** (фаза D1 ✅; фаза D2 ✅; D3 ✅ 0.3.8 — sniff tree output + fixtures monorepo; Detect v2 exit gate closed; далее D4.1 batch raid design).  
+**Текущая точка:** Alpha 0.3.0 закрыт; идёт **Detect v2** (фаза D1 ✅; фаза D2 ✅; D3 ✅ 0.3.8 — sniff tree output + fixtures monorepo; D3 phase done; далее D4.1 batch raid design).  
 
 **Текущая версия:** `0.3.8` — сверять `docs/VERSION_ROADMAP.md`.
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
@@ -124,7 +124,7 @@
 
 - D3.1 — `rinse` использует DAG: чистит `target/` только в Rust-поддеревьях, `node_modules/` — в Node и т.д. ✅ **0.3.7**
 - D3.2 — `sniff` выводит дерево/DAG при `--detect-mode=dag` или в JSON. ✅ **0.3.8**
-- D3.3 — Фикстуры монорепо (Rust+Node, Python+JS …) + тесты. ✅ **0.3.8** (exit gate Detect v2)
+- D3.3 — Фикстуры монорепо (Rust+Node, Python+JS …) + тесты. ✅ **0.3.8** (D3 phase done)
 
 **Фаза D3 закрыта.**
 

@@ -24,12 +24,12 @@
 
 ## Текущая позиция
 
-> **Сделано до D3.3 включительно (фаза D3 ЗАКРЫТА, Detect v2 exit gate).** **Alpha exit: 0.3.0.**
+> **Сделано до D3.3 включительно (фаза D3 ЗАКРЫТА — exit gate пайплайна).** **Alpha exit: 0.3.0.**
 
 | | |
 |--|--|
 | **Текущая версия workspace** | **`0.3.8`** |
-| Последний этап | **D3.3** — fixtures monorepo (Detect v2 exit gate) |
+| Последний этап | **D3.3** — fixtures monorepo (D3 phase done) |
 | Следующий этап | **D4.1** → batch raid design (без bump) |
 | Detect v2 exit | после **D4.4** → **`0.4.0`** (batch raid включён) |
 
@@ -213,7 +213,7 @@ version = "0.3.8"
 
 ```bash
 cargo run -p raccpack-cli -- --version
-# raccpack-cli 0.3.8   →  D3.3 (fixtures monorepo; Detect v2 exit gate)
+# raccpack-cli 0.3.8   →  D3.3 (fixtures monorepo; D3 phase done)
 ```
 
 | Версия | Значит «есть» |
@@ -235,7 +235,7 @@ cargo run -p raccpack-cli -- --version
 | ≥ 0.3.5 | Merge policy `detect::merge` (nesting, framework union, same-scope merge; внутреннее, без изменений CLI) |
 | ≥ 0.3.6 | Compat flat `stack`/`stack_tree` + indent tree render для `composite_dag` в human sniff output |
 | ≥ 0.3.7 | Rinse по DAG scopes (scoped trash discovery per ecosystem) |
-| ≥ 0.3.8 | Detect v2 exit gate: sniff tree output + fixtures monorepo (D3.2 + D3.3) |
+| ≥ 0.3.8 | D3 phase done: sniff tree output + fixtures monorepo (D3.2 + D3.3) |
 | ≥ 0.4.0 | Detect DAG + batch raid (`racc raid --root`) |
 | ≥ 0.5.0 | TUI + Desktop + reveal |
 
@@ -258,6 +258,6 @@ cargo run -p raccpack-cli -- --version
 
 ```text
 Текущая версия:  0.3.8
-Этап:            D3.3 (fixtures monorepo; Detect v2 exit gate) — CLOSED, фаза D3 ЗАКРЫТА
+Этап:            D3.3 (fixtures monorepo; D3 phase done) — CLOSED
 Следующий bump:  без bump (D4.1 design only); далее D4.2 → 0.3.10
 ```

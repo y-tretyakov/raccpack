@@ -16,10 +16,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.3.8`** (Detect v2, D3.3 закрыта — Detect v2 exit gate, фаза D3 ЗАКРЫТА) |
-| **Веха** | **Detect v2 → 0.4.0**, фаза D3 закрыта; далее D4.1 batch raid design |
+| **Версия** | **`0.3.8`** (Detect v2, фаза D3 закрыта — exit gate пайплайна) |
+| **Веха** | **Detect v2 → 0.4.0** (D1 ✅ D2 ✅ D3 ✅; далее D4.1–D4.4) |
 | **Следующий этап** | **D4.1** — batch raid design (--root vs --project) — без bump |
-| **Предыдущий** | D3.3 fixtures монорепо + D3.2 sniff tree output (Detect v2 exit gate) |
+| **Предыдущий** | D3.3 fixtures монорепо + D3.2 sniff tree output (D3 phase done) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ (D3 done ✅) → Beta 0.5.0 → RC 0.9.0 → 1.0.0
