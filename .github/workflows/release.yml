@@ -123,32 +123,40 @@ jobs:
           VERSION="${VERSION#v}"
           ARCH=${{ matrix.arch }}
           BIN="target/${{ matrix.target }}/release/racc"
-          TMPDIR=$(mktemp -d)
-          mkdir -p "${TMPDIR}/usr/bin"
-          cp "$BIN" "${TMPDIR}/usr/bin/racc"
-          chmod 755 "${TMPDIR}/usr/bin/racc"
-          cat > "/tmp/raccpack.spec" <<SPEC
+          SRCDIR=$(mktemp -d)
+          BUILDRoot=$(mktemp -d)
+          mkdir -p "${SRCDIR}/usr/bin"
+          cp "$BIN" "${SRCDIR}/usr/bin/racc"
+          chmod 755 "${SRCDIR}/usr/bin/racc"
+          sudo apt-get install -y -qq rpm 2>/dev/null
+          rpmbuild -bb \
+            --define "_topdir /tmp/rpmbuild" \
+            --define "version ${VERSION}" \
+            --define "arch ${ARCH}" \
+            --buildroot "${BUILDRoot}" \
+            --define "srcdir ${SRCDIR}" \
+            /dev/stdin <<SPEC 2>/dev/null || true
           Name:           raccpack
-          Version:        ${VERSION}
+          Version:        %{version}
           Release:        1
           Summary:        Secrets archiver and project packer
           License:        MIT OR Apache-2.0
-          BuildArch:      ${ARCH}
+          BuildArch:      %{arch}
 
           %description
           Scans project directories for secrets, archives them with age encryption,
           cleans build artifacts, and packs projects into den storage.
 
           %install
-          cp -a ${TMPDIR}/usr %{buildroot}/usr
+          mkdir -p %{buildroot}/usr/bin
+          cp %{srcdir}/usr/bin/racc %{buildroot}/usr/bin/racc
+          chmod 755 %{buildroot}/usr/bin/racc
 
           %files
           /usr/bin/racc
           SPEC
-          sudo apt-get install -y -qq rpm 2>/dev/null
-          rpmbuild -bb --define "_topdir /tmp/rpmbuild" --buildroot "${TMPDIR}" /tmp/raccpack.spec 2>/dev/null || true
           find /tmp/rpmbuild/RPMS -name "*.rpm" -exec cp {} . \; 2>/dev/null || true
-          rm -rf "${TMPDIR}" /tmp/rpmbuild
+          rm -rf "${SRCDIR}" "${BUILDRoot}" /tmp/rpmbuild
 
       - name: Upload rpm
         uses: actions/upload-artifact@v4
