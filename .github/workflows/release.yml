@@ -180,77 +180,6 @@ jobs:
           path: raccpack-*.pkg.tar.zst
           retention-days: 1
 
-      - name: Build AppImage
-        run: |
-          VERSION="${{ inputs.tag }}"
-          VERSION="${VERSION#v}"
-          ARCH=${{ matrix.arch }}
-          BIN="target/${{ matrix.target }}/release/racc"
-          APPDIR=$(mktemp -d)
-          mkdir -p "${APPDIR}/usr/bin" "${APPDIR}/usr/share/icons/hicolor/256x256/apps"
-          cp "$BIN" "${APPDIR}/usr/bin/racc"
-          chmod 755 "${APPDIR}/usr/bin/racc"
-          cp detect-v2-banner.webp "${APPDIR}/usr/share/icons/hicolor/256x256/apps/raccpack.webp" 2>/dev/null || true
-          cat > "${APPDIR}/raccpack.desktop" <<'EOF'
-          [Desktop Entry]
-          Name=raccpack
-          Exec=racc
-          Type=Application
-          Categories=Utility;Development;
-          Comment=Secrets archiver and project packer
-          EOF
-          curl -fsSL -L "https://github.com/TheAssassin/AppImageKit/releases/download/continuous/appimagetool-${ARCH}.AppImage" -o /tmp/appimagetool || { echo "::warning::appimagetool download failed"; rm -rf "${APPDIR}"; exit 0; }
-          chmod +x /tmp/appimagetool
-          ARCH=${ARCH} APPIMAGE_EXTRACT_AND_RUN=1 /tmp/appimagetool "${APPDIR}" "raccpack-${VERSION}-${ARCH}.AppImage" 2>/dev/null || { echo "::warning::appimagetool build failed"; rm -rf "${APPDIR}"; exit 0; }
-          rm -rf "${APPDIR}"
-
-      - name: Upload AppImage
-        uses: actions/upload-artifact@v4
-        with:
-          name: raccpack-${{ inputs.tag }}-appimage-${{ matrix.arch }}
-          path: raccpack-*.AppImage
-          retention-days: 1
-
-      - name: Build Flatpak
-        run: |
-          VERSION="${{ inputs.tag }}"
-          VERSION="${VERSION#v}"
-          ARCH=${{ matrix.arch }}
-          BIN="target/${{ matrix.target }}/release/racc"
-          sudo apt-get install -y -qq flatpak flatpak-builder 2>/dev/null || { echo "::warning::flatpak install failed"; exit 0; }
-          sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
-          sudo flatpak install -y --noninteractive flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08 2>/dev/null || { echo "::warning::flatpak runtime install failed"; exit 0; }
-          MANIFEST_DIR=$(mktemp -d)
-          cat > "${MANIFEST_DIR}/io.github.y-tretyakov.raccpack.yml" <<'EOF'
-          app-id: io.github.y-tretyakov.raccpack
-          runtime: org.freedesktop.Platform
-          runtime-version: '24.08'
-          sdk: org.freedesktop.Sdk
-          command: racc
-          modules:
-            - name: raccpack
-              buildsystem: simple
-              build-commands:
-                - install -Dm755 racc /app/bin/racc
-              sources:
-                - type: file
-                  path: racc
-          EOF
-          cp "$BIN" "${MANIFEST_DIR}/racc"
-          cd "${MANIFEST_DIR}"
-          flatpak-builder --repo=repo --force-clean build-dir io.github.y-tretyakov.raccpack.yml 2>/dev/null || { echo "::warning::flatpak-builder failed"; rm -rf "${MANIFEST_DIR}"; exit 0; }
-          flatpak build-bundle repo "raccpack-${VERSION}-${ARCH}.flatpak" io.github.y-tretyakov.raccpack 2>/dev/null || { echo "::warning::flatpak build-bundle failed"; rm -rf "${MANIFEST_DIR}"; exit 0; }
-          mv "raccpack-${VERSION}-${ARCH}.flatpak" "$GITHUB_WORKSPACE/" 2>/dev/null || true
-          cd "$GITHUB_WORKSPACE"
-          rm -rf "${MANIFEST_DIR}"
-
-      - name: Upload Flatpak
-        uses: actions/upload-artifact@v4
-        with:
-          name: raccpack-${{ inputs.tag }}-flatpak-${{ matrix.arch }}
-          path: raccpack-*.flatpak
-          retention-days: 1
-
   # --- Collect & release ---
   release:
     needs: build
@@ -269,11 +198,11 @@ jobs:
         run: |
           mkdir -p release-dist
           find dist/ -maxdepth 1 -type f \
-            \( -name "*.tar.zst" -o -name "*.deb" -o -name "*.rpm" -o -name "*.pkg.tar.zst" -o -name "*.AppImage" -o -name "*.flatpak" \) \
+            \( -name "*.tar.zst" -o -name "*.deb" -o -name "*.rpm" -o -name "*.pkg.tar.zst" \) \
             -exec mv {} release-dist/ \;
           cp detect-v2-banner.webp release-dist/ 2>/dev/null || true
           cd release-dist
-          sha256sum raccpack-*.tar.zst raccpack-*.deb raccpack-*.rpm raccpack-*.pkg.tar.zst raccpack-*.AppImage raccpack-*.flatpak > SHA256SUMS 2>/dev/null || true
+          sha256sum raccpack-*.tar.zst raccpack-*.deb raccpack-*.rpm raccpack-*.pkg.tar.zst > SHA256SUMS 2>/dev/null || true
 
       - name: Create GitHub Release
         env:
@@ -306,10 +235,6 @@ jobs:
           - \`\`\`raccpack-${VERSION}-1.aarch64.rpm\`\`\` — Fedora/RHEL ARM64
           - \`\`\`raccpack-${VERSION}-1-x86_64.pkg.tar.zst\`\`\` — Arch Linux x86_64
           - \`\`\`raccpack-${VERSION}-1-aarch64.pkg.tar.zst\`\`\` — Arch Linux ARM64
-          - \`\`\`raccpack-${VERSION}-x86_64.AppImage\`\`\` — AppImage x86_64 (universal)
-          - \`\`\`raccpack-${VERSION}-aarch64.AppImage\`\`\` — AppImage ARM64 (universal)
-          - \`\`\`raccpack-${VERSION}-x86_64.flatpak\`\`\` — Flatpak x86_64
-          - \`\`\`raccpack-${VERSION}-aarch64.flatpak\`\`\` — Flatpak ARM64
           - \`SHA256SUMS\` — checksums
 
           ### Install
@@ -326,13 +251,6 @@ jobs:
 
           # Arch Linux
           sudo pacman -U raccpack-${VERSION}-1-x86_64.pkg.tar.zst
-
-          # AppImage
-          chmod +x raccpack-${VERSION}-x86_64.AppImage
-          ./raccpack-${VERSION}-x86_64.AppImage
-
-          # Flatpak
-          flatpak install --user raccpack-${VERSION}-x86_64.flatpak
 
           # From source
           cargo install raccpack-cli
