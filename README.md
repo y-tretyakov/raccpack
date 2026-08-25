@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.85-orange?style=flat-square&logo=rust" alt="Rust"/></a>
   <a href="https://doc.rust-lang.org/cargo/"><img src="https://img.shields.io/badge/Cargo-workspace-blue?style=flat-square&logo=cargo" alt="Cargo"/></a>
-  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.3.6-blue?style=flat-square" alt="version"/></a>
+  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.3.7-blue?style=flat-square" alt="version"/></a>
   <a href="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml"><img src="https://img.shields.io/badge/CI-wiki-success?style=flat-square" alt="CI"/></a>
   <a href="https://github.com/y-tretyakov/raccpack"><img src="https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-success?style=flat-square" alt="Windows | Linux | macOS"/></a>
   <a href="https://tauri.app"><img src="https://img.shields.io/badge/Tauri-Desktop-purple?style=flat-square&logo=tauri" alt="Tauri"/></a>
@@ -23,7 +23,7 @@ CLI / TUI / Desktop tool for scanning project trees, finding secrets, cleaning b
 
 ## Status
 
-**Version `0.3.6`** — MVP `0.1.0` closed; **Alpha `0.3.0` closed** (stash / rinse / raid / git+DX). Detect v2 in progress toward `0.4.0`: D1 complete (trait+registry, Detection/StackNode DTO, `detect.mode` config + `racc sniff --detect-mode`); **D2 complete** — D2.1 WorkspaceDetector ships the composite DAG pipeline (`--detect-mode composite_dag` fills `stack_tree`, experimental); D2.2 conflict-merge policy (`detect::merge`); D2.3 compat: flat `stack` always filled, indent tree in composite_dag human output.
+**Version `0.3.7`** — MVP `0.1.0` closed; **Alpha `0.3.0` closed** (stash / rinse / raid / git+DX). Detect v2 in progress toward `0.4.0`: D1 complete (trait+registry, Detection/StackNode DTO, `detect.mode` config + `racc sniff --detect-mode`); **D2 complete** — D2.1 WorkspaceDetector ships the composite DAG pipeline (`--detect-mode composite_dag` fills `stack_tree`, experimental); D2.2 conflict-merge policy (`detect::merge`); D2.3 compat: flat `stack` always filled, indent tree in composite_dag human output. **D3.1** — rinse by DAG scopes: scoped trash discovery per ecosystem.
 
 | Command | Status | Role |
 |---------|--------|------|

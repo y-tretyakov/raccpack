@@ -16,10 +16,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.3.6`** (Detect v2, D2.3 закрыт, **фаза D2 закрыта**) |
+| **Версия** | **`0.3.7`** (Detect v2, D3.1 закрыт, фаза D3 в работе) |
 | **Веха** | **Detect v2 → 0.4.0**, идёт фаза D3 |
-| **Следующий этап** | **D3.1** — rinse по DAG scopes → bump **`0.3.7`** |
-| **Предыдущий** | D2.3 flat stack compat (PR #97) |
+| **Следующий этап** | **D3.2** — sniff tree output → bump **`0.3.8`** |
+| **Предыдущий** | D3.1 rinse по DAG scopes (PR #98) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
@@ -36,7 +36,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 [x] D2.1 WorkspaceDetector → DAG                   → 0.3.4
 [x] D2.2 conflict merge                            → 0.3.5
 [x] D2.3 flat stack + stack_tree compat            → 0.3.6
-[ ] D3.1 rinse по DAG scopes                      → 0.3.7
+[x] D3.1 rinse по DAG scopes                      → 0.3.7
 [ ] D3.2 sniff tree output                         → 0.3.8
 [ ] D3.3 fixtures + монорепо-тесты                 → 0.3.9
 [ ] D4.1 batch raid design (--root vs --project)   → без bump
@@ -82,6 +82,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 | 2026-08-22 | **D2.1** WorkspaceDetector → tree, composite_dag исполняется → **0.3.4** (PR #95); breaking: убран `Error::DetectPipelineUnavailable`; wiki обновлён (UX-этап) |
 | 2026-08-25 | **D2.2** conflict merge policy → `detect/merge.rs` (правила 1–5 в rustdoc; клон union+dedup устранён: `extend_frameworks_union`; дубликаты scope теперь merge хитов вместо keep-first) → **0.3.5** (PR #96); 10 новых тестов, `detect::` 48 green, workspace 860 green; wiki не трогали (без изменений CLI) |
 | 2026-08-25 | **D2.3** flat stack compat + tree render (output split → `output/mod.rs` + `tree_render.rs`; data-driven indented tree для composite_dag; wiki JSON docs EN+RU) → **0.3.6** (PR #97); **фаза D2 ЗАКРЫТА**; 874 workspace green |
+| 2026-08-25 | **D3.1** rinse по DAG scopes (`ScopeEntry` + `scope_filter` + `scopes_for_rinse` + `find_trash_dirs_scoped`; conservative unknown ecosystems; dedup) → **0.3.7** (PR #98); 26 rinse tests green, workspace 874+ green; `rinse()` в composite_dag mode итерирует scopes с ecosystem-matched стратегиями |
 
 ---
 

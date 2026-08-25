@@ -24,20 +24,20 @@
 
 ## Текущая позиция
 
-> **Сделано до D2.3 включительно (фаза D2 закрыта).** **Alpha exit: 0.3.0.**
+> **Сделано до D3.1 включительно (фаза D3 в работе).** **Alpha exit: 0.3.0.**
 
 | | |
 |--|--|
-| **Текущая версия workspace** | **`0.3.6`** |
-| Последний этап | **D2.3** — flat stack + stack_tree compat + tree render |
-| Следующий этап | **D3.1** → версия **`0.3.7`** (rinse по DAG scopes) |
+| **Текущая версия workspace** | **`0.3.7`** |
+| Последний этап | **D3.1** — rinse по DAG scopes |
+| Следующий этап | **D3.2** → версия **`0.3.8`** (sniff tree output) |
 | Detect v2 exit | после **D4.4** → **`0.4.0`** (batch raid включён) |
 
 ```text
 0.1.0  MVP
 0.2.0 … 0.2.11  Alpha A1–A3
 0.2.12 … 0.3.0  Alpha A4
-0.3.1 …        Detect v2   ← ВЫ ЗДЕСЬ (0.3.6, D2 done; далее D3.1)
+0.3.1 …        Detect v2   ← ВЫ ЗДЕСЬ (0.3.7, D3.1 done; далее D3.2)
 0.5.0 …        Beta
 0.9.0 …        RC
 1.0.0          Stable
@@ -115,7 +115,7 @@
 | D2.1 | **0.3.4** | ✅ | WorkspaceDetector → tree |
 | D2.2 | **0.3.5** | ✅ | conflict merge (`detect::merge`) |
 | D2.3 | **0.3.6** | ✅ | flat stack + stack_tree compat + tree render |
-| D3.1 | **0.3.7** | ⬜ | rinse по DAG scopes |
+| D3.1 | **0.3.7** | ✅ | rinse по DAG scopes |
 | D3.2 | **0.3.8** | ⬜ | sniff tree output |
 | D3.3 | **0.3.9** | ⬜ | fixtures монорепо |
 | D4.1 | — | ⬜ | batch raid design (`--root` vs `--project`; docs) — **без bump** |
