@@ -16,13 +16,13 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.3.7`** (Detect v2, D3.1 закрыт, фаза D3 в работе) |
-| **Веха** | **Detect v2 → 0.4.0**, идёт фаза D3 |
-| **Следующий этап** | **D3.2** — sniff tree output → bump **`0.3.8`** |
-| **Предыдущий** | D3.1 rinse по DAG scopes + E2E wiring (PR #98, #99) |
+| **Версия** | **`0.3.8`** (Detect v2, D3.3 закрыта — Detect v2 exit gate, фаза D3 ЗАКРЫТА) |
+| **Веха** | **Detect v2 → 0.4.0**, фаза D3 закрыта; далее D4.1 batch raid design |
+| **Следующий этап** | **D4.1** — batch raid design (--root vs --project) — без bump |
+| **Предыдущий** | D3.3 fixtures монорепо + D3.2 sniff tree output (Detect v2 exit gate) |
 
 ```text
-MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
+MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ (D3 done ✅) → Beta 0.5.0 → RC 0.9.0 → 1.0.0
 ```
 
 ---
@@ -37,8 +37,8 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 [x] D2.2 conflict merge                            → 0.3.5
 [x] D2.3 flat stack + stack_tree compat            → 0.3.6
 [x] D3.1 rinse по DAG scopes                      → 0.3.7
-[ ] D3.2 sniff tree output                         → 0.3.8
-[ ] D3.3 fixtures + монорепо-тесты                 → 0.3.9
+[x] D3.2 sniff tree output                         → 0.3.8
+[x] D3.3 fixtures + монорепо-тесты                 → 0.3.8 (exit gate)
 [ ] D4.1 batch raid design (--root vs --project)   → без bump
 [ ] D4.2 facade raid_batch                         → 0.3.10
 [ ] D4.3 CLI racc raid --root                      → 0.3.11
@@ -83,6 +83,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 
 | 2026-08-25 | **D2.2** conflict merge policy → `detect/merge.rs` (правила 1–5 в rustdoc; клон union+dedup устранён: `extend_frameworks_union`; дубликаты scope теперь merge хитов вместо keep-first) → **0.3.5** (PR #96); 10 новых тестов, `detect::` 48 green, workspace 860 green; wiki не трогали (без изменений CLI) |
 | 2026-08-25 | **D2.3** flat stack compat + tree render (output split → `output/mod.rs` + `tree_render.rs`; data-driven indented tree для composite_dag; wiki JSON docs EN+RU) → **0.3.6** (PR #97); **фаза D2 ЗАКРЫТА**; 874 workspace green |
 | 2026-08-25 | **D3.1** rinse по DAG scopes (`ScopeEntry` + `scope_filter` + `scopes_for_rinse` + `find_trash_dirs_scoped`; conservative unknown ecosystems; dedup) → **0.3.7** (PR #98); 26 rinse tests green, workspace 874+ green; `rinse()` в composite_dag mode итерирует scopes с ecosystem-matched стратегиями |
+| 2026-08-25 | **Release sync: 0.3.8** — D3.2+D3.3 closed (Detect v2 exit gate). Version bump: Cargo.toml/README/VERSION_ROADMAP/roadmap-v1/WORKLOG wiki (roadmap, facade-api) |
 
 ---
 

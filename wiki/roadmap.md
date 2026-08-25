@@ -8,7 +8,7 @@ description: How raccpack is evolving toward version 1.0.0 — what is already a
 How raccpack is evolving toward version 1.0.0 — and what you can use today.
 
 ::: info
-Current version: **0.3.7** — Alpha complete; Detect v2 in progress (D1 ✅; D2 ✅; D3.1 ✅ — rinse by DAG scopes; next: D3.2 sniff tree output).
+Current version: **0.3.8** — Alpha complete; Detect v2 in progress (D1 ✅; D2 ✅; D3 ✅ — sniff tree output + fixtures monorepo; Detect v2 exit gate; next: D4.1 batch raid design).
 Dates are approximate. "Available" status means the functionality can be used in the current version built from source.
 :::
 

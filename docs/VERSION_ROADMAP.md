@@ -24,20 +24,20 @@
 
 ## Текущая позиция
 
-> **Сделано до D3.1 включительно (фаза D3 в работе).** **Alpha exit: 0.3.0.**
+> **Сделано до D3.3 включительно (фаза D3 ЗАКРЫТА, Detect v2 exit gate).** **Alpha exit: 0.3.0.**
 
 | | |
 |--|--|
-| **Текущая версия workspace** | **`0.3.7`** |
-| Последний этап | **D3.1** — rinse по DAG scopes |
-| Следующий этап | **D3.2** → версия **`0.3.8`** (sniff tree output) |
+| **Текущая версия workspace** | **`0.3.8`** |
+| Последний этап | **D3.3** — fixtures monorepo (Detect v2 exit gate) |
+| Следующий этап | **D4.1** → batch raid design (без bump) |
 | Detect v2 exit | после **D4.4** → **`0.4.0`** (batch raid включён) |
 
 ```text
 0.1.0  MVP
 0.2.0 … 0.2.11  Alpha A1–A3
 0.2.12 … 0.3.0  Alpha A4
-0.3.1 …        Detect v2   ← ВЫ ЗДЕСЬ (0.3.7, D3.1 done; далее D3.2)
+0.3.1 …        Detect v2   ← ВЫ ЗДЕСЬ (0.3.8, D3.3 done; далее D4.1 batch raid design)
 0.5.0 …        Beta
 0.9.0 …        RC
 1.0.0          Stable
@@ -116,8 +116,8 @@
 | D2.2 | **0.3.5** | ✅ | conflict merge (`detect::merge`) |
 | D2.3 | **0.3.6** | ✅ | flat stack + stack_tree compat + tree render |
 | D3.1 | **0.3.7** | ✅ | rinse по DAG scopes |
-| D3.2 | **0.3.8** | ⬜ | sniff tree output |
-| D3.3 | **0.3.9** | ⬜ | fixtures монорепо |
+| D3.2 | **0.3.8** | ✅ | sniff tree output |
+| D3.3 | **0.3.9** | ✅ | fixtures монорепо |
 | D4.1 | — | ⬜ | batch raid design (`--root` vs `--project`; docs) — **без bump** |
 | D4.2 | **0.3.10** | ⬜ | facade `raid_batch` (1 project = 1 raid, sequential, continue-on-error) |
 | D4.3 | **0.3.11** | ⬜ | CLI `racc raid --root` (+ `--only`/`--limit`/`--stop-on-error`) |
@@ -198,7 +198,7 @@
 ```toml
 # Cargo.toml (workspace)
 [workspace.package]
-version = "0.3.6"
+version = "0.3.8"
 ```
 
 Все crates: `version.workspace = true`.
@@ -213,7 +213,7 @@ version = "0.3.6"
 
 ```bash
 cargo run -p raccpack-cli -- --version
-# raccpack-cli 0.3.6   →  D2.3 (flat stack compat + tree render; composite_dag experimental)
+# raccpack-cli 0.3.8   →  D3.3 (fixtures monorepo; Detect v2 exit gate)
 ```
 
 | Версия | Значит «есть» |
@@ -234,6 +234,8 @@ cargo run -p raccpack-cli -- --version
 | ≥ 0.3.4 | Composite DAG pipeline: `sniff --detect-mode composite_dag` заполняет `stack_tree` (experimental) |
 | ≥ 0.3.5 | Merge policy `detect::merge` (nesting, framework union, same-scope merge; внутреннее, без изменений CLI) |
 | ≥ 0.3.6 | Compat flat `stack`/`stack_tree` + indent tree render для `composite_dag` в human sniff output |
+| ≥ 0.3.7 | Rinse по DAG scopes (scoped trash discovery per ecosystem) |
+| ≥ 0.3.8 | Detect v2 exit gate: sniff tree output + fixtures monorepo (D3.2 + D3.3) |
 | ≥ 0.4.0 | Detect DAG + batch raid (`racc raid --root`) |
 | ≥ 0.5.0 | TUI + Desktop + reveal |
 
@@ -255,7 +257,7 @@ cargo run -p raccpack-cli -- --version
 ## Сводка «сейчас»
 
 ```text
-Текущая версия:  0.3.6
-Этап:            D2.3 (flat stack compat + tree render) — CLOSED, фаза D2 ЗАКРЫТА
-Следующий bump:  0.3.7   при закрытии D3.1 (rinse по DAG scopes)
+Текущая версия:  0.3.8
+Этап:            D3.3 (fixtures monorepo; Detect v2 exit gate) — CLOSED, фаза D3 ЗАКРЫТА
+Следующий bump:  без bump (D4.1 design only); далее D4.2 → 0.3.10
 ```
