@@ -2,6 +2,8 @@
 
 use std::path::PathBuf;
 
+use serde::{Deserialize, Serialize};
+
 use crate::app::context::{AppContext, WorkspacePaths};
 use crate::app::progress::ProgressSink;
 use crate::app::raid::{raid, RaidResult};
@@ -29,6 +31,7 @@ pub struct RaidBatchOptions {
 }
 
 /// Result of a batch raid across multiple projects.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RaidBatchResult {
     pub root: PathBuf,
     pub dry_run: bool,
@@ -39,6 +42,7 @@ pub struct RaidBatchResult {
 }
 
 /// A single project's outcome within a batch raid.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RaidBatchItem {
     pub project_path: PathBuf,
     pub project_name: String,
@@ -46,6 +50,7 @@ pub struct RaidBatchItem {
 }
 
 /// Outcome for one project in a batch.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RaidBatchOutcome {
     Raided(Box<RaidResult>),
     Skipped { reason: String },

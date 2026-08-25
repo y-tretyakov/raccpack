@@ -201,9 +201,13 @@ pub struct RinseArgs {
 /// Options specific to `racc raid`.
 #[derive(Debug, Args, Default)]
 pub struct RaidArgs {
-    /// Project directory to raid (required)
-    #[arg(long, value_name = "PATH")]
-    pub project: PathBuf,
+    /// Project directory to raid (mutually exclusive with --root)
+    #[arg(long, value_name = "PATH", conflicts_with = "root")]
+    pub project: Option<PathBuf>,
+
+    /// Root directory containing projects to raid in batch mode
+    #[arg(long, value_name = "PATH", conflicts_with = "project")]
+    pub root: Option<PathBuf>,
 
     /// Commit mode: run the phases for real (write to the den, remove sources)
     #[arg(long)]
@@ -240,6 +244,18 @@ pub struct RaidArgs {
     /// Stop at the first failing phase instead of atomic rollback
     #[arg(long)]
     pub fail_fast: bool,
+
+    /// Only raid projects whose name or path contains this substring (batch)
+    #[arg(long, value_name = "SUBSTR")]
+    pub only: Vec<String>,
+
+    /// Maximum number of projects to raid (batch)
+    #[arg(long, value_name = "N")]
+    pub limit: Option<usize>,
+
+    /// Stop the batch after the first project failure
+    #[arg(long)]
+    pub stop_on_error: bool,
 }
 
 /// Minimum risk level selected via `--min-risk`.
@@ -870,7 +886,8 @@ mod tests {
     #[test]
     fn raid_args_default_to_dry_run_and_all_phases() {
         let args = RaidArgs::default();
-        assert!(args.project.as_os_str().is_empty());
+        assert!(args.project.is_none());
+        assert!(args.root.is_none());
         assert!(!args.yes);
         assert!(!args.dry_run);
         assert!(!args.no_stash);
@@ -880,10 +897,13 @@ mod tests {
         assert!(!args.keep_sources);
         assert!(!args.no_content_deny);
         assert!(!args.fail_fast);
+        assert!(args.only.is_empty());
+        assert!(args.limit.is_none());
+        assert!(!args.stop_on_error);
     }
 
     #[test]
-    fn clap_parse_raid_with_flags() {
+    fn clap_parse_raid_with_project_flag() {
         let cli = Cli::try_parse_from([
             "racc",
             "raid",
@@ -897,12 +917,57 @@ mod tests {
         assert_eq!(cli.global.den, Some(PathBuf::from("/tmp/den")));
         match cli.command {
             Commands::Raid(args) => {
-                assert_eq!(args.project, PathBuf::from("/tmp/app"));
+                assert_eq!(args.project, Some(PathBuf::from("/tmp/app")));
+                assert!(args.root.is_none());
                 assert!(args.yes);
                 assert!(!args.dry_run);
             }
             _ => panic!("expected raid command"),
         }
+    }
+
+    #[test]
+    fn clap_parse_raid_with_root_flag() {
+        let cli = Cli::try_parse_from([
+            "racc",
+            "raid",
+            "--root",
+            "/tmp/projs",
+            "--yes",
+            "--limit",
+            "5",
+            "--only",
+            "api",
+            "--stop-on-error",
+        ])
+        .expect("parse should succeed");
+        match cli.command {
+            Commands::Raid(args) => {
+                assert!(args.project.is_none());
+                assert_eq!(args.root, Some(PathBuf::from("/tmp/projs")));
+                assert!(args.yes);
+                assert_eq!(args.limit, Some(5));
+                assert_eq!(args.only, vec!["api".to_string()]);
+                assert!(args.stop_on_error);
+            }
+            _ => panic!("expected raid command"),
+        }
+    }
+
+    #[test]
+    fn clap_rejects_raid_with_both_project_and_root() {
+        let result = Cli::try_parse_from([
+            "racc",
+            "raid",
+            "--project",
+            "/tmp/app",
+            "--root",
+            "/tmp/projs",
+        ]);
+        assert!(
+            result.is_err(),
+            "--project and --root must be mutually exclusive"
+        );
     }
 
     #[test]
@@ -926,12 +991,6 @@ mod tests {
     }
 
     #[test]
-    fn clap_rejects_raid_without_project() {
-        let result = Cli::try_parse_from(["racc", "raid", "--yes"]);
-        assert!(result.is_err(), "missing --project must be rejected");
-    }
-
-    #[test]
     fn clap_parse_raid_with_all_flags() {
         let cli = Cli::try_parse_from([
             "racc",
@@ -951,7 +1010,8 @@ mod tests {
         .expect("parse should succeed");
         match cli.command {
             Commands::Raid(args) => {
-                assert_eq!(args.project, PathBuf::from("/tmp/p"));
+                assert_eq!(args.project, Some(PathBuf::from("/tmp/p")));
+                assert!(args.root.is_none());
                 assert!(args.yes);
                 assert!(!args.dry_run);
                 assert!(args.no_stash);
