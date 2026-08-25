@@ -1,5 +1,7 @@
 //! Renders use-case results as JSON or human-readable text.
 
+#[cfg(test)]
+mod output_tests;
 mod tree_render;
 
 use raccpack_core::{DigResult, Project, RepeatedSecret, SensitiveFile, SniffResult, Stack};
