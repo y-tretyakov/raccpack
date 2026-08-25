@@ -8,7 +8,7 @@ description: How raccpack is evolving toward version 1.0.0 — what is already a
 How raccpack is evolving toward version 1.0.0 — and what you can use today.
 
 ::: info
-Current version: **0.3.9** — Alpha complete; Detect v2 complete (D1 ✅; D2 ✅; D3 ✅; D4.1 ✅ design; D4.2 ✅ facade raid_batch; D4.3 ✅ CLI `racc raid --root`; D4.4 ✅ wiki + E2E).
+Current version: **0.4.0** — Alpha complete; Detect v2 complete (D1 ✅; D2 ✅; D3 ✅; D4 ✅ wiki + E2E + batch raid).
 Dates are approximate. "Available" status means the functionality can be used in the current version built from source.
 :::
 
@@ -28,11 +28,12 @@ Dates are approximate. "Available" status means the functionality can be used in
 - [x] Secret-free tracing logs and a global `--verbose` (`-v`/`-vv`/`-vvv`, logs to stderr, `RUST_LOG` takes precedence).
 - [x] Integration tests and CI (`cargo test` / fmt / clippy on every push and PR).
 
-## Planned (Detect v2 0.4.x)
+## Already available (Detect v2 0.4.x)
 
-- [ ] Composite stack detectors (DAG) for monorepositories and hybrid projects.
-- [ ] Stack tree in `sniff` (`--detect-mode=dag`), backward-compatible flat `stack`.
-- [ ] DAG-scoped `rinse` — cleaning build trash only in relevant subtrees.
+- [x] Composite stack detectors (DAG) for monorepositories and hybrid projects.
+- [x] Stack tree in `sniff` (`--detect-mode=dag`), backward-compatible flat `stack`.
+- [x] DAG-scoped `rinse` — cleaning build trash only in relevant subtrees.
+- [x] Batch raid: `racc raid --root` processes all projects in a scan root.
 
 ## Planned (Beta 0.5.x)
 

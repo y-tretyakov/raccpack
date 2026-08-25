@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.85-orange?style=flat-square&logo=rust" alt="Rust"/></a>
   <a href="https://doc.rust-lang.org/cargo/"><img src="https://img.shields.io/badge/Cargo-workspace-blue?style=flat-square&logo=cargo" alt="Cargo"/></a>
-  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.3.9-blue?style=flat-square" alt="version"/></a>
+  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.4.0-blue?style=flat-square" alt="version"/></a>
   <a href="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml"><img src="https://img.shields.io/badge/CI-wiki-success?style=flat-square" alt="CI"/></a>
   <a href="https://github.com/y-tretyakov/raccpack"><img src="https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-success?style=flat-square" alt="Windows | Linux | macOS"/></a>
   <a href="https://tauri.app"><img src="https://img.shields.io/badge/Tauri-Desktop-purple?style=flat-square&logo=tauri" alt="Tauri"/></a>
@@ -23,7 +23,7 @@ CLI / TUI / Desktop tool for scanning project trees, finding secrets, cleaning b
 
 ## Status
 
-**Version `0.3.9`** — MVP `0.1.0` closed; **Alpha `0.3.0` closed** (stash / rinse / raid / git+DX). Detect v2 in progress toward `0.4.0`: D1 complete (trait+registry, Detection/StackNode DTO, `detect.mode` config + `racc sniff --detect-mode`); **D2 complete** — D2.1 WorkspaceDetector ships the composite DAG pipeline (`--detect-mode composite_dag` fills `stack_tree`, experimental); D2.2 conflict-merge policy (`detect::merge`); D2.3 compat: flat `stack` always filled, indent tree in composite_dag human output. **D3 complete** — D3.1 rinse by DAG scopes: scoped trash discovery per ecosystem; D3.2 sniff tree output; D3.3 fixtures monorepo. **D4 in progress** — D4.1 batch raid design; D4.2 facade `raid_batch` (sequential, continue-on-error); D4.3 CLI `racc raid --root` (batch mode). Next: D4.4 wiki + E2E = Detect v2 exit.
+**Version `0.4.0`** — MVP `0.1.0` closed; **Alpha `0.3.0` closed** (stash / rinse / raid / git+DX). **Detect v2 `0.4.0` closed** (composite DAG detectors, scoped rinse, batch raid `racc raid --root`, wiki + E2E). Next: Beta `0.5.0` (TUI + Desktop).
 
 | Command | Status | Role |
 |---------|--------|------|
@@ -32,7 +32,7 @@ CLI / TUI / Desktop tool for scanning project trees, finding secrets, cleaning b
 | **pack** | Available | `tar.zst` into den (`packs/…`), name/content deny, DryRun default / `--yes` |
 | **stash** | Available (Alpha) | Age-encrypted secret archives into den (`secrets/…`), optional source removal |
 | **rinse** | Available (Alpha) | Build-trash cleanup by strategies (`rust`/`node`/`python` default, more opt-in), DryRun default / `--yes` |
-| **raid** | Available (Alpha) | Orchestrated stash → rinse → pack → move in one command; atomic default (staging + WAL + rollback), manifest JSON in den, `--fail-fast` mode, exit 1 on `!success`; `--root` for batch mode |
+| **raid** | Available (Alpha) | Orchestrated stash → rinse → pack → move in one command; atomic default (staging + WAL + rollback), manifest JSON in den, `--fail-fast` mode, exit 1 on `!success`; `--root` for batch mode across all projects |
 | **init** | Available (Alpha) | Create default config (`config_version = 1`) with prefilled paths; optional den skeleton (`--ensure-den`), `--force` to overwrite |
 | **TUI / Desktop** | Planned (Beta) | Ratatui / Tauri + React |
 
@@ -158,7 +158,7 @@ Branch protection: squash-only; `main` requires PR + 1 approval; no force push /
 ```text
 MVP     sniff → dig → pack + den                ✅ 0.1.0
 Alpha   stash ✅ → rinse ✅ → raid ✅ → git+CI  ✅ 0.3.0
-Detect v2  D1 ✅ → D2 ✅ → D3 impact → D4 batch raid → 0.4.x
+Detect v2  D1 ✅ → D2 ✅ → D3 ✅ → D4 ✅                ✅ 0.4.0
 Beta    TUI → Desktop (Tauri) → security harden → 0.5.0
 RC      API/den freeze → quality → UX         → 0.9.x
 Stable  1.0.0

@@ -1,9 +1,9 @@
 # Raccpack — roadmap до 1.0.0
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
-**Текущая точка:** Alpha 0.3.0 закрыт; идёт **Detect v2** (фаза D1 ✅; фаза D2 ✅; D3 ✅ 0.3.8; D4.1 ✅ design; D4.2 ✅ facade raid_batch; D4.3 ✅ CLI `racc raid --root`; далее D4.4 wiki + E2E).  
+**Текущая точка:** Alpha 0.3.0 закрыт; **Detect v2 0.4.0 закрыт** (D1–D4 all ✅). Далее Beta.
 
-**Текущая версия:** `0.3.9` — сверять `docs/VERSION_ROADMAP.md`.
+**Текущая версия:** `0.4.0` — сверять `docs/VERSION_ROADMAP.md`.
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
 
 Версионирование до 1.0.0 — **0.x** (ломающие изменения API допустимы).  
@@ -136,9 +136,11 @@
 - D4.2 — Core: `raid_batch()` поверх sniff list + `raid()`. ✅ 0.3.8 (impl, без bump)
 - D4.3 — CLI: `racc raid --root` + `--only`/`--limit`/`--stop-on-error`. ✅ **0.3.9**
 - D4.3 — CLI: `racc raid --root` (+ `--only` / `--limit` / `--stop-on-error`).
-- D4.4 — Wiki + E2E = **Detect v2 exit 0.4.0**.
+- D4.4 — Wiki + E2E = **Detect v2 exit 0.4.0**. ✅
 
-**Detect v2 exit criteria:** на типичном monorepo `sniff` показывает корректное дерево; `rinse` удаляет только релевантный мусор; legacy PriorityTable продолжает работать; `racc raid --root` прогоняет все проекты root'а батчем (планируется, в бинарнике пока отсутствует).
+**Detect v2 exit criteria:** на типичном monorepo `sniff` показывает корректное дерево; `rinse` удаляет только релевантный мусор; legacy PriorityTable продолжает работать; `racc raid --root` прогоняет все проекты root'а батчем.
+
+**Detect v2 phase: DONE.**
 
 ---
 
@@ -237,7 +239,7 @@
 ```text
 MVP        M1 workspace/DTO/config  →  M2 sniff  →  M3 dig  →  M4 pack+den          ✅ 0.1.0
 Alpha      A1 stash/age ✅  →  A2 rinse ✅  →  A3 raid+atomic  →  A4 git+CI          → 0.3.0
-Detect v2  D1 registry ✅  →  D2 composite DAG  →  D3 rinse/sniff impact  →  D4 batch raid  → 0.4.x
+Detect v2  D1 ✅  →  D2 ✅  →  D3 ✅  →  D4 ✅                                          → 0.4.0 ✅
 Beta       B1 TUI  →  B2 Desktop+reveal  →  B3 security+reveal  →  B4 den gc + docs → 0.5.0
 RC         R1 freeze  →  R2 quality  →  R3 UX  →  R4 validation                     → 0.9.x
 Stable     S1 release 1.0.0

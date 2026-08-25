@@ -16,13 +16,13 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.3.9`** (Detect v2, D4.3 CLI raid --root done) |
-| **Веха** | **Detect v2 → 0.4.0** (D1 ✅ D2 ✅ D3 ✅ D4.1 ✅ D4.2 ✅ D4.3 ✅; далее D4.4) |
-| **Следующий этап** | **D4.4** — wiki + E2E = Detect v2 exit → `0.4.0` |
-| **Предыдущий** | D4.3 CLI `racc raid --root` (batch mode) |
+| **Версия** | **`0.4.0`** (Detect v2 exit: D4.4 done) |
+| **Веха** | **Detect v2 → 0.4.0 ✅ CLOSED**; далее Beta → 0.5.0 |
+| **Следующий этап** | **B1** — TUI skeleton (Beta) |
+| **Предыдущий** | D4.4 wiki + E2E = Detect v2 exit |
 
 ```text
-MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ (D1–D3 ✅, D4.1–D4.3 ✅; D4.4 remaining) → Beta 0.5.0 → RC 0.9.0 → 1.0.0
+MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
 ```
 
 ---
@@ -42,7 +42,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ (D1–D3 ✅, D4.1–D
 [x] D4.1 batch raid design (--root vs --project)   → дизайн-only (без bump)
 [x] D4.2 facade raid_batch                         → 0.3.8 (impl, без bump)
 [x] D4.3 CLI racc raid --root                      → 0.3.9
-[ ] D4.4 wiki + E2E = Detect v2 EXIT               → 0.4.0
+[x] D4.4 wiki + E2E = Detect v2 EXIT               → 0.4.0
 ```
 
 Спеки: `docs/detect/detect-v2-index.md` и `d1.*` / `d2.*` / `d3.*` / `d4.*`.
@@ -87,6 +87,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ (D1–D3 ✅, D4.1–D
 | 2026-08-25 | **D4.1** batch raid design — design-only (sequential, continue-on-error, --only/--limit/--fail-fast, --project/--root mutual exclusion). Без bump. Готово к D4.2 facade. |
 | 2026-08-25 | **D4.2** facade raid_batch — `app/raid/batch.rs` (174 строк): raid_batch() + types. find_candidates → filter → per-project raid(). 7 tests B1–B7 green. |
 | 2026-08-25 | **Release sync: 0.3.9** — D4.3 CLI `racc raid --root` (batch mode) closed. Version bump: Cargo.toml/README/VERSION_ROADMAP/roadmap-v1/WORKLOG/wiki. |
+| 2026-08-25 | **Release sync: 0.4.0** — D4.4 Detect v2 exit (wiki + E2E). Version bump: Cargo.toml/README/VERSION_ROADMAP/roadmap-v1/WORKLOG/wiki (roadmap, facade-api, introduction). **Detect v2 phase COMPLETE. Next: Beta.** |
 
 ---
 

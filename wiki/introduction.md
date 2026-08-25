@@ -49,14 +49,16 @@ What you can use today, and what follows next:
 - `racc stash` — moving secrets into encrypted age archives;
 - `racc rinse` — cleaning build trash according to strategies;
 - `racc pack` — packing a project into a `tar.zst` without secrets or trash, into the den;
-- `racc raid` — the full cycle in one command (stash → rinse → pack → move);
+- `racc raid` — the full cycle in one command (stash → rinse → pack → move); `--root` for batch mode across all projects;
+- `--detect-mode` — composite DAG stack detection for monorepositories;
 - `-v/--verbose` — detailed logs without secrets.
 
 The full catalog of supported markers, secrets, and deny rules is on the [Supported](/supported) page.
 
-**Coming soon (Detect v2):**
+**Coming soon (Beta 0.5.x):**
 
-- a stack tree for monorepositories and hybrid projects.
+- TUI (Ratatui) — interactive terminal interface;
+- Desktop (Tauri + React) — desktop application.
 
 ## Key security principles
 

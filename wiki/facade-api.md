@@ -285,7 +285,7 @@ Behavior:
 - Per-project raid errors are captured as `RaidBatchOutcome::Error` and do not abort the batch unless `stop_on_project_failure: true`.
 - `DryRun` / `Commit` behavior follows the embedded `RaidOptions`.
 
-**Status: implemented.** Facade only (no CLI command yet).
+**Status: implemented.** CLI: `racc raid --root`.
 
 ## Reports and data
 
@@ -325,7 +325,7 @@ After each raid a manifest is written to `den/manifests/{yyyy}/{mm}/`. Example (
   "stash_manifest": [
     { "original_path": "/home/user/DEV/PROJS/my-api/.env", "risk": "High", "size_bytes": 412 }
   ],
-  "tool": { "name": "raccpack", "core_version": "0.3.9" }
+  "tool": { "name": "raccpack", "core_version": "0.4.0" }
 }
 ```
 

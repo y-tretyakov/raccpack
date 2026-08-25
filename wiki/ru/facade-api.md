@@ -285,7 +285,7 @@ pub fn raid_batch(
 - Ошибки отдельных проектов попадают в `RaidBatchOutcome::Error` и не прерывают пакет, если `stop_on_project_failure: true`.
 - Поведение `DryRun` / `Commit` определяется вложенным `RaidOptions`.
 
-**Статус: реализовано.** Только facade (CLI-команды пока нет).
+**Статус: реализовано.** CLI: `racc raid --root`.
 
 ## Отчёты и данные
 
@@ -325,7 +325,7 @@ pub fn raid_batch(
   "stash_manifest": [
     { "original_path": "/home/user/DEV/PROJS/my-api/.env", "risk": "High", "size_bytes": 412 }
   ],
-  "tool": { "name": "raccpack", "core_version": "0.3.4" }
+  "tool": { "name": "raccpack", "core_version": "0.4.0" }
 }
 ```
 
