@@ -121,42 +121,18 @@ jobs:
         run: |
           VERSION="${{ inputs.tag }}"
           VERSION="${VERSION#v}"
-          ARCH=${{ matrix.arch }}
           BIN="target/${{ matrix.target }}/release/racc"
-          SRCDIR=$(mktemp -d)
-          BUILDRoot=$(mktemp -d)
-          mkdir -p "${SRCDIR}/usr/bin"
-          cp "$BIN" "${SRCDIR}/usr/bin/racc"
-          chmod 755 "${SRCDIR}/usr/bin/racc"
-          sudo apt-get install -y -qq rpm 2>/dev/null
-          rpmbuild -bb \
-            --define "_topdir /tmp/rpmbuild" \
-            --define "version ${VERSION}" \
-            --define "arch ${ARCH}" \
-            --buildroot "${BUILDRoot}" \
-            --define "srcdir ${SRCDIR}" \
-            /dev/stdin <<SPEC 2>/dev/null || true
-          Name:           raccpack
-          Version:        %{version}
-          Release:        1
-          Summary:        Secrets archiver and project packer
-          License:        MIT OR Apache-2.0
-          BuildArch:      %{arch}
-
-          %description
-          Scans project directories for secrets, archives them with age encryption,
-          cleans build artifacts, and packs projects into den storage.
-
-          %install
-          mkdir -p %{buildroot}/usr/bin
-          cp %{srcdir}/usr/bin/racc %{buildroot}/usr/bin/racc
-          chmod 755 %{buildroot}/usr/bin/racc
-
-          %files
-          /usr/bin/racc
-          SPEC
-          find /tmp/rpmbuild/RPMS -name "*.rpm" -exec cp {} . \; 2>/dev/null || true
-          rm -rf "${SRCDIR}" "${BUILDRoot}" /tmp/rpmbuild
+          sudo apt-get install -y -qq ruby 2>/dev/null
+          sudo gem install fpm --no-document 2>/dev/null
+          fpm -s dir -t rpm \
+            -n raccpack \
+            -v "${VERSION}" \
+            --architecture "${{ matrix.arch }}" \
+            --description "Secrets archiver and project packer" \
+            --license "MIT OR Apache-2.0" \
+            --url "https://y-tretyakov.github.io/raccpack/" \
+            -p "raccpack-${VERSION}-1.${{ matrix.arch }}.rpm" \
+            "${BIN}=/usr/bin/racc"
 
       - name: Upload rpm
         uses: actions/upload-artifact@v4
