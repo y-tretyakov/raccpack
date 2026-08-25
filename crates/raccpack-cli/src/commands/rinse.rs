@@ -3,7 +3,8 @@
 use std::process::ExitCode;
 
 use raccpack_core::{
-    rinse, AppContext, NullProgress, RinseOptions, RunMode, SecretExitPolicy, WorkspacePaths,
+    resolve_stack_tree, rinse, AppContext, NullProgress, RinseOptions, RunMode, SecretExitPolicy,
+    SniffOptions, WorkspacePaths,
 };
 
 use crate::cli::{GlobalOpts, RinseArgs};
@@ -44,6 +45,9 @@ pub fn run_rinse(global: GlobalOpts, args: RinseArgs) -> Result<ExitCode, CliErr
         exit_policy: SecretExitPolicy::FailOnCritical,
     };
 
+    // Resolve DAG stack_tree via targeted sniff (no-op in priority_table mode).
+    let stack_tree = resolve_stack_tree(&ctx, &project, &SniffOptions::default());
+
     let opts = RinseOptions {
         target: project.clone(),
         strategies: if strategy.is_empty() {
@@ -53,6 +57,7 @@ pub fn run_rinse(global: GlobalOpts, args: RinseArgs) -> Result<ExitCode, CliErr
         },
         include_custom_patterns: false,
         collect_only: false,
+        stack_tree,
     };
     let mut progress = NullProgress;
     let result = rinse(&ctx, &opts, &mut progress)?;

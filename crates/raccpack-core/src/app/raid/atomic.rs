@@ -23,6 +23,7 @@ use std::path::{Path, PathBuf};
 use crate::app::context::AppContext;
 use crate::app::pack::{pack, PackOptions, PackResult};
 use crate::app::progress::ProgressSink;
+use crate::app::resolve::resolve_stack_tree;
 use crate::app::rinse::{remove_trash_dirs, rinse, RinseOptions, RinseResult};
 use crate::app::stash::{stash, AgeIdentity, StashOptions, StashResult};
 use crate::den::{create_dir_all, ensure_den, move_archive, short_id};
@@ -276,11 +277,13 @@ fn run_atomic_rinse_phase(
     opts: &RaidOptions,
     progress: &mut dyn ProgressSink,
 ) -> Result<RinseResult> {
+    let stack_tree = resolve_stack_tree(ctx, &opts.project, &crate::SniffOptions::default());
     let rinse_opts = RinseOptions {
         target: opts.project.clone(),
         strategies: None,
         include_custom_patterns: false,
         collect_only: true,
+        stack_tree,
     };
     rinse(ctx, &rinse_opts, progress)
 }

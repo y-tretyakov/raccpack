@@ -1,20 +1,20 @@
 import { defineConfig } from 'vitepress'
 import type { DefaultTheme } from 'vitepress'
 
-const rus = {
+const en = {
   nav: [
-    { text: 'Введение', link: '/introduction' },
+    { text: 'Introduction', link: '/introduction' },
     {
-      text: 'Начало работы',
+      text: 'Getting started',
       items: [
-        { text: 'Установка', link: '/installation' },
-        { text: 'Быстрый старт', link: '/quick-start' },
+        { text: 'Installation', link: '/installation' },
+        { text: 'Quick start', link: '/quick-start' },
       ],
     },
     {
-      text: 'Использование',
+      text: 'Usage',
       items: [
-        { text: 'Использование CLI', link: '/cli-usage' },
+        { text: 'CLI usage', link: '/cli-usage' },
         { text: 'Sniff', link: '/sniff' },
         { text: 'Dig', link: '/dig' },
         { text: 'Pack', link: '/pack' },
@@ -22,39 +22,39 @@ const rus = {
         { text: 'Rinse', link: '/rinse' },
         { text: 'Raid', link: '/raid' },
         { text: 'Init', link: '/init' },
-        { text: 'Git, init и DX', link: '/git-and-dx' },
-        { text: 'Конфигурация', link: '/configuration' },
-        { text: 'Cookbook — сценарии и скрипты', link: '/cookbook' },
+        { text: 'Git, init & DX', link: '/git-and-dx' },
+        { text: 'Configuration', link: '/configuration' },
+        { text: 'Cookbook — scenarios & scripts', link: '/cookbook' },
         { text: 'TUI', link: '/tui-usage' },
         { text: 'Desktop', link: '/desktop-usage' },
       ],
     },
     {
-      text: 'Справочник',
+      text: 'Reference',
       items: [
-        { text: 'Основные понятия', link: '/concepts' },
-        { text: 'Что поддерживается', link: '/supported' },
-        { text: 'Архитектура', link: '/architecture' },
+        { text: 'Concepts', link: '/concepts' },
+        { text: 'Supported catalog', link: '/supported' },
+        { text: 'Architecture', link: '/architecture' },
         { text: 'Facade API', link: '/facade-api' },
       ],
     },
-    { text: 'Дорожная карта', link: '/roadmap' },
-    { text: 'Устранение неполадок', link: '/troubleshooting' },
+    { text: 'Roadmap', link: '/roadmap' },
+    { text: 'Troubleshooting', link: '/troubleshooting' },
   ],
   sidebar: [
     {
-      text: 'Введение',
-      items: [{ text: 'Введение', link: '/introduction' }],
+      text: 'Introduction',
+      items: [{ text: 'Introduction', link: '/introduction' }],
     },
     {
-      text: 'Начало работы',
+      text: 'Getting started',
       items: [
-        { text: 'Установка', link: '/installation' },
-        { text: 'Быстрый старт', link: '/quick-start' },
+        { text: 'Installation', link: '/installation' },
+        { text: 'Quick start', link: '/quick-start' },
       ],
     },
     {
-      text: 'Использование',
+      text: 'Usage',
       items: [
         { text: 'CLI', link: '/cli-usage' },
         { text: 'Sniff', link: '/sniff' },
@@ -64,50 +64,115 @@ const rus = {
         { text: 'Rinse', link: '/rinse' },
         { text: 'Raid', link: '/raid' },
         { text: 'Init', link: '/init' },
-        { text: 'Git, init и DX', link: '/git-and-dx' },
-        { text: 'Конфигурация', link: '/configuration' },
-        { text: 'Cookbook — сценарии и скрипты', link: '/cookbook' },
+        { text: 'Git, init & DX', link: '/git-and-dx' },
+        { text: 'Configuration', link: '/configuration' },
+        { text: 'Cookbook — scenarios & scripts', link: '/cookbook' },
         { text: 'TUI', link: '/tui-usage' },
         { text: 'Desktop', link: '/desktop-usage' },
       ],
     },
     {
-      text: 'Справочник',
+      text: 'Reference',
       items: [
-        { text: 'Основные понятия', link: '/concepts' },
-        { text: 'Что поддерживается', link: '/supported' },
-        { text: 'Архитектура', link: '/architecture' },
+        { text: 'Concepts', link: '/concepts' },
+        { text: 'Supported catalog', link: '/supported' },
+        { text: 'Architecture', link: '/architecture' },
         { text: 'Facade API', link: '/facade-api' },
       ],
     },
-    { text: 'Дорожная карта', link: '/roadmap' },
-    { text: 'Устранение неполадок', link: '/troubleshooting' },
+    { text: 'Roadmap', link: '/roadmap' },
+    { text: 'Troubleshooting', link: '/troubleshooting' },
   ],
 } satisfies DefaultTheme.Config
 
-const eng = {
+const rus = {
   nav: [
-    { text: 'Introduction', link: '/en/introduction' },
-    { text: 'Supported', link: '/en/supported' },
-    { text: 'Русская версия', link: '/' },
+    { text: 'Введение', link: '/ru/introduction' },
+    {
+      text: 'Начало работы',
+      items: [
+        { text: 'Установка', link: '/ru/installation' },
+        { text: 'Быстрый старт', link: '/ru/quick-start' },
+      ],
+    },
+    {
+      text: 'Использование',
+      items: [
+        { text: 'Использование CLI', link: '/ru/cli-usage' },
+        { text: 'Sniff', link: '/ru/sniff' },
+        { text: 'Dig', link: '/ru/dig' },
+        { text: 'Pack', link: '/ru/pack' },
+        { text: 'Stash', link: '/ru/stash' },
+        { text: 'Rinse', link: '/ru/rinse' },
+        { text: 'Raid', link: '/ru/raid' },
+        { text: 'Init', link: '/ru/init' },
+        { text: 'Git, init и DX', link: '/ru/git-and-dx' },
+        { text: 'Конфигурация', link: '/ru/configuration' },
+        { text: 'Cookbook — сценарии и скрипты', link: '/ru/cookbook' },
+        { text: 'TUI', link: '/ru/tui-usage' },
+        { text: 'Desktop', link: '/ru/desktop-usage' },
+      ],
+    },
+    {
+      text: 'Справочник',
+      items: [
+        { text: 'Основные понятия', link: '/ru/concepts' },
+        { text: 'Что поддерживается', link: '/ru/supported' },
+        { text: 'Архитектура', link: '/ru/architecture' },
+        { text: 'Facade API', link: '/ru/facade-api' },
+      ],
+    },
+    { text: 'Дорожная карта', link: '/ru/roadmap' },
+    { text: 'Устранение неполадок', link: '/ru/troubleshooting' },
   ],
   sidebar: [
     {
-      text: 'First steps',
-      items: [{ text: 'Introduction', link: '/en/introduction' }],
+      text: 'Введение',
+      items: [{ text: 'Введение', link: '/ru/introduction' }],
     },
     {
-      text: 'Reference',
-      items: [{ text: 'Supported', link: '/en/supported' }],
+      text: 'Начало работы',
+      items: [
+        { text: 'Установка', link: '/ru/installation' },
+        { text: 'Быстрый старт', link: '/ru/quick-start' },
+      ],
     },
+    {
+      text: 'Использование',
+      items: [
+        { text: 'CLI', link: '/ru/cli-usage' },
+        { text: 'Sniff', link: '/ru/sniff' },
+        { text: 'Dig', link: '/ru/dig' },
+        { text: 'Pack', link: '/ru/pack' },
+        { text: 'Stash', link: '/ru/stash' },
+        { text: 'Rinse', link: '/ru/rinse' },
+        { text: 'Raid', link: '/ru/raid' },
+        { text: 'Init', link: '/ru/init' },
+        { text: 'Git, init и DX', link: '/ru/git-and-dx' },
+        { text: 'Конфигурация', link: '/ru/configuration' },
+        { text: 'Cookbook — сценарии и скрипты', link: '/ru/cookbook' },
+        { text: 'TUI', link: '/ru/tui-usage' },
+        { text: 'Desktop', link: '/ru/desktop-usage' },
+      ],
+    },
+    {
+      text: 'Справочник',
+      items: [
+        { text: 'Основные понятия', link: '/ru/concepts' },
+        { text: 'Что поддерживается', link: '/ru/supported' },
+        { text: 'Архитектура', link: '/ru/architecture' },
+        { text: 'Facade API', link: '/ru/facade-api' },
+      ],
+    },
+    { text: 'Дорожная карта', link: '/ru/roadmap' },
+    { text: 'Устранение неполадок', link: '/ru/troubleshooting' },
   ],
 } satisfies DefaultTheme.Config
 
 export default defineConfig({
-  lang: 'ru-RU',
   title: 'raccpack',
   description:
-    'Инструмент для поиска секретов, очистки мусора сборки и упаковки проектов в защищённое хранилище den.',
+    'Tool for scanning projects, finding secrets, cleaning build trash, and packing projects into a den.',
   base: '/raccpack/',
   cleanUrls: false,
   head: [
@@ -122,18 +187,32 @@ export default defineConfig({
   markdown: {
     lineNumbers: true,
     container: {
-      tipLabel: 'СОВЕТ',
-      warningLabel: 'ПРЕДУПРЕЖДЕНИЕ',
-      dangerLabel: 'ОПАСНОСТЬ',
-      infoLabel: 'ИНФО',
-      detailsLabel: 'Дополнительно'
+      tipLabel: 'TIP',
+      warningLabel: 'WARNING',
+      dangerLabel: 'DANGER',
+      infoLabel: 'INFO',
+      detailsLabel: 'Details'
     }
   },
   locales: {
     root: {
+      label: 'English',
+      lang: 'en-US',
+      link: '/',
+      title: 'raccpack',
+      description:
+        'Tool for scanning projects, finding secrets, cleaning build trash, and packing projects into a den.',
+      themeConfig: {
+        ...en,
+        outline: { label: 'On this page' },
+        docFooter: { prev: 'Previous page', next: 'Next page' },
+        lastUpdated: { text: 'Last updated' },
+      },
+    },
+    ru: {
       label: 'Русский',
       lang: 'ru-RU',
-      link: '/',
+      link: '/ru/',
       title: 'raccpack',
       description:
         'Инструмент для поиска секретов, очистки мусора сборки и упаковки проектов в защищённое хранилище den.',
@@ -142,20 +221,6 @@ export default defineConfig({
         outline: { label: 'На этой странице' },
         docFooter: { prev: 'Предыдущая страница', next: 'Следующая страница' },
         lastUpdated: { text: 'Обновлено' },
-      },
-    },
-    en: {
-      label: 'English',
-      lang: 'en-US',
-      link: '/en/',
-      title: 'raccpack',
-      description:
-        'Tool for scanning projects, finding secrets, cleaning build trash, and packing projects into a den.',
-      themeConfig: {
-        ...eng,
-        outline: { label: 'On this page' },
-        docFooter: { prev: 'Previous page', next: 'Next page' },
-        lastUpdated: { text: 'Last updated' },
       },
     },
   },

@@ -1,9 +1,9 @@
 # Raccpack — roadmap до 1.0.0
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
-**Текущая точка:** MVP 0.1.0 закрыт; Alpha A1–A3 закрыты (stash/rinse/raid доступны), идёт A4 (git/DX): A4.1–A4.2 закрыты.  
-**Текущая версия:** `0.3.0` — сверять `docs/VERSION_ROADMAP.md`.
+**Текущая точка:** Alpha 0.3.0 закрыт; **Detect v2 0.4.0 закрыт** (D1–D4 all ✅). Далее Beta.
 
+**Текущая версия:** `0.4.0` — сверять `docs/VERSION_ROADMAP.md`.
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
 
 Версионирование до 1.0.0 — **0.x** (ломающие изменения API допустимы).  
@@ -17,7 +17,7 @@
 |------|-------------------|--------|
 | **MVP** | 0.1.x | Минимальный полезный цикл: sniff → dig → pack → den (закрыт) |
 | **Alpha** | 0.2.x–0.3.x | Полный raid (атомарный) + age-stash + rinse; CLI feature-complete для headless |
-| **Detect v2** | 0.4.x | Композитные детекторы / DAG для монорепо (между Alpha и Beta) |
+| **Detect v2** | 0.4.x | Композитные детекторы / DAG для монорепо + batch raid по scan root (между Alpha и Beta) |
 | **Beta** | 0.5.x | TUI; Desktop; ephemeral reveal; hardening безопасности |
 | **RC** | 0.9.x | Заморозка API/den; полировка; нагрузка и регрессии |
 | **Stable** | **1.0.0** | Документация, политика поддержки, tag |
@@ -110,23 +110,37 @@
 
 ## Фаза D1 — Реестр и контракт детекторов
 
-- D1.1 — Trait `StackDetector` + внутренний реестр модулей (сохранить текущую модульность «один язык ≈ один модуль»).
-- D1.2 — `Detection` / `StackNode` DTO (markers, confidence, scope).
-- D1.3 — Config / CLI: `detect.mode = priority_table | composite_dag` (default пока `priority_table`).
+- D1.1 — Trait `StackDetector` + внутренний реестр модулей (сохранить текущую модульность «один язык ≈ один модуль»). ✅ **0.3.1**
+- D1.2 — `Detection` / `StackNode` DTO (markers, confidence, scope). ✅ **0.3.2**
+- D1.3 — Config / CLI: `detect.mode = priority_table | composite_dag` (default пока `priority_table`). ✅ **0.3.3**
 
 ## Фаза D2 — Workspace / Composite detector
 
-- D2.1 — `WorkspaceDetector`: опрашивает все модули, строит направленный граф (DAG) технологий.
-- D2.2 — Фаза разрешения конфликтов: слияние экспертных мнений в богатое дерево проекта (не «один победитель»).
-- D2.3 — Обратная совместимость: плоский `stack: String` остаётся в JSON; добавляется `stack_tree`.
+- D2.1 — `WorkspaceDetector`: опрашивает все модули, строит направленный граф (DAG) технологий. ✅ **0.3.4** (`composite_dag` исполняется в `sniff`, experimental)
+- D2.2 — Фаза разрешения конфликтов: слияние экспертных мнений в богатое дерево проекта (не «один победитель»). ✅ **0.3.5** (политика в `detect::merge`; правила 1–5 в rustdoc)
+- D2.3 — Обратная совместимость: плоский `stack: String` остаётся в JSON; добавляется `stack_tree` + indent tree render в composite_dag human output. ✅ **0.3.6** (PR #97; D2 phase closed)
 
 ## Фаза D3 — Влияние на rinse / pack / sniff
 
-- D3.1 — `rinse` использует DAG: чистит `target/` только в Rust-поддеревьях, `node_modules/` — в Node и т.д.
-- D3.2 — `sniff` выводит дерево/DAG при `--detect-mode=dag` или в JSON.
-- D3.3 — Фикстуры монорепо (Rust+Node, Python+JS …) + тесты.
+- D3.1 — `rinse` использует DAG: чистит `target/` только в Rust-поддеревьях, `node_modules/` — в Node и т.д. ✅ **0.3.7**
+- D3.2 — `sniff` выводит дерево/DAG при `--detect-mode=dag` или в JSON. ✅ **0.3.8**
+- D3.3 — Фикстуры монорепо (Rust+Node, Python+JS …) + тесты. ✅ **0.3.8** (D3 phase done)
 
-**Detect v2 exit criteria:** на типичном monorepo `sniff` показывает корректное дерево; `rinse` удаляет только релевантный мусор; legacy PriorityTable продолжает работать.
+**Фаза D3 закрыта.**
+
+## Фаза D4 — Batch raid по scan root
+
+Убирает обязательный shell-цикл для multi-project raid: один вызов проходит весь scan root, **каждый** проект — отдельный raid (свои secrets + pack).
+
+- D4.1 — Design: `--root` vs `--project`; 1 project = 1 raid; sequential; continue-on-error (docs, без bump). ✅ design-only
+- D4.2 — Core: `raid_batch()` поверх sniff list + `raid()`. ✅ 0.3.8 (impl, без bump)
+- D4.3 — CLI: `racc raid --root` + `--only`/`--limit`/`--stop-on-error`. ✅ **0.3.9**
+- D4.3 — CLI: `racc raid --root` (+ `--only` / `--limit` / `--stop-on-error`).
+- D4.4 — Wiki + E2E = **Detect v2 exit 0.4.0**. ✅
+
+**Detect v2 exit criteria:** на типичном monorepo `sniff` показывает корректное дерево; `rinse` удаляет только релевантный мусор; legacy PriorityTable продолжает работать; `racc raid --root` прогоняет все проекты root'а батчем.
+
+**Detect v2 phase: DONE.**
 
 ---
 
@@ -225,7 +239,7 @@
 ```text
 MVP        M1 workspace/DTO/config  →  M2 sniff  →  M3 dig  →  M4 pack+den          ✅ 0.1.0
 Alpha      A1 stash/age ✅  →  A2 rinse ✅  →  A3 raid+atomic  →  A4 git+CI          → 0.3.0
-Detect v2  D1 registry  →  D2 composite DAG  →  D3 rinse/sniff impact               → 0.4.x
+Detect v2  D1 ✅  →  D2 ✅  →  D3 ✅  →  D4 ✅                                          → 0.4.0 ✅
 Beta       B1 TUI  →  B2 Desktop+reveal  →  B3 security+reveal  →  B4 den gc + docs → 0.5.0
 RC         R1 freeze  →  R2 quality  →  R3 UX  →  R4 validation                     → 0.9.x
 Stable     S1 release 1.0.0

@@ -1,81 +1,82 @@
 ---
-title: Дорожная карта
-description: Как raccpack развивается к версии 1.0.0 — что уже доступно, что в разработке и что планируется.
+title: Roadmap
+description: How raccpack is evolving toward version 1.0.0 — what is already available, what is in development, and what is planned.
 ---
 
-# Дорожная карта
+# Roadmap
 
-Как raccpack развивается к версии 1.0.0 — и что вы можете использовать уже сегодня.
+How raccpack is evolving toward version 1.0.0 — and what you can use today.
 
 ::: info
-Текущая версия: **0.3.0** — **Alpha завершена** (stash / rinse / raid / init / git+DX доступны).
-Сроки ориентировочные. Статус «доступно» означает, что функциональность можно использовать в текущей версии из исходников.
+Current version: **0.4.0** — Alpha complete; Detect v2 complete (D1 ✅; D2 ✅; D3 ✅; D4 ✅ wiki + E2E + batch raid).
+Dates are approximate. "Available" status means the functionality can be used in the current version built from source.
 :::
 
-## Уже доступно (MVP + Alpha)
+## Already available (MVP + Alpha)
 
-- [x] Рабочий workspace: ядро + CLI `racc`.
-- [x] `racc sniff` — поиск проектов по маркерам, определение стека, размеры, кэш.
-- [x] `racc dig` — поиск секретов по именам и содержимому, маскирование, риск, политика выхода.
-- [x] `racc pack` — упаковка проекта в `tar.zst` (dry-run по умолчанию, commit с `--yes`), исключение секретов по имени и содержимому.
-- [x] `racc stash` — вынос секретов в age-архивы (passphrase, zeroize), dry-run по умолчанию.
-- [x] `racc rinse` — очистка мусора сборки по стратегиям (dry-run по умолчанию, commit с `--yes`).
-- [x] `racc raid` — полный цикл одной командой (atomic: staging + WAL + rollback; манифесты JSON; exit 1 при `!success`).
-- [x] Структура den: раскладка `packs/{yyyy}/{mm}/`, `.den-version`, безопасное именование.
-- [x] Полный E2E-цикл MVP: sniff → dig → pack → den.
-- [x] Git-статус файлов в отчёте `dig` (`git_status`).
-- [x] `racc init` — стартовый конфиг (`config_version = 1`) и скелет den (`--ensure-den`); авто-миграция конфигов v0 → v1 при загрузке.
-- [x] Логи tracing без секретов и глобальный `--verbose` (`-v`/`-vv`/`-vvv`, логи в stderr, `RUST_LOG` имеет приоритет).
-- [x] Интеграционные тесты и CI (`cargo test` / fmt / clippy на каждый push и PR).
+- [x] Working workspace: core + CLI `racc`.
+- [x] `racc sniff` — project discovery by markers, stack detection, sizes, cache.
+- [x] `racc dig` — secret detection by name and content, masking, risk, exit-code policy.
+- [x] `racc pack` — packing a project into `tar.zst` (dry-run by default, commit with `--yes`), excluding secrets by name and content.
+- [x] `racc stash` — moving secrets into age archives (passphrase, zeroize), dry-run by default.
+- [x] `racc rinse` — cleaning build trash according to strategies (dry-run by default, commit with `--yes`).
+- [x] `racc raid` — the full cycle in one command (atomic: staging + WAL + rollback; JSON manifests; exit 1 on `!success`).
+- [x] Den structure: `packs/{yyyy}/{mm}/` layout, `.den-version`, safe naming.
+- [x] Full MVP E2E cycle: sniff → dig → pack → den.
+- [x] Git status of files in the `dig` report (`git_status`).
+- [x] `racc init` — starter config (`config_version = 1`) and den skeleton (`--ensure-den`); config auto-migration v0 → v1 at load time.
+- [x] Secret-free tracing logs and a global `--verbose` (`-v`/`-vv`/`-vvv`, logs to stderr, `RUST_LOG` takes precedence).
+- [x] Integration tests and CI (`cargo test` / fmt / clippy on every push and PR).
 
-## Планируется (Detect v2 0.4.x)
+## Already available (Detect v2 0.4.x)
 
-- [ ] Композитные детекторы стека (DAG) для монорепозиториев и гибридных проектов.
-- [ ] Дерево стека в `sniff` (`--detect-mode=dag`), обратная совместимость плоского `stack`.
-- [ ] `rinse` по DAG-скоупам — очистка мусора только в релевантных поддеревьях.
+- [x] Composite stack detectors (DAG) for monorepositories and hybrid projects.
+- [x] Stack tree in `sniff` (`--detect-mode=dag`), backward-compatible flat `stack`.
+- [x] DAG-scoped `rinse` — cleaning build trash only in relevant subtrees.
+- [x] Batch raid: `racc raid --root` processes all projects in a scan root.
 
-## Планируется (Beta 0.5.x)
+## Planned (Beta 0.5.x)
 
-- [ ] TUI (Ratatui) — интерактивный терминальный интерфейс.
-- [ ] Desktop (Tauri + React) — настольное приложение.
-- [ ] Управление den: `racc den list`, очистка `staging`.
-- [ ] Жёсткая проверка «секретов нет в логах/ошибках».
+- [ ] TUI (Ratatui) — interactive terminal interface.
+- [ ] Desktop (Tauri + React) — desktop application.
+- [ ] Den management: `racc den list`, `staging` cleanup.
+- [ ] Hard verification that "no secrets end up in logs/errors".
 
-## Планируется (RC 0.9.x → 1.0.0)
+## Planned (RC 0.9.x → 1.0.0)
 
-- [ ] Заморозка public API, den layout и CLI exit codes.
-- [ ] Нагрузочное тестирование, кросс-платформенные smoke-тесты.
-- [ ] Автодополнение shell, финальные help-тексты.
-- [ ] Публикация бинарников и документации 1.0.
+- [ ] Freezing the public API, den layout, and CLI exit codes.
+- [ ] Load testing, cross-platform smoke tests.
+- [ ] Shell completion, final help texts.
+- [ ] Publishing binaries and 1.0 documentation.
 
-## Вехи
+## Milestones
 
-| Веха | Версия | Что внутри |
-|------|--------|------------|
+| Milestone | Version | What's inside |
+|-----------|---------|---------------|
 | **MVP** | 0.1.x | sniff → dig → pack → den |
-| **Alpha** | 0.3.x | Полный `raid` (atomic: staging + WAL + rollback, манифесты JSON), age-stash, rinse, git-интеграция, только CLI |
-| **Detect v2** | 0.4.x | Композитные детекторы / DAG для монорепозиториев |
-| **Beta** | 0.5.x | TUI, Desktop, hardening безопасности |
-| **RC** | 0.9.x | Заморозка контрактов, полировка |
-| **Stable** | 1.0.0 | Стабильный публичный API |
+| **Alpha** | 0.3.x | Full `raid` (atomic: staging + WAL + rollback, JSON manifests), age-stash, rinse, git integration, CLI only |
+| **Detect v2** | 0.4.x | Composite detectors / DAG for monorepositories; batch raid `racc raid --root` |
+| **Beta** | 0.5.x | TUI, Desktop, security hardening |
+| **RC** | 0.9.x | Contract freeze, polishing |
+| **Stable** | 1.0.0 | Stable public API |
 
-## Приоритеты и зависимости
+## Priorities and dependencies
 
-- MVP-упаковка не требует age — секреты исключаются по имени.
-- TUI и Desktop появятся только после стабилизации facade-контракта (Alpha).
-- Композитный детект (Detect v2) вклинивается между Alpha и Beta, чтобы TUI/Desktop сразу получили корректное дерево стека.
-- Заморозка API/den — после hardening безопасности (Beta).
-- Между вехами в `main` попадают только релизы; вся разработка идёт в `dev`.
+- MVP packing does not require age — secrets are excluded by name.
+- TUI and Desktop will appear only after the facade contract stabilizes (Alpha).
+- Composite detection (Detect v2) slots in between Alpha and Beta so that TUI/Desktop immediately get a correct stack tree.
+- API/den freeze comes after security hardening (Beta).
+- Between milestones only releases land in `main`; all development happens in `dev`.
 
-## Вне scope до 1.0.0
+## Out of scope until 1.0.0
 
-- Облачный den и удалённая синхронизация.
-- KMS/хранилища секретов как основной бэкенд.
-- Многопользовательский HTTP-сервер.
-- Автоматические PR «удали секреты» и «умный» редактирующий redact.
-- Плагины сторонних наборов правил.
+- Cloud den and remote synchronization.
+- KMS/secret vaults as the primary backend.
+- Multi-user HTTP server.
+- Automatic "remove the secrets" PRs and "smart" editing redaction.
+- Third-party rule-set plugins.
 
-## См. также
+## See also
 
-- [Быстрый старт](/quick-start) — что можно сделать уже сейчас.
-- [Использование CLI](/cli-usage) — доступные команды.
+- [Quick start](/quick-start) — what you can do right now.
+- [CLI usage](/cli-usage) — available commands.

@@ -13,7 +13,7 @@
 |------|-------------|--------|
 | **MVP** | **0.1.0** | sniff → dig → pack → den |
 | **Alpha** | **0.3.0** | atomic raid + stash + rinse + git/DX CLI |
-| **Detect v2** | **0.4.0** | composite DAG |
+| **Detect v2** | **0.4.0** | composite DAG + batch raid (`racc raid --root`) |
 | **Beta** | **0.5.0** | TUI + Desktop + reveal + hardening |
 | **RC** | **0.9.0** | freeze API/den |
 | **Stable** | **1.0.0** | semver-стабильность |
@@ -24,20 +24,20 @@
 
 ## Текущая позиция
 
-> **Сделано до A4.4 включительно** (A1–A4 полностью). **Alpha exit: 0.3.0.**
+> **Detect v2 exit (0.4.0) done.** **Alpha exit: 0.3.0.**
 
 | | |
 |--|--|
-| **Текущая версия workspace** | **`0.3.0`** |
-| Последний этап | **A4.4** — integration + CI (Alpha exit) |
-| Следующий этап | **D1.1** → версия **`0.3.1`** (Detect v2) |
-| Detect v2 exit | после **D3.3** → **`0.4.0`** |
+| **Текущая версия workspace** | **`0.4.0`** |
+| Последний этап | **D4.4** — wiki + E2E = **Detect v2 exit** |
+| Следующий этап | **B1** — TUI (Beta → `0.5.0`) |
+| Detect v2 exit | **`0.4.0`** ✅ (batch raid CLI + wiki + E2E) |
 
 ```text
 0.1.0  MVP
 0.2.0 … 0.2.11  Alpha A1–A3
-0.2.12 … 0.3.0  Alpha A4   ← ВЫ ЗДЕСЬ (0.3.0, Alpha exit)
-0.3.1 …        Detect v2
+0.2.12 … 0.3.0  Alpha A4
+0.3.1 … 0.4.0   Detect v2   ← ВЫ ЗДЕСЬ (0.4.0, D4.4 done; Detect v2 exit)
 0.5.0 …        Beta
 0.9.0 …        RC
 1.0.0          Stable
@@ -109,15 +109,19 @@
 
 | Этап | Версия | Статус | Фича |
 |------|--------|--------|------|
-| D1.1 | **0.3.1** | ⬜ | StackDetector trait + registry |
-| D1.2 | **0.3.2** | ⬜ | Detection / StackNode DTO |
-| D1.3 | **0.3.3** | ⬜ | `detect.mode` config + CLI |
-| D2.1 | **0.3.4** | ⬜ | WorkspaceDetector → tree |
-| D2.2 | **0.3.5** | ⬜ | conflict merge |
-| D2.3 | **0.3.6** | ⬜ | flat stack + stack_tree compat |
-| D3.1 | **0.3.7** | ⬜ | rinse по DAG scopes |
-| D3.2 | **0.3.8** | ⬜ | sniff tree output |
-| D3.3 | **0.4.0** | ⬜ | fixtures + **Detect v2 exit** |
+| D1.1 | **0.3.1** | ✅ | StackDetector trait + registry |
+| D1.2 | **0.3.2** | ✅ | Detection / StackNode DTO |
+| D1.3 | **0.3.3** | ✅ | `detect.mode` config + CLI |
+| D2.1 | **0.3.4** | ✅ | WorkspaceDetector → tree |
+| D2.2 | **0.3.5** | ✅ | conflict merge (`detect::merge`) |
+| D2.3 | **0.3.6** | ✅ | flat stack + stack_tree compat + tree render |
+| D3.1 | **0.3.7** | ✅ | rinse по DAG scopes |
+| D3.2 | **0.3.6** | ✅ | sniff tree output (shipped in D2.3, closed as D3.2) |
+| D3.3 | **0.3.8** | ✅ | fixtures монорепо (D3 phase done) |
+| D4.1 | — | ✅ | batch raid design (`--root` vs `--project`; docs) — design-only (без bump) |
+| D4.2 | **0.3.8** | ✅ | facade `raid_batch` (1 project = 1 raid, sequential, continue-on-error; без bump) |
+| D4.3 | **0.3.9** | ✅ | CLI `racc raid --root` (+ `--only`/`--limit`/`--stop-on-error`) |
+| D4.4 | **0.4.0** | ✅ | wiki + E2E = **Detect v2 exit** |
 
 ---
 
@@ -194,7 +198,7 @@
 ```toml
 # Cargo.toml (workspace)
 [workspace.package]
-version = "0.3.0"
+version = "0.4.0"
 ```
 
 Все crates: `version.workspace = true`.
@@ -209,7 +213,7 @@ version = "0.3.0"
 
 ```bash
 cargo run -p raccpack-cli -- --version
-# raccpack-cli 0.3.0   →  Alpha exit (A4.4)
+# raccpack-cli 0.4.0   →  D4.4 (wiki + E2E, Detect v2 exit)
 ```
 
 | Версия | Значит «есть» |
@@ -224,7 +228,16 @@ cargo run -p raccpack-cli -- --version
 | ≥ 0.2.14 | tracing-логи без секретов + глобальный `--verbose` |
 | ≥ 0.3.0 | **Alpha complete**: integration + CI, MSRV 1.85 |
 | ≥ 0.3.0 | Alpha complete (git, init, -v, CI) |
-| ≥ 0.4.0 | Detect DAG |
+| ≥ 0.3.1 | Detect v2 start: StackDetector trait + detector_registry (внутреннее, без изменений CLI) |
+| ≥ 0.3.2 | Detection / StackNode DTO + Project.stack_tree (аддитивно, JSON back-compat) |
+| ≥ 0.3.3 | `detect.mode` config + `racc sniff --detect-mode` (`composite_dag` = заглушка до D2.x) |
+| ≥ 0.3.4 | Composite DAG pipeline: `sniff --detect-mode composite_dag` заполняет `stack_tree` (experimental) |
+| ≥ 0.3.5 | Merge policy `detect::merge` (nesting, framework union, same-scope merge; внутреннее, без изменений CLI) |
+| ≥ 0.3.6 | Compat flat `stack`/`stack_tree` + indent tree render для `composite_dag` в human sniff output |
+| ≥ 0.3.7 | Rinse по DAG scopes (scoped trash discovery per ecosystem) |
+| ≥ 0.3.8 | D3 phase done + D4.2 facade raid_batch (sniff tree output, fixtures, batch raid core) |
+| ≥ 0.3.9 | CLI `racc raid --root` (D4.3) |
+| ≥ 0.4.0 | **Detect v2 complete**: composite DAG + batch raid CLI + wiki + E2E (D4.4) |
 | ≥ 0.5.0 | TUI + Desktop + reveal |
 
 ---
@@ -245,7 +258,7 @@ cargo run -p raccpack-cli -- --version
 ## Сводка «сейчас»
 
 ```text
-Текущая версия:  0.3.0
-Этап:            A4.4 (integration + CI) — ALPHA EXIT
-Следующий bump:  0.3.1   при закрытии D1.1 (Detect v2)
+Текущая версия:  0.4.0
+Этап:            D4.4 (wiki + E2E) — CLOSED; Detect v2 exit
+Следующий bump:  0.5.0 (Beta exit)
 ```

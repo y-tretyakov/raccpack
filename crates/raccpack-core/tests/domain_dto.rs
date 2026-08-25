@@ -178,6 +178,7 @@ fn sample_project() -> Project {
             frameworks: vec!["Axum".to_string()],
             markers: vec!["Cargo.toml".to_string()],
         },
+        stack_tree: None,
         size_bytes: 4096,
         is_git_repo: true,
     }
@@ -232,6 +233,7 @@ fn scan_report_with_multiple_projects_roundtrips() {
             frameworks: vec![],
             markers: vec![],
         },
+        stack_tree: None,
         size_bytes: 128,
         is_git_repo: false,
     });

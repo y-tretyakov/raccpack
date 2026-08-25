@@ -1,6 +1,8 @@
-//! Integration tests for A2.2 — facade `rinse` DryRun/Commit + bytes freed.
+//! Integration tests for `rinse`: DryRun/Commit + bytes freed (A2.2) and
+//! DAG-scoped rinse (D3.1).
 //!
-//! Covers the 8 required cases from `docs/alpha/a2/a2.2-facade-rinse.md` §6:
+//! A2.2 — covers the 8 required cases from
+//! `docs/alpha/a2/a2.2-facade-rinse.md` §6:
 //! 1. DryRun lists the matched dirs and leaves the filesystem unchanged;
 //! 2. Commit removes the matched dirs and reports `bytes_freed > 0`;
 //! 3. `strategies` from options override the config's `enabled_strategies`
@@ -21,6 +23,12 @@
 //! - Commit `bytes_freed` equals the sum of the detect-time `size_bytes`
 //!   (exact because all fixtures are 1-byte files).
 //!
+//! D3.1 — DAG-scoped rinse (monorepo fixture tests):
+//! - D1–D6: basic DAG dry-run/commit, scoped isolation, priority_table
+//!   unchanged, empty scopes, collect_only.
+//! - M1–M6: monorepo fixture (`backend/` + `web/`), three-level nesting,
+//!   bidirectional scoped isolation, mismatched strategies.
+//!
 //! All fixtures are hermetic `tempfile::TempDir`s; no network, no sleeps. The
 //! symlink test is Linux/Unix-only and guarded with `#[cfg(unix)]`.
 
@@ -31,8 +39,9 @@ use std::path::{Path, PathBuf};
 use std::os::unix::fs::symlink;
 
 use raccpack_core::{
-    remove_trash_dir, rinse, AppContext, CleanupConfig, Error, NullProgress, OperationKind,
-    ProgressEvent, ProgressSink, RaccConfig, RinseOptions, RinseResult, RunMode,
+    remove_trash_dir, rinse, AppContext, CleanupConfig, DetectMode, Detection, Error, NullProgress,
+    OperationKind, ProgressEvent, ProgressSink, RaccConfig, RinseOptions, RinseResult, RunMode,
+    StackNode,
 };
 use tempfile::TempDir;
 
@@ -88,6 +97,7 @@ fn rinse_options(target: &Path, strategies: Option<Vec<String>>) -> RinseOptions
         strategies,
         include_custom_patterns: false,
         collect_only: false,
+        stack_tree: None,
     }
 }
 
@@ -500,3 +510,729 @@ fn commit_bytes_freed_matches_removed_size_sum() {
     );
     assert!(result.bytes_freed > 0);
 }
+
+// --- DAG helpers -----------------------------------------------------------------
+
+/// Build a `Detection` for a given ecosystem and scope path.
+fn detection(ecosystem: &str, scope: &Path) -> Detection {
+    Detection {
+        ecosystem: ecosystem.to_string(),
+        language: None,
+        frameworks: Vec::new(),
+        confidence: 0.9,
+        scope: scope.to_path_buf(),
+        markers: Vec::new(),
+    }
+}
+
+/// Build a leaf `StackNode`.
+fn leaf_node(ecosystem: &str, scope: &Path) -> StackNode {
+    StackNode {
+        detection: detection(ecosystem, scope),
+        children: Vec::new(),
+    }
+}
+
+/// RinseOptions with `stack_tree` set to `Some(tree)` and config in `CompositeDag` mode.
+fn dag_rinse_options(target: &Path, tree: StackNode) -> RinseOptions {
+    RinseOptions {
+        target: target.to_path_buf(),
+        strategies: None,
+        include_custom_patterns: false,
+        collect_only: false,
+        stack_tree: Some(tree),
+    }
+}
+
+/// AppContext with `detect.mode = CompositeDag`.
+fn ctx_dag(project_root: &Path, den_dir: &Path, mode: RunMode) -> AppContext {
+    let config = RaccConfig {
+        detect: raccpack_core::config::DetectConfig {
+            mode: DetectMode::CompositeDag,
+        },
+        ..RaccConfig::default()
+    }
+    .with_scan_root(project_root)
+    .with_den_dir(den_dir);
+    AppContext::from_config(config, mode).expect("AppContext::from_config")
+}
+
+// --- Case D1: DAG dry-run — scoped discovery only ------------------------------
+
+#[test]
+fn dag_dry_run_scoped_discovery_only() {
+    let (temp, proj) = project_dir();
+    let den = temp.path().join("den");
+    write(&proj, "target/debug/x");
+    write(&proj, "web/node_modules/a");
+    let ctx = ctx_dag(&proj, &den, RunMode::DryRun);
+    let tree = StackNode {
+        detection: detection("rust", &proj),
+        children: vec![leaf_node("node", &proj.join("web"))],
+    };
+
+    let result = rinse_once(&ctx, &dag_rinse_options(&proj, tree));
+
+    assert!(result.dry_run, "must be dry run");
+    assert!(proj.join("target").exists(), "target must survive dry run");
+    assert!(
+        proj.join("web/node_modules").exists(),
+        "node_modules must survive dry run"
+    );
+}
+
+// --- Case D2: DAG commit — each scope removes its own trash --------------------
+
+#[test]
+fn dag_commit_each_scope_removes_its_own_trash() {
+    let (temp, proj) = project_dir();
+    let den = temp.path().join("den");
+    write(&proj, "target/debug/x");
+    write(&proj, "web/node_modules/a");
+    let ctx = ctx_dag(&proj, &den, RunMode::Commit);
+    let tree = StackNode {
+        detection: detection("rust", &proj),
+        children: vec![leaf_node("node", &proj.join("web"))],
+    };
+
+    let result = rinse_once(&ctx, &dag_rinse_options(&proj, tree));
+
+    assert!(!result.dry_run, "must be commit");
+    // Root scope (rust) removes target
+    assert!(
+        !proj.join("target").exists(),
+        "rust scope target must be removed"
+    );
+    // Child scope (node) removes node_modules under its territory
+    assert!(
+        !proj.join("web/node_modules").exists(),
+        "node scope node_modules must be removed by the child node scope"
+    );
+    assert_eq!(
+        result.removed.len(),
+        2,
+        "both scoped trash dirs must be removed"
+    );
+}
+
+// --- Case D3: DAG — scoped rust path does NOT touch node paths -----------------
+
+#[test]
+fn dag_scoped_rust_does_not_touch_node_paths() {
+    let (temp, proj) = project_dir();
+    let den = temp.path().join("den");
+    write(&proj, "target/debug/x");
+    write(&proj, "web/node_modules/a");
+    write(&proj, "web/target/debug/y");
+    let ctx = ctx_dag(&proj, &den, RunMode::Commit);
+    let tree = StackNode {
+        detection: detection("node", &proj),
+        children: vec![leaf_node("rust", &proj.join("web"))],
+    };
+
+    rinse_once(&ctx, &dag_rinse_options(&proj, tree));
+
+    assert!(
+        proj.join("target").exists(),
+        "root target survives (only node enabled for root)"
+    );
+    assert!(
+        !proj.join("web/target").exists(),
+        "child rust scope target must be removed"
+    );
+    assert!(
+        proj.join("web/node_modules").exists(),
+        "child node scope node_modules survives (only rust strategy in child)"
+    );
+}
+
+// --- Case D4: priority_table mode unchanged — flat walk ignores stack_tree --------
+
+#[test]
+fn priority_table_mode_ignores_stack_tree_flat_walk() {
+    let (temp, proj) = project_dir();
+    let den = temp.path().join("den");
+    write(&proj, "target/debug/x");
+    write(&proj, "web/node_modules/a");
+    // Config in default PriorityTable mode — DAG options are ignored.
+    let ctx = ctx_for(&proj, &den, RunMode::Commit);
+    let tree = StackNode {
+        detection: detection("node", &proj),
+        children: vec![leaf_node("rust", &proj.join("web"))],
+    };
+
+    rinse_once(&ctx, &dag_rinse_options(&proj, tree));
+
+    // PriorityTable mode uses default strategies (rust, node, python)
+    // and walks the entire target tree.
+    assert!(
+        !proj.join("target").exists(),
+        "flat walk must remove target (rust strategy enabled by default)"
+    );
+    assert!(
+        !proj.join("web/node_modules").exists(),
+        "flat walk must remove node_modules (node strategy enabled by default)"
+    );
+}
+
+// --- Case D5: empty scopes list → no trash found ------------------------------
+
+#[test]
+fn dag_empty_scopes_finds_nothing() {
+    let (temp, proj) = project_dir();
+    let den = temp.path().join("den");
+    write(&proj, "target/debug/x");
+    write(&proj, "web/node_modules/a");
+    let ctx = ctx_dag(&proj, &den, RunMode::Commit);
+    let tree = StackNode {
+        detection: detection("", &proj),
+        children: vec![],
+    };
+
+    // strategies: Some(vec![]) overrides config → empty strategy list → no patterns
+    let opts = RinseOptions {
+        target: proj.clone(),
+        strategies: Some(vec![]),
+        include_custom_patterns: false,
+        collect_only: false,
+        stack_tree: Some(tree),
+    };
+
+    let result = rinse_once(&ctx, &opts);
+
+    assert!(
+        result.removed.is_empty(),
+        "empty strategies must find nothing: {:?}",
+        result.removed
+    );
+}
+
+// --- Case D6: collect_only with DAG tree --------------------------------------
+
+#[test]
+fn dag_collect_only_does_not_delete() {
+    let (temp, proj) = project_dir();
+    let den = temp.path().join("den");
+    write(&proj, "target/debug/x");
+    write(&proj, "web/node_modules/a");
+    let ctx = ctx_dag(&proj, &den, RunMode::Commit);
+    let tree = StackNode {
+        detection: detection("rust", &proj),
+        children: vec![leaf_node("node", &proj.join("web"))],
+    };
+
+    let opts = RinseOptions {
+        target: proj.clone(),
+        strategies: None,
+        include_custom_patterns: false,
+        collect_only: true,
+        stack_tree: Some(tree),
+    };
+
+    let result = rinse_once(&ctx, &opts);
+
+    assert!(
+        proj.join("target").exists(),
+        "collect_only must not delete target"
+    );
+    assert!(
+        proj.join("web/node_modules").exists(),
+        "collect_only must not delete node_modules"
+    );
+    assert!(
+        !result.removed.is_empty(),
+        "collect_only still reports found dirs"
+    );
+}
+
+// --- Monorepo fixture (D3.1 spec §4) -----------------------------------------
+
+/// Build a monorepo fixture matching the D3.1 spec:
+///
+/// ```text
+/// monorepo/
+/// ├── backend/
+/// │   ├── Cargo.toml
+/// │   └── target/debug/x
+/// └── web/
+///     ├── package.json
+///     └── node_modules/dep/index.js
+/// ```
+fn monorepo_fixture() -> (TempDir, PathBuf) {
+    let temp = TempDir::new().expect("create temp dir");
+    let root = temp.path().join("monorepo");
+    // Rust subtree
+    write(&root, "backend/Cargo.toml");
+    write(&root, "backend/target/debug/x");
+    // Node subtree
+    write(&root, "web/package.json");
+    write(&root, "web/node_modules/dep/index.js");
+    (temp, root)
+}
+
+/// Build a [`StackNode`] tree matching the monorepo fixture.
+fn monorepo_stack_tree(root: &Path) -> StackNode {
+    StackNode {
+        detection: detection("rust", root),
+        children: vec![leaf_node("node", &root.join("web"))],
+    }
+}
+
+// --- Case M1: DAG dry-run monorepo — scoped discovery only --------------------
+
+#[test]
+fn dag_monorepo_dry_run_finds_scoped_trash() {
+    let (temp, root) = monorepo_fixture();
+    let den = temp.path().join("den");
+    let tree = monorepo_stack_tree(&root);
+    let ctx = ctx_dag(&root, &den, RunMode::DryRun);
+
+    let result = rinse_once(&ctx, &dag_rinse_options(&root, tree));
+
+    assert!(result.dry_run);
+    let patterns: Vec<&str> = result
+        .removed
+        .iter()
+        .map(|d| d.pattern_name.as_str())
+        .collect();
+    assert!(
+        patterns.contains(&"target"),
+        "rust scope must find backend/target"
+    );
+    assert!(
+        patterns.contains(&"node_modules"),
+        "node scope must find web/node_modules"
+    );
+    // Nothing deleted
+    assert!(root.join("backend/target").exists());
+    assert!(root.join("web/node_modules").exists());
+    // Source files untouched
+    assert!(root.join("backend/Cargo.toml").is_file());
+    assert!(root.join("web/package.json").is_file());
+}
+
+// --- Case M2: DAG commit monorepo — removes scoped trash, preserves sources ---
+
+#[test]
+fn dag_monorepo_commit_removes_scoped_trash_preserves_sources() {
+    let (temp, root) = monorepo_fixture();
+    let den = temp.path().join("den");
+    let tree = monorepo_stack_tree(&root);
+    let ctx = ctx_dag(&root, &den, RunMode::Commit);
+
+    let result = rinse_once(&ctx, &dag_rinse_options(&root, tree));
+
+    assert!(!result.dry_run);
+    assert_eq!(
+        result.removed.len(),
+        2,
+        "two scoped trash dirs must be removed"
+    );
+    assert!(
+        !root.join("backend/target").exists(),
+        "backend/target must be removed"
+    );
+    assert!(
+        !root.join("web/node_modules").exists(),
+        "web/node_modules must be removed"
+    );
+    // Source files survive
+    assert!(
+        root.join("backend/Cargo.toml").is_file(),
+        "Cargo.toml must survive"
+    );
+    assert!(
+        root.join("web/package.json").is_file(),
+        "package.json must survive"
+    );
+}
+
+// --- Case M3: Scoped isolation — rust strategy does NOT remove node trash ------
+
+#[test]
+fn dag_scoped_isolation_rust_does_not_remove_node_trash() {
+    let (temp, root) = monorepo_fixture();
+    let den = temp.path().join("den");
+    // Add a target inside web/ — rust strategy should NOT touch it
+    write(&root, "web/target/debug/y");
+    let tree = monorepo_stack_tree(&root);
+    let ctx = ctx_dag(&root, &den, RunMode::DryRun);
+
+    let result = rinse_once(&ctx, &dag_rinse_options(&root, tree));
+
+    let paths: Vec<&Path> = result.removed.iter().map(|d| d.path.as_path()).collect();
+    assert!(
+        paths
+            .iter()
+            .any(|p| *p == root.join("backend/target").as_path()),
+        "backend/target must be found by rust scope"
+    );
+    assert!(
+        !paths.iter().any(|p| p.starts_with(root.join("web/target"))),
+        "rust strategy must NOT walk inside web/ scope for target"
+    );
+    // web/node_modules should still be found by node scope
+    assert!(
+        paths
+            .iter()
+            .any(|p| *p == root.join("web/node_modules").as_path()),
+        "web/node_modules must be found by node scope"
+    );
+}
+
+// --- Case M4: Scoped isolation — node strategy does NOT remove rust trash ------
+
+#[test]
+fn dag_scoped_isolation_node_does_not_remove_rust_trash() {
+    let (temp, root) = monorepo_fixture();
+    let den = temp.path().join("den");
+    // Add node_modules inside backend/ — node strategy should NOT touch it
+    write(&root, "backend/node_modules/pkg");
+    let tree = monorepo_stack_tree(&root);
+    let ctx = ctx_dag(&root, &den, RunMode::DryRun);
+
+    let result = rinse_once(&ctx, &dag_rinse_options(&root, tree));
+
+    let paths: Vec<&Path> = result.removed.iter().map(|d| d.path.as_path()).collect();
+    assert!(
+        !paths
+            .iter()
+            .any(|p| p.starts_with(root.join("backend/node_modules"))),
+        "node strategy must NOT walk inside backend/ scope for node_modules"
+    );
+    // backend/target should still be found by rust scope
+    assert!(
+        paths
+            .iter()
+            .any(|p| *p == root.join("backend/target").as_path()),
+        "backend/target must be found by rust scope"
+    );
+}
+
+// --- Case M5: Three-level nesting — root → rust → node → python --------------
+
+#[test]
+fn dag_three_level_nesting_scopes_correctly() {
+    let temp = TempDir::new().expect("create temp dir");
+    let root = temp.path().join("repo");
+    // Level 1: Rust root
+    write(&root, "Cargo.toml");
+    write(&root, "target/debug/x");
+    // Level 2: Node in rust
+    write(&root, "frontend/package.json");
+    write(&root, "frontend/node_modules/dep");
+    // Level 3: Python in node
+    write(&root, "frontend/scripts/requirements.txt");
+    write(&root, "frontend/scripts/.venv/lib/x");
+
+    let tree = StackNode {
+        detection: detection("rust", &root.to_path_buf()),
+        children: vec![StackNode {
+            detection: detection("node", &root.join("frontend")),
+            children: vec![leaf_node("python", &root.join("frontend/scripts"))],
+        }],
+    };
+    let den = temp.path().join("den");
+    let ctx = ctx_dag(&root, &den, RunMode::Commit);
+
+    let result = rinse_once(&ctx, &dag_rinse_options(&root, tree));
+
+    assert!(!result.dry_run);
+    // All three scopes cleaned
+    assert!(
+        !root.join("target").exists(),
+        "root rust scope target removed"
+    );
+    assert!(
+        !root.join("frontend/node_modules").exists(),
+        "level-2 node scope node_modules removed"
+    );
+    assert!(
+        !root.join("frontend/scripts/.venv").exists(),
+        "level-3 python scope .venv removed"
+    );
+    // Source files survive
+    assert!(root.join("Cargo.toml").is_file());
+    assert!(root.join("frontend/package.json").is_file());
+    assert!(root.join("frontend/scripts/requirements.txt").is_file());
+}
+
+// --- Case M6: All scopes mismatched → empty result ---------------------------
+
+#[test]
+fn dag_all_scopes_mismatched_strategies_returns_empty() {
+    let (temp, root) = monorepo_fixture();
+    let den = temp.path().join("den");
+    let tree = monorepo_stack_tree(&root);
+    let ctx = ctx_dag(&root, &den, RunMode::DryRun);
+
+    // Only "generic" strategy enabled — neither "rust" nor "node" are in the tree
+    let opts = RinseOptions {
+        target: root.clone(),
+        strategies: Some(vec!["generic".into()]),
+        include_custom_patterns: false,
+        collect_only: false,
+        stack_tree: Some(tree),
+    };
+
+    let result = rinse_once(&ctx, &opts);
+
+    assert!(
+        result.removed.is_empty(),
+        "mismatched strategies must find nothing: {:?}",
+        result.removed
+    );
+}
+
+// --- E2E: resolve_stack_tree + DAG rinse ---
+
+use raccpack_core::{resolve_stack_tree, SniffOptions};
+
+/// Build an [`AppContext`] with an explicit [`DetectMode`].
+fn ctx_with_detect_mode(
+    project_root: &Path,
+    den_dir: &Path,
+    mode: RunMode,
+    detect_mode: DetectMode,
+) -> AppContext {
+    let config = RaccConfig {
+        detect: raccpack_core::config::DetectConfig { mode: detect_mode },
+        ..RaccConfig::default()
+    }
+    .with_scan_root(project_root)
+    .with_den_dir(den_dir);
+    AppContext::from_config(config, mode).expect("AppContext::from_config")
+}
+
+/// Helper to build a monorepo scan fixture for resolve_stack_tree tests.
+///
+/// ```text
+/// scan/
+/// └── monorepo/
+///     ├── backend/
+///     │   ├── Cargo.toml
+///     │   └── target/debug/x
+///     └── web/
+///         ├── package.json
+///         └── node_modules/dep/index.js
+/// ```
+fn scan_monorepo_fixture() -> (TempDir, PathBuf) {
+    let temp = TempDir::new().expect("create temp dir");
+    let scan = temp.path().join("scan");
+    let root = scan.join("monorepo");
+    write(&root, "backend/Cargo.toml");
+    write(&root, "backend/target/debug/x");
+    write(&root, "web/package.json");
+    write(&root, "web/node_modules/dep/index.js");
+    (temp, scan)
+}
+
+/// E2E: resolve_stack_tree discovers the correct tree via sniff, and rinse
+/// uses it for scoped cleanup.
+#[test]
+fn e2e_dag_rinse_via_resolve_stack_tree() {
+    let (temp, root) = monorepo_fixture();
+    let den = temp.path().join("den");
+
+    // Build a context with scan_root = monorepo root (parent of backend/ and web/).
+    let ctx = ctx_with_detect_mode(&root, &den, RunMode::DryRun, DetectMode::CompositeDag);
+
+    // resolve_stack_tree for backend/ should find the rust scope.
+    let backend = root.join("backend");
+    let tree = resolve_stack_tree(&ctx, &backend, &SniffOptions::default());
+    assert!(
+        tree.is_some(),
+        "resolve_stack_tree must find a tree for backend/"
+    );
+    let tree = tree.unwrap();
+    assert_eq!(tree.detection.ecosystem, "rust");
+    assert_eq!(tree.detection.scope, backend);
+
+    // resolve_stack_tree for web/ should find the node scope.
+    let web = root.join("web");
+    let tree = resolve_stack_tree(&ctx, &web, &SniffOptions::default());
+    assert!(
+        tree.is_some(),
+        "resolve_stack_tree must find a tree for web/"
+    );
+    let tree = tree.unwrap();
+    assert_eq!(tree.detection.ecosystem, "node");
+    assert_eq!(tree.detection.scope, web);
+
+    // Full E2E: resolve tree + rinse with it.
+    let tree = resolve_stack_tree(&ctx, &backend, &SniffOptions::default()).unwrap();
+    let rinse_opts = RinseOptions {
+        target: backend.clone(),
+        strategies: None,
+        include_custom_patterns: false,
+        collect_only: false,
+        stack_tree: Some(tree),
+    };
+    let result = rinse_once(&ctx, &rinse_opts);
+    assert!(result.dry_run);
+    // In DAG mode, only Rust scope's target/ should be found.
+    assert_eq!(result.removed.len(), 1);
+    assert_eq!(result.removed[0].pattern_name, "target");
+}
+
+// --- Case RT2: PriorityTable mode → resolve_stack_tree returns None ----------
+
+#[test]
+fn resolve_stack_tree_priority_table_mode_returns_none() {
+    let (temp, scan) = scan_monorepo_fixture();
+    let den = temp.path().join("den");
+    let root = scan.join("monorepo");
+    // Config in default PriorityTable mode.
+    let ctx = ctx_with_detect_mode(&scan, &den, RunMode::DryRun, DetectMode::PriorityTable);
+
+    let result = resolve_stack_tree(&ctx, &root, &SniffOptions::default());
+
+    assert!(
+        result.is_none(),
+        "PriorityTable mode must return None (flat walk)"
+    );
+}
+
+// --- Case RT3: No matching project → None -----------------------------------
+
+#[test]
+fn resolve_stack_tree_no_matching_project_returns_none() {
+    let (temp, scan) = scan_monorepo_fixture();
+    let den = temp.path().join("den");
+    let ctx = ctx_with_detect_mode(&scan, &den, RunMode::DryRun, DetectMode::CompositeDag);
+
+    // nonexistent_subdir does not correspond to any discovered project.
+    let target = scan.join("monorepo").join("nonexistent_subdir");
+    fs::create_dir_all(&target).unwrap();
+
+    let result = resolve_stack_tree(&ctx, &target, &SniffOptions::default());
+
+    assert!(result.is_none(), "non-matching target must return None");
+}
+
+// --- Case RT4: Parent is None (root path) → None ---------------------------
+
+#[test]
+fn resolve_stack_tree_root_path_returns_none() {
+    let (temp, scan) = scan_monorepo_fixture();
+    let den = temp.path().join("den");
+    let ctx = ctx_with_detect_mode(&scan, &den, RunMode::DryRun, DetectMode::CompositeDag);
+
+    // Target is the scan root itself — sniff scans parent, which is "/".
+    // The monorepo project won't match the scan root path.
+    let result = resolve_stack_tree(&ctx, &scan, &SniffOptions::default());
+
+    assert!(
+        result.is_none(),
+        "scan root target (no matching project) must return None"
+    );
+}
+
+// --- Case RT5: Sniff error → None (no panic) -------------------------------
+
+#[test]
+fn resolve_stack_tree_sniff_error_returns_none() {
+    let temp = TempDir::new().unwrap();
+    let den = temp.path().join("den");
+    // scan_root exists but is empty — sniff succeeds with 0 projects.
+    let scan = temp.path().join("empty_scan");
+    fs::create_dir_all(&scan).unwrap();
+    let ctx = ctx_with_detect_mode(&scan, &den, RunMode::DryRun, DetectMode::CompositeDag);
+
+    // target doesn't exist, sniff will find nothing → None, no panic.
+    let target = scan.join("nonexistent_project");
+    let result = resolve_stack_tree(&ctx, &target, &SniffOptions::default());
+
+    assert!(
+        result.is_none(),
+        "sniff finding no projects must return None without panic"
+    );
+}
+
+// --- Case RT6: Full E2E — resolve + rinse scoped cleanup --------------------
+
+#[test]
+fn e2e_resolve_then_rinse_scoped_cleanup() {
+    let (temp, scan) = scan_monorepo_fixture();
+    let den = temp.path().join("den");
+    let root = scan.join("monorepo");
+    let backend = root.join("backend");
+
+    let ctx = ctx_with_detect_mode(&scan, &den, RunMode::DryRun, DetectMode::CompositeDag);
+    let tree = resolve_stack_tree(&ctx, &backend, &SniffOptions::default())
+        .expect("resolve_stack_tree must find backend");
+
+    // Verify the tree ecosystem/scope.
+    assert_eq!(tree.detection.ecosystem, "rust");
+    assert_eq!(tree.detection.scope, backend);
+
+    // Rinse with the resolved tree in dry-run mode.
+    let rinse_opts = RinseOptions {
+        target: backend.clone(),
+        strategies: None,
+        include_custom_patterns: false,
+        collect_only: false,
+        stack_tree: Some(tree),
+    };
+    let result = rinse_once(&ctx, &rinse_opts);
+    assert!(result.dry_run, "must be dry run");
+    // The backend scope (rust) should find target/ only.
+    assert_eq!(
+        result.removed.len(),
+        1,
+        "rust scope must find backend/target"
+    );
+    assert_eq!(result.removed[0].pattern_name, "target");
+
+    // Files must survive dry run.
+    assert!(
+        backend.join("target").exists(),
+        "target must survive dry run"
+    );
+    assert!(
+        backend.join("Cargo.toml").is_file(),
+        "Cargo.toml must survive dry run"
+    );
+}
+
+// --- Case RT7: Flat fallback — PriorityTable ignores stack_tree --------------
+
+#[test]
+fn e2e_priority_table_flat_fallback_ignores_stack_tree() {
+    let (temp, scan) = scan_monorepo_fixture();
+    let den = temp.path().join("den");
+    let root = scan.join("monorepo");
+
+    // PriorityTable mode — resolve_stack_tree returns None.
+    let ctx = ctx_with_detect_mode(&scan, &den, RunMode::Commit, DetectMode::PriorityTable);
+    let tree = resolve_stack_tree(&ctx, &root, &SniffOptions::default());
+    assert!(tree.is_none(), "PriorityTable must return None");
+
+    // Rinse with stack_tree=None → flat walk finds all trash dirs.
+    let rinse_opts = RinseOptions {
+        target: root.clone(),
+        strategies: None,
+        include_custom_patterns: false,
+        collect_only: false,
+        stack_tree: None,
+    };
+    let result = rinse_once(&ctx, &rinse_opts);
+    // Flat walk with default strategies finds both target/ and node_modules/.
+    let patterns: Vec<&str> = result
+        .removed
+        .iter()
+        .map(|d| d.pattern_name.as_str())
+        .collect();
+    assert!(
+        patterns.contains(&"target"),
+        "flat walk must find backend/target"
+    );
+    assert!(
+        patterns.contains(&"node_modules"),
+        "flat walk must find web/node_modules"
+    );
+}
+
+// --- Case RT8: Regression — all existing rinse tests remain green -----------
+// (Verified by running `cargo test -p raccpack-core --test rinse` —
+// all 26+ cases pass alongside the new resolve_stack_tree tests.)

@@ -1,50 +1,50 @@
 ---
-title: Facade API (публичный контракт)
-description: Публичный контракт ядра raccpack — базовые типы, операции sniff/dig/stash/rinse/pack/raid и инварианты.
+title: Facade API (public contract)
+description: The public contract of the raccpack core — base types, sniff/dig/stash/rinse/pack/raid operations, and invariants.
 ---
 
-# Facade API (публичный контракт)
+# Facade API (public contract)
 
-Facade — единый публичный контракт ядра, на котором работают все интерфейсы (CLI, TUI, Desktop). Если вы пишете интеграцию или автоматизацию — это те структуры данных и операции, которые гарантированно стабильны.
+The facade is the single public contract of the core on which all interfaces run (CLI, TUI, Desktop). If you are writing an integration or automation — these are the data structures and operations guaranteed to be stable.
 
 ::: info
-Раздел ориентирован на пользователей, автоматизирующих raccpack (CI-скрипты, инструменты). Сигнатуры приведены в упрощённом виде; точные имена и поля живут в crate `raccpack-core`.
+This section targets users automating raccpack (CI scripts, tools). Signatures are shown in simplified form; exact names and fields live in the `raccpack-core` crate.
 :::
 
-## Базовые типы
+## Base types
 
-### Пути и режим
+### Paths and mode
 
 ```rust
 pub struct WorkspacePaths {
-    pub scan_root: PathBuf,   // вход: где проекты
-    pub den_dir: PathBuf,     // выход: хранилище den
+    pub scan_root: PathBuf,   // input: where projects live
+    pub den_dir: PathBuf,     // output: the den storage
 }
 
 pub enum RunMode {
-    DryRun,   // только отчёт, ничего не пишет и не удаляет
-    Commit,   // реальные изменения
+    DryRun,   // report only; writes and deletes nothing
+    Commit,   // real changes
 }
 ```
 
-- `DryRun` — режим по умолчанию для разрушающих операций: ничего не создаётся в `secrets/` и `packs/`, источники не удаляются.
-- `Commit` — реальное выполнение: архивы, удаление мусора, вынос секретов.
+- `DryRun` — the default mode for destructive operations: nothing is created in `secrets/` or `packs/`, sources are not removed.
+- `Commit` — real execution: archives, trash removal, moving secrets out.
 
-### Политика выхода при секретах
+### Secret exit policy
 
 ```rust
 pub enum SecretExitPolicy {
-    Ignore,              // всегда 0, если нет ошибок
-    FailOnCritical,      // код 2 при Critical
-    FailOnHighOrAbove,   // код 2 при High и выше
+    Ignore,              // always 0 when there are no errors
+    FailOnCritical,      // code 2 on Critical
+    FailOnHighOrAbove,   // code 2 on High and above
 }
 ```
 
-Применяется в CLI к коду выхода; в самом ядре операции всегда успешны, если сканирование прошло без ошибок.
+Applied by the CLI to the exit code; inside the core operations always succeed as long as scanning completed without errors.
 
-### Прогресс
+### Progress
 
-Длинные операции принимают `ProgressSink` — колбэк, получающий события:
+Long operations accept a `ProgressSink` — a callback receiving events:
 
 ```rust
 pub struct ProgressEvent {
@@ -54,14 +54,14 @@ pub struct ProgressEvent {
     pub phase_count: u32,
     pub percent: u8,                // 0..=100
     pub overall_percent: u8,
-    pub message: String,            // человекочитаемо, без сырых секретов
+    pub message: String,            // human-readable, no raw secrets
     pub phase_complete: bool,
 }
 ```
 
-CLI использует это для спиннера/прогресса, TUI — для перерисовки, Desktop — для событий Tauri.
+The CLI uses this for the spinner/progress, the TUI for repainting, Desktop for Tauri events.
 
-### Контекст сессии
+### Session context
 
 ```rust
 pub struct AppContext {
@@ -73,21 +73,21 @@ pub struct AppContext {
 }
 ```
 
-Интерфейс собирает `AppContext` один раз на сессию и передаёт во все вызовы.
+An interface builds `AppContext` once per session and passes it into all calls.
 
-## Операции
+## Operations
 
-### `sniff` - найти проекты
+### `sniff` - discover projects
 
 ```rust
 pub struct SniffOptions {
-    pub force_refresh: bool,   // игнорировать кэш
+    pub force_refresh: bool,   // ignore cache
     pub max_depth: Option<usize>,
 }
 
 pub struct SniffResult {
     pub report: ScanReport,   // { root, projects, total_size_bytes, schema_version }
-    pub from_cache: bool,     // true, если результат из кэша
+    pub from_cache: bool,     // true when the result came from cache
     pub duration_ms: u64,
 }
 
@@ -95,15 +95,15 @@ pub fn sniff(ctx: &AppContext, opts: &SniffOptions,
              progress: &mut dyn ProgressSink) -> Result<SniffResult>;
 ```
 
-**Статус: реализовано.** CLI: `racc sniff`.
+**Status: implemented.** CLI: `racc sniff`.
 
-### `dig` - найти секреты
+### `dig` - find secrets
 
 ```rust
 pub struct DigOptions {
-    pub project: Option<PathBuf>,  // ограничить одним проектом
-    pub find_repeated: bool,       // искать повторяющиеся значения
-    pub scan_content: bool,        // читать содержимое (default true)
+    pub project: Option<PathBuf>,  // limit to one project
+    pub find_repeated: bool,       // look for repeated values
+    pub scan_content: bool,        // read contents (default true)
     pub use_heuristics: Option<bool>,
 }
 
@@ -118,27 +118,27 @@ pub struct DigResult {
 pub fn dig(ctx: &AppContext, opts: &DigOptions,
            progress: &mut dyn ProgressSink) -> Result<DigResult>;
 
-// Хелпер для кода выхода
+// Helper for the exit code
 pub fn exit_code_for_secrets(files: &[SensitiveFile], policy: SecretExitPolicy) -> i32;
 ```
 
-`SensitiveFile` и `RepeatedSecret` содержат только **masked** данные: путь, риск, метки, маскированное значение, хеш. Сырых значений нет.
+`SensitiveFile` and `RepeatedSecret` carry only **masked** data: path, risk, labels, masked value, hash. No raw values.
 
-**Статус: реализовано.** CLI: `racc dig`.
+**Status: implemented.** CLI: `racc dig`.
 
-### `stash` - вынести секреты в age-архив
+### `stash` - move secrets into an age archive
 
 ```rust
 pub enum AgeIdentity {
-    Passphrase(String),      // парольная фраза (zeroize после использования)
-    Recipients(Vec<String>), // публичные recipient-ключи age
+    Passphrase(String),      // passphrase (zeroized after use)
+    Recipients(Vec<String>), // public age recipient keys
 }
 
 pub struct StashOptions {
     pub target: PathBuf,
     pub only_files: Option<Vec<PathBuf>>,
-    pub min_risk: SensitiveRisk,   // по умолчанию High
-    pub remove_sources: bool,      // удалить исходники (только Commit)
+    pub min_risk: SensitiveRisk,   // default High
+    pub remove_sources: bool,      // remove originals (Commit only)
     pub batch_id: Option<String>,
 }
 
@@ -146,19 +146,19 @@ pub fn stash(ctx: &AppContext, opts: &StashOptions, identity: &AgeIdentity,
              progress: &mut dyn ProgressSink) -> Result<StashResult>;
 ```
 
-Поведение:
+Behavior:
 
-- `DryRun` — считает список и будущий путь архива, **не** пишет и **не** удаляет.
-- `Commit` — пишет `.age`-архив в `den/secrets/…`, при `remove_sources: true` удаляет исходники.
-- Passphrase не возвращается и не попадает в тексты ошибок.
+- `DryRun` — computes the list and the future archive path, **writing** and **deleting** nothing.
+- `Commit` — writes the `.age` archive to `den/secrets/…`, removing sources when `remove_sources: true`.
+- The passphrase is never returned and never appears in error messages.
 
-**Статус: реализовано.** CLI: `racc stash`.
+**Status: implemented.** CLI: `racc stash`.
 
-### `rinse` - очистить мусор сборки
+### `rinse` - clean build trash
 
 ```rust
 pub struct RinseOptions {
-    pub target: PathBuf,             // проект
+    pub target: PathBuf,             // project
     pub strategies: Option<Vec<String>>,
     pub include_custom_patterns: bool,
 }
@@ -167,17 +167,17 @@ pub fn rinse(ctx: &AppContext, opts: &RinseOptions,
              progress: &mut dyn ProgressSink) -> Result<RinseResult>;
 ```
 
-`DryRun` только перечисляет удаляемое; `Commit` удаляет каталоги. Файлы секретов `rinse` не трогает — это забота `stash`.
+`DryRun` only lists what would be removed; `Commit` removes directories. Rinse never touches secret files — that's `stash`'s job.
 
-**Статус: реализовано.** CLI: `racc rinse`.
+**Status: implemented.** CLI: `racc rinse`.
 
-### `pack` - упаковать проект
+### `pack` - pack a project
 
 ```rust
 pub struct PackOptions {
     pub project: PathBuf,
-    pub output_name: Option<String>,  // по умолчанию {slug}__{ts}.tar.zst
-    pub deny_content_secrets: bool,   // проверять содержимое при упаковке
+    pub output_name: Option<String>,  // default {slug}__{ts}.tar.zst
+    pub deny_content_secrets: bool,   // check contents while packing
     pub zstd_level: Option<u32>,
 }
 
@@ -194,21 +194,21 @@ pub fn pack(ctx: &AppContext, opts: &PackOptions,
             progress: &mut dyn ProgressSink) -> Result<PackResult>;
 ```
 
-Ядро упаковки (`pack_tree`) и facade `pack` (DryRun/Commit) реализованы, как и CLI-команда `racc pack`.
+The packing core (`pack_tree`) and the facade `pack` (DryRun/Commit) are implemented, as is the `racc pack` CLI command.
 
-**Статус: ядро и CLI реализованы (MVP 0.1).**
+**Status: core and CLI implemented (MVP 0.1).**
 
-### `raid` - полный цикл
+### `raid` - full cycle
 
 ```rust
 pub enum OrchestrationMode {
-    Atomic,     // по умолчанию: staging + отложенные удаления, откат через WAL
-    FailFast,   // legacy A3.1: остановиться на первой упавшей фазе
+    Atomic,     // default: staging + deferred removals, WAL rollback
+    FailFast,   // legacy A3.1: stop at the first failed phase
 }
 
 pub struct RaidOptions {
     pub project: PathBuf,
-    pub mode: OrchestrationMode,   // по умолчанию Atomic
+    pub mode: OrchestrationMode,   // default Atomic
     pub stash: StashPhaseOpts,     // { enabled, min_risk, remove_sources }
     pub rinse: RinsePhaseOpts,     // { enabled }
     pub pack: PackPhaseOpts,       // { enabled, deny_content_secrets }
@@ -220,24 +220,76 @@ pub struct RaidResult {
     pub stash: Option<StashResult>,
     pub rinse: Option<RinseResult>,
     pub pack: Option<PackResult>,
-    pub den_artifacts: Vec<PathBuf>,   // итоговые пути в den
+    pub den_artifacts: Vec<PathBuf>,   // final paths in the den
     pub success: bool,
     pub dry_run: bool,
-    pub rolled_back: bool,             // неудачный commit откачен к pre-raid
-    pub rollback_warnings: Vec<String>,// нефатальные проблемы при откате
+    pub rolled_back: bool,             // failed commit rolled back to pre-raid
+    pub rollback_warnings: Vec<String>,// non-fatal issues during rollback
 }
 
 pub fn raid(ctx: &AppContext, opts: &RaidOptions, identity: Option<&AgeIdentity>,
             progress: &mut dyn ProgressSink) -> Result<RaidResult>;
 ```
 
-Фиксированный порядок фаз: **stash → rinse → pack → move**. По умолчанию (`OrchestrationMode::Atomic`) артефакты пишутся во временный `den/staging/{id}/`, а в den переносятся только в commit; неудачный commit откатывается через WAL — отчёт получает `rolled_back: true`. В режиме `FailFast` (флаг `--fail-fast`) после первой упавшей фазы следующие не выполняются, а уже записанные артефакты остаются в den.
+Fixed phase order: **stash → rinse → pack → move**. In the default mode (`OrchestrationMode::Atomic`) artifacts are written to a temporary `den/staging/{id}/` and moved into the den only at commit; a failed commit rolls back via WAL — the report gets `rolled_back: true`. In `FailFast` mode (the `--fail-fast` flag), after the first failed phase the following phases do not run, while already-written artifacts remain in the den.
 
-**Статус: реализовано.** CLI: `racc raid`.
+**Status: implemented.** CLI: `racc raid`.
 
-## Отчёты и данные
+### `raid_batch` - batch raid across projects
 
-### Стабильные DTO (serde-friendly)
+Discovers all projects under a root directory and runs `raid()` on each one. Projects are found via the same candidate discovery as `sniff`. Per-project errors are captured in the result and do not abort the batch (unless `stop_on_project_failure` is set).
+
+```rust
+pub struct RaidBatchOptions {
+    pub root: PathBuf,                        // root directory to scan for projects
+    pub raid: RaidOptions,                    // shared per-project raid config; `project` is overwritten per candidate
+    pub only: Vec<String>,                    // substring filter on project name or path
+    pub limit: Option<usize>,                 // cap on the number of projects to raid
+    pub stop_on_project_failure: bool,        // stop the batch after the first project failure
+}
+
+pub struct RaidBatchResult {
+    pub root: PathBuf,
+    pub dry_run: bool,
+    pub projects_total: usize,                // total candidates discovered
+    pub projects_run: usize,                  // after filtering and limiting
+    pub results: Vec<RaidBatchItem>,
+    pub success: bool,                        // false if any project failed or errored
+}
+
+pub struct RaidBatchItem {
+    pub project_path: PathBuf,
+    pub project_name: String,
+    pub outcome: RaidBatchOutcome,
+}
+
+pub enum RaidBatchOutcome {
+    Raided(Box<RaidResult>),                  // raid completed (check RaidResult::success)
+    Skipped { reason: String },               // filtered out or limit reached
+    Error { message: String },                // raid returned an Err
+}
+
+pub fn raid_batch(
+    ctx: &AppContext,
+    opts: &RaidBatchOptions,
+    identity: Option<&AgeIdentity>,
+    progress: &mut dyn ProgressSink,
+) -> Result<RaidBatchResult>;
+```
+
+Behavior:
+
+- Projects are discovered via `find_candidates` under `opts.root`.
+- Each candidate is filtered by `only` (substring match on name or path) and capped by `limit`.
+- The shared `opts.raid` config is cloned per project; the `project` field is overwritten to the candidate's path.
+- Per-project raid errors are captured as `RaidBatchOutcome::Error` and do not abort the batch unless `stop_on_project_failure: true`.
+- `DryRun` / `Commit` behavior follows the embedded `RaidOptions`.
+
+**Status: implemented.** CLI: `racc raid --root`.
+
+## Reports and data
+
+### Stable DTOs (serde-friendly)
 
 - `ScanReport { root, projects, total_size_bytes, schema_version }`
 - `Project { path, name, stack, size_bytes, is_git_repo }`
@@ -246,11 +298,11 @@ pub fn raid(ctx: &AppContext, opts: &RaidOptions, identity: Option<&AgeIdentity>
 - `SensitiveRisk` — `Low | Medium | High | Critical`
 - `MaskedValue { masked, value_hash, original_len }`
 
-Отчёты сериализуются в JSON (`--json`) и содержат `schema_version` для проверки совместимости в CI.
+Reports serialize to JSON (`--json`) and include `schema_version` for compatibility checks in CI.
 
-### Manifest raid (JSON)
+### Raid manifest (JSON)
 
-После каждого raid в `den/manifests/{yyyy}/{mm}/` пишется манифест. Пример (без сырых секретов):
+After each raid a manifest is written to `den/manifests/{yyyy}/{mm}/`. Example (no raw secrets):
 
 ```json
 {
@@ -273,22 +325,22 @@ pub fn raid(ctx: &AppContext, opts: &RaidOptions, identity: Option<&AgeIdentity>
   "stash_manifest": [
     { "original_path": "/home/user/DEV/PROJS/my-api/.env", "risk": "High", "size_bytes": 412 }
   ],
-  "tool": { "name": "raccpack", "core_version": "0.3.0" }
+  "tool": { "name": "raccpack", "core_version": "0.4.0" }
 }
 ```
 
-Пути артефактов — **относительно корня den**, поэтому den можно переносить целиком.
+Artifact paths are **relative to the den root**, so the den can be moved as a whole.
 
-## Инварианты контракта
+## Contract invariants
 
-1. Facade не возвращает сырой секретный материал в результатах.
-2. `DryRun` не создаёт файлов в `secrets/` и `packs/` и не удаляет источники.
-3. Имена в den уникальны за счёт timestamp + short_id.
-4. Пути в манифестах — относительно корня den.
-5. В режиме `Atomic` (по умолчанию) неудачный commit откатывается через WAL (`rolled_back`); в режиме `FailFast` уже записанные артефакты остаются в den.
-6. Все пути в API — `PathBuf`; интерфейсы нормализуют их до вызова.
+1. The facade never returns raw secret material in results.
+2. `DryRun` creates no files in `secrets/` or `packs/` and removes no sources.
+3. Names in the den are unique thanks to timestamp + short_id.
+4. Paths in manifests are relative to the den root.
+5. In `Atomic` mode (default) a failed commit rolls back via WAL (`rolled_back`); in `FailFast` mode already-written artifacts remain in the den.
+6. All paths in the API are `PathBuf`; interfaces normalize them before calls.
 
-## См. также
+## See also
 
-- [Архитектура](/architecture) — слои и границы доверия.
-- [Дорожная карта](/roadmap) — какой статус у каждой операции.
+- [Architecture](/architecture) — layers and trust boundaries.
+- [Roadmap](/roadmap) — the status of each operation.

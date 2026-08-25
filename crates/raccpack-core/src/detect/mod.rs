@@ -3,13 +3,19 @@
 //! Entry points: [`stack_from_candidate`] (pure, marker-based),
 //! [`detect_stack`] (path + markers, enriches frameworks from the top level of
 //! the project directory), [`detect_stacks`] (fail-fast batch),
-//! [`candidate_to_project`] (assembly helper for M2.3) and
+//! [`WorkspaceDetector::detect_tree`] (composite tree over nested scopes),
+//! [`candidate_to_project`] (assembly helper) and
 //! [`crate::scan::project_size_bytes`].
+//!
+//! The pipeline itself is selected by [`DetectMode`] (config `detect.mode`):
+//! the default [`DetectMode::PriorityTable`] keeps the flat §4.1 behaviour,
+//! [`DetectMode::CompositeDag`] fills `Project.stack_tree` through the
+//! composite pipeline (experimental; see [`workspace`]).
 //!
 //! # Merge policy
 //!
 //! Detectors are organized per ecosystem — one `*.rs` per language — and this
-//! module is the only place that enumerates them ([`all_detectors()`]) and
+//! module is the only place that enumerates them ([`detector_registry()`]) and
 //! merges their contributions into a single [`Stack`]:
 //!
 //! - **language** — resolved centrally from marker `language_hint`s by the §4.1
@@ -18,6 +24,10 @@
 //! - **frameworks** — union of the `frameworks` returned by the applicable
 //!   detectors, in registry order, deduplicated (first occurrence wins).
 //! - **markers** — the names of every hit, sorted lexically and deduplicated.
+//!
+//! Conflicts between several opinions — nested scopes, repeated ecosystems at
+//! one scope, duplicate scope spellings — resolve by the rules documented in
+//! [`merge`]; there is never a single winner for a whole monorepo.
 //!
 //! A detector applies when it matches the hits (one of its ecosystem markers is
 //! present). When `markers` is empty — the path-only [`detect_stack`] case the
@@ -47,20 +57,31 @@ mod git;
 mod go;
 mod jvm;
 mod make;
+pub mod merge;
+mod mode;
 mod node;
 mod php;
 mod python;
 mod ruby;
 mod rust;
+mod traits;
 mod types;
+mod workspace;
 
-pub use types::StackDetector;
+pub use mode::DetectMode;
+pub use scopes::scopes_for_rinse;
+pub use traits::StackDetector;
+pub use types::{clamp_confidence, Detection, StackNode};
+pub use workspace::WorkspaceDetector;
+
+pub mod scopes;
 
 use cpp::CppDetector;
 use git::GitDetector;
 use go::GoDetector;
 use jvm::JvmDetector;
 use make::MakeDetector;
+use merge::{extend_frameworks_union, sorted_unique_names};
 use node::NodeDetector;
 use php::PhpDetector;
 use python::PythonDetector;
@@ -68,12 +89,12 @@ use ruby::RubyDetector;
 use rust::RustDetector;
 use types::resolve_language;
 
-/// All ecosystem detectors in stable registry order.
+/// Stable order registry (ecosystem modules).
 ///
 /// Order is fixed (rust, node, go, python, jvm, ruby, php, cpp, make, git) and
 /// mirrors the marker registry order, so the framework union order is
 /// deterministic.
-pub fn all_detectors() -> &'static [&'static dyn StackDetector] {
+pub fn detector_registry() -> &'static [&'static dyn StackDetector] {
     &[
         &RustDetector,
         &NodeDetector,
@@ -125,16 +146,12 @@ pub fn detect_stack(path: &Path, markers: &[MarkerHit]) -> Result<Stack> {
 
     let probe_all = markers.is_empty();
     let mut frameworks: Vec<String> = Vec::new();
-    for detector in all_detectors() {
+    for detector in detector_registry() {
         if !probe_all && !detector.matches(markers) {
             continue;
         }
         let contribution = detector.detect(markers, path)?;
-        for framework in contribution.frameworks {
-            if !frameworks.contains(&framework) {
-                frameworks.push(framework);
-            }
-        }
+        extend_frameworks_union(&mut frameworks, contribution.frameworks);
     }
 
     let language = resolve_language(markers);
@@ -166,6 +183,7 @@ pub fn candidate_to_project(candidate: ProjectCandidate, stack: Stack, size_byte
         path: candidate.path,
         name: candidate.name,
         stack,
+        stack_tree: None,
         size_bytes,
         is_git_repo: candidate.is_git_repo,
     }
@@ -173,262 +191,12 @@ pub fn candidate_to_project(candidate: ProjectCandidate, stack: Stack, size_byte
 
 /// Names of every hit, sorted lexically and deduplicated.
 fn sorted_unique_marker_names(markers: &[MarkerHit]) -> Vec<String> {
-    let mut names: Vec<String> = markers.iter().map(|hit| hit.name.clone()).collect();
-    names.sort();
-    names.dedup();
-    names
+    sorted_unique_names(markers.iter().map(|hit| hit.name.clone()).collect())
 }
 
 #[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use super::*;
-    use crate::domain::Stack;
-    use crate::scan::MarkerKind;
-
-    fn hit(name: &str, hint: Option<&str>) -> MarkerHit {
-        MarkerHit {
-            name: name.to_string(),
-            kind: MarkerKind::FileName,
-            language_hint: hint.map(str::to_string),
-        }
-    }
-
-    fn candidate_with(hits: Vec<MarkerHit>) -> ProjectCandidate {
-        ProjectCandidate {
-            path: PathBuf::from("/tmp/fixture"),
-            name: "fixture".to_string(),
-            markers: hits,
-            is_git_repo: false,
-        }
-    }
-
-    #[test]
-    fn cargo_only_is_rust() {
-        let stack = stack_from_candidate(&candidate_with(vec![hit("Cargo.toml", Some("Rust"))]));
-        assert_eq!(stack.language.as_deref(), Some("Rust"));
-        assert_eq!(stack.markers, vec!["Cargo.toml".to_string()]);
-        assert!(stack.frameworks.is_empty());
-    }
-
-    #[test]
-    fn go_only_is_go() {
-        let stack = stack_from_candidate(&candidate_with(vec![hit("go.mod", Some("Go"))]));
-        assert_eq!(stack.language.as_deref(), Some("Go"));
-    }
-
-    #[test]
-    fn conflict_cargo_wins_over_package_json_and_keeps_both_markers() {
-        let stack = stack_from_candidate(&candidate_with(vec![
-            hit("Cargo.toml", Some("Rust")),
-            hit("package.json", Some("JavaScript")),
-        ]));
-        assert_eq!(stack.language.as_deref(), Some("Rust"));
-        assert_eq!(
-            stack.markers,
-            vec!["Cargo.toml".to_string(), "package.json".to_string()]
-        );
-    }
-
-    #[test]
-    fn priority_table_orders_are_respected() {
-        assert_eq!(
-            stack_from_candidate(&candidate_with(vec![
-                hit("Gemfile", Some("Ruby")),
-                hit("requirements.txt", Some("Python")),
-            ]))
-            .language
-            .as_deref(),
-            Some("Python")
-        );
-        assert_eq!(
-            stack_from_candidate(&candidate_with(vec![
-                hit("package.json", Some("JavaScript")),
-                hit("go.mod", Some("Go")),
-            ]))
-            .language
-            .as_deref(),
-            Some("Go")
-        );
-    }
-
-    #[test]
-    fn git_only_has_no_language_but_keeps_marker() {
-        let stack = stack_from_candidate(&candidate_with(vec![MarkerHit {
-            name: ".git".to_string(),
-            kind: MarkerKind::DirName,
-            language_hint: None,
-        }]));
-        assert_eq!(stack.language, None);
-        assert_eq!(stack.markers, vec![".git".to_string()]);
-        assert!(stack.frameworks.is_empty());
-    }
-
-    #[test]
-    fn makefile_only_has_no_language_but_keeps_marker() {
-        let stack = stack_from_candidate(&candidate_with(vec![hit("Makefile", None)]));
-        assert_eq!(stack.language, None);
-        assert_eq!(stack.markers, vec!["Makefile".to_string()]);
-    }
-
-    #[test]
-    fn makefile_does_not_override_higher_priority_marker() {
-        let stack = stack_from_candidate(&candidate_with(vec![
-            hit("Cargo.toml", Some("Rust")),
-            hit("Makefile", None),
-        ]));
-        assert_eq!(stack.language.as_deref(), Some("Rust"));
-        assert_eq!(
-            stack.markers,
-            vec!["Cargo.toml".to_string(), "Makefile".to_string()]
-        );
-    }
-
-    #[test]
-    fn extra_marker_hint_is_used_when_nothing_is_in_priority_table() {
-        let stack = stack_from_candidate(&candidate_with(vec![hit("Project.toml", Some("Julia"))]));
-        assert_eq!(stack.language.as_deref(), Some("Julia"));
-    }
-
-    #[test]
-    fn stack_from_candidate_is_pure() {
-        let missing = PathBuf::from("/definitely/not/a/real/path");
-        let stack = stack_from_candidate(&candidate_with(vec![hit("Cargo.toml", Some("Rust"))]));
-        assert_eq!(stack.language.as_deref(), Some("Rust"));
-        assert!(!missing.exists());
-        assert!(stack.frameworks.is_empty());
-    }
-
-    #[test]
-    fn stack_from_candidate_is_deterministic() {
-        let cand = candidate_with(vec![
-            hit("Cargo.toml", Some("Rust")),
-            hit("package.json", Some("JavaScript")),
-        ]);
-        assert_eq!(stack_from_candidate(&cand), stack_from_candidate(&cand));
-    }
-
-    #[test]
-    fn empty_stack_is_language_none() {
-        let stack = stack_from_candidate(&candidate_with(Vec::new()));
-        assert_eq!(stack, Stack::default());
-    }
-
-    #[test]
-    fn detect_stack_enriches_nextjs_framework() {
-        let dir = tempfile::tempdir().unwrap();
-        let proj = dir.path().join("web");
-        std::fs::create_dir_all(&proj).unwrap();
-        std::fs::write(proj.join("package.json"), "{}").unwrap();
-        std::fs::write(proj.join("next.config.mjs"), "").unwrap();
-
-        let stack =
-            detect_stack(&proj, &[hit("package.json", Some("JavaScript"))]).expect("detect ok");
-        assert_eq!(stack.language.as_deref(), Some("JavaScript"));
-        assert!(stack.frameworks.contains(&"Next.js".to_string()));
-        assert_eq!(stack.markers, vec!["package.json".to_string()]);
-    }
-
-    #[test]
-    fn detect_stack_probes_frameworks_without_markers() {
-        let dir = tempfile::tempdir().unwrap();
-        let app = dir.path().join("app");
-        std::fs::create_dir_all(&app).unwrap();
-        std::fs::write(app.join("vite.config.ts"), "").unwrap();
-        std::fs::write(app.join("deno.json"), "{}").unwrap();
-
-        let stack = detect_stack(&app, &[]).expect("detect ok");
-        assert!(stack.frameworks.contains(&"Vite".to_string()));
-        assert!(stack.frameworks.contains(&"Deno".to_string()));
-        assert_eq!(stack.language, None);
-    }
-
-    #[test]
-    fn detect_stack_rails_requires_gemfile_and_application_rb() {
-        let dir = tempfile::tempdir().unwrap();
-        let app = dir.path().join("rails");
-        std::fs::create_dir_all(app.join("config")).unwrap();
-        std::fs::write(app.join("Gemfile"), "").unwrap();
-        std::fs::write(app.join("config/application.rb"), "").unwrap();
-
-        let stack = detect_stack(&app, &[hit("Gemfile", Some("Ruby"))]).expect("detect ok");
-        assert_eq!(stack.language.as_deref(), Some("Ruby"));
-        assert!(stack.frameworks.contains(&"Rails".to_string()));
-    }
-
-    #[test]
-    fn detect_stack_path_errors() {
-        let dir = tempfile::tempdir().unwrap();
-        let missing = dir.path().join("nope");
-        assert!(matches!(
-            detect_stack(&missing, &[]),
-            Err(Error::PathNotFound { .. })
-        ));
-
-        let file = dir.path().join("a.txt");
-        std::fs::write(&file, "x").unwrap();
-        assert!(matches!(
-            detect_stack(&file, &[]),
-            Err(Error::NotADirectory { .. })
-        ));
-    }
-
-    #[test]
-    fn detect_stack_is_deterministic() {
-        let dir = tempfile::tempdir().unwrap();
-        let proj = dir.path().join("web");
-        std::fs::create_dir_all(&proj).unwrap();
-        std::fs::write(proj.join("package.json"), "{}").unwrap();
-        std::fs::write(proj.join("next.config.js"), "").unwrap();
-
-        let markers = vec![hit("package.json", Some("JavaScript"))];
-        let a = detect_stack(&proj, &markers).expect("detect ok");
-        let b = detect_stack(&proj, &markers).expect("detect ok");
-        assert_eq!(a, b);
-        assert_eq!(a.frameworks, b.frameworks);
-    }
-
-    #[test]
-    fn detect_stacks_preserves_input_order() {
-        let dir = tempfile::tempdir().unwrap();
-        let rust = dir.path().join("b");
-        let go = dir.path().join("a");
-        std::fs::create_dir_all(&rust).unwrap();
-        std::fs::create_dir_all(&go).unwrap();
-        std::fs::write(rust.join("Cargo.toml"), "").unwrap();
-        std::fs::write(go.join("go.mod"), "").unwrap();
-
-        let a = ProjectCandidate {
-            path: go,
-            name: "a".to_string(),
-            markers: vec![hit("go.mod", Some("Go"))],
-            is_git_repo: false,
-        };
-        let b = ProjectCandidate {
-            path: rust,
-            name: "b".to_string(),
-            markers: vec![hit("Cargo.toml", Some("Rust"))],
-            is_git_repo: false,
-        };
-
-        let pairs = detect_stacks(&[a.clone(), b.clone()]).expect("batch ok");
-        assert_eq!(pairs.len(), 2);
-        assert_eq!(pairs[0].0, a);
-        assert_eq!(pairs[1].0, b);
-        assert_eq!(pairs[0].1.language.as_deref(), Some("Go"));
-        assert_eq!(pairs[1].1.language.as_deref(), Some("Rust"));
-    }
-
-    #[test]
-    fn candidate_to_project_copies_fields() {
-        let cand = candidate_with(vec![hit("Cargo.toml", Some("Rust"))]);
-        let stack = stack_from_candidate(&cand);
-        let project = candidate_to_project(cand.clone(), stack.clone(), 42);
-        assert_eq!(project.path, cand.path);
-        assert_eq!(project.name, cand.name);
-        assert_eq!(project.stack, stack);
-        assert_eq!(project.size_bytes, 42);
-        assert_eq!(project.is_git_repo, cand.is_git_repo);
-    }
-}
+mod merge_tests;
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+mod workspace_tests;

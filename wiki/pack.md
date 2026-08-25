@@ -1,103 +1,103 @@
 ---
-title: Pack — упаковка в den
-description: Команда racc pack — упаковка проекта в архив tar.zst и сохранение в den без секретов.
+title: Pack — pack into the den
+description: The racc pack command — archive a project into tar.zst and store it in the den without secrets.
 ---
 
-# Pack - упаковка в den
+# Pack - pack into the den
 
-Команда: `racc pack`  
-Статус: реализовано.
+Command: `racc pack`  
+Status: implemented.
 
-Эта страница описывает **ровно то поведение**, которое реализует `raccpack` сейчас. Если флаг или путь не указаны здесь — их нет в текущей версии.
+This page describes **exactly the behavior** that `raccpack` implements today. If a flag or path is not listed here, it does not exist in the current version.
 
-> Вернуться к обзору команд: [Использование CLI](/cli-usage).
+> Back to the command overview: [CLI usage](/cli-usage).
 
-## Что делает
+## What it does
 
-1. Собирает каталог проекта в один архив **tar + zstd** (`.tar.zst`).
-2. Кладёт архив в den по раскладке `packs/{yyyy}/{mm}/{slug}__{UTC}.tar.zst`.
-3. Исключает секреты: по имени (риск ≥ `High`) — всегда; по содержимому (риск ≥ `Critical`) — по умолчанию.
-4. По умолчанию работает в **dry-run** и ничего не пишет; запись — только с `--yes`.
+1. Collects the project directory into a single **tar + zstd** archive (`.tar.zst`).
+2. Places the archive in the den under the `packs/{yyyy}/{mm}/{slug}__{UTC}.tar.zst` layout.
+3. Excludes secrets: by name (risk ≥ `High`) — always; by content (risk ≥ `Critical`) — by default.
+4. By default runs as **dry-run** and writes nothing; writing happens only with `--yes`.
 
-Чего **не** делает:
+What it does **not** do:
 
-- не шифрует архив (в отличие от `racc stash`);
-- не изменяет и не удаляет файлы исходного проекта;
-- не сохраняет символические ссылки и пустые каталоги;
-- не использует кэш `sniff`.
+- does not encrypt the archive (unlike `racc stash`);
+- does not modify or delete files of the source project;
+- does not preserve symbolic links or empty directories;
+- does not use the `sniff` cache.
 
 ::: warning
-По умолчанию `pack` работает в **dry-run** и ничего не пишет. Запись в den — только с флагом `--yes`.
+By default `pack` runs as **dry-run** and writes nothing. Writing to the den happens only with the `--yes` flag.
 :::
 
-## Быстрый старт
+## Quick start
 
 ```bash
-# Dry-run: показать, что будет упаковано (ничего не пишется)
+# Dry-run: show what would be packed (nothing is written)
 racc pack --project ~/DEV/PROJS/app-api
 
-# Commit: создать архив в den
+# Commit: create the archive in the den
 racc pack --project ~/DEV/PROJS/app-api --yes
 
-# Commit со своим именем артефакта
+# Commit with a custom artifact name
 racc pack --project ~/DEV/PROJS/app-api --yes --output-name snapshot
 ```
 
-## Синтаксис
+## Syntax
 
 ```text
 racc pack --project <PATH> [OPTIONS]
 ```
 
-`--project` — обязательный параметр.
+`--project` is required.
 
-## Параметры и флаги
+## Options and flags
 
-### Флаги команды
+### Command flags
 
-| Флаг | По умолчанию | Описание |
-|------|--------------|----------|
-| `--project <PATH>` | — (обязателен) | Каталог проекта, который упаковывается |
-| `--yes` | выкл. | Commit: записать архив в den |
-| `--dry-run` | выкл. | Принудительный dry-run; побеждает `--yes`, если указаны оба |
-| `--no-content-deny` | выкл. | Отключить контентный deny секретов (deny по имени остаётся) |
-| `--zstd-level <N>` | crate default (`3`) | Уровень сжатия zstd |
-| `--output-name <NAME>` | `{slug}__{UTC}` | Имя артефакта без `.tar.zst` |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--project <PATH>` | — (required) | Project directory to pack |
+| `--yes` | off | Commit: write the archive into the den |
+| `--dry-run` | off | Force dry-run; wins over `--yes` when both are given |
+| `--no-content-deny` | off | Disable content-based secret deny (name deny stays) |
+| `--zstd-level <N>` | crate default (`3`) | zstd compression level |
+| `--output-name <NAME>` | `{slug}__{UTC}` | Artifact name without `.tar.zst` |
 
 ::: warning
-`--no-content-deny` отключает только проверку **содержимого**. Deny по **имени** файла (`.env`, ключи и т.п.) остаётся. Архив `pack` **не шифруется** — для хранения секретов используйте `racc stash`.
+`--no-content-deny` disables only **content** checks. Deny by file **name** (`.env`, keys, etc.) stays. The `pack` archive is **not encrypted** — use `racc stash` to store secrets.
 :::
 
-### Глобальные флаги
+### Global flags
 
-| Флаг | Описание |
-|------|----------|
-| `-c, --config <PATH>` | Файл конфигурации (переопределяет `RACCPACK_CONFIG`) |
-| `--den <PATH>` | Переопределить `den_dir`; без флага — из конфига (`paths.den_dir`), по умолчанию `~/.raccpack/den` |
-| `--root <PATH>` | База для относительного `--project` |
-| `--json` | Вывод JSON вместо человекочитаемого блока |
+| Flag | Description |
+|------|-------------|
+| `-c, --config <PATH>` | Config file (overrides `RACCPACK_CONFIG`) |
+| `--den <PATH>` | Override `den_dir`; without the flag — from config (`paths.den_dir`), default `~/.raccpack/den` |
+| `--root <PATH>` | Base for a relative `--project` |
+| `--json` | Print JSON instead of the human-readable block |
 
-Приоритеты:
+Priorities:
 
-- режим по умолчанию — **dry-run**; `--dry-run` перекрывает `--yes`; commit — только `--yes` без `--dry-run`;
-- `--den` переопределяет `den_dir` из конфига на текущий запуск;
-- `--output-name` заменяет `{slug}__{UTC}` в имени файла (год/месяц каталога `packs/{yyyy}/{mm}` по-прежнему от текущего UTC).
+- the default mode is **dry-run**; `--dry-run` overrides `--yes`; commit requires `--yes` without `--dry-run`;
+- `--den` overrides `den_dir` from config for this run;
+- `--output-name` replaces `{slug}__{UTC}` in the file name (the year/month directories `packs/{yyyy}/{mm}` still come from current UTC).
 
-## Поведение
+## Behavior
 
-- **Dry-run**: ничего не создаётся под den (ни `ensure_den`, ни staging). В выводе — ожидаемый путь артефакта.
-- **Commit**: создаётся скелет den, проект пакуется в `den/staging/{short_id}/` и перемещается в `packs/{yyyy}/{mm}/`.
-- **Уникальность**: если артефакт уже существует, к имени добавляется суффикс из 8 hex-символов (к timestamp или к `--output-name`); если конфликт остаётся — ошибка.
-- **Секреты**: deny по имени (риск ≥ `High`) включён всегда; контентный deny (риск ≥ `Critical`) включён по умолчанию и отключается `--no-content-deny`.
-- **Skip-политика**: каталоги `node_modules`, `target`, `.git`, `dist`, `build` и др. пропускаются.
-- **Symlinks** не обходятся и не архивируются.
-- Архив содержит **содержимое** папки проекта (записи вида `src/main.rs`), а не саму папку.
-- Порядок записей детерминирован (по имени) — байты архива воспроизводимы.
-- **CI/TTY**: команда полностью неинтерактивна (нет запросов и passphrase) — безопасна для CI.
+- **Dry-run**: nothing is created under the den (neither `ensure_den` nor staging). Output shows the expected artifact path.
+- **Commit**: the den skeleton is created, the project is packed into `den/staging/{short_id}/` and moved to `packs/{yyyy}/{mm}/`.
+- **Uniqueness**: if the artifact already exists, an 8-hex-character suffix is appended to the name (to the timestamp or to `--output-name`); if the conflict persists — error.
+- **Secrets**: name deny (risk ≥ `High`) is always on; content deny (risk ≥ `Critical`) is on by default and disabled by `--no-content-deny`.
+- **Skip policy**: directories such as `node_modules`, `target`, `.git`, `dist`, `build` are skipped.
+- **Symlinks** are neither followed nor archived.
+- The archive contains the **contents** of the project folder (entries like `src/main.rs`), not the folder itself.
+- Entry order is deterministic (by name) — archive bytes are reproducible.
+- **CI/TTY**: the command is fully non-interactive (no prompts, no passphrase) — CI-safe.
 
-## Вывод
+## Output
 
-### Человекочитаемый - dry-run
+### Human-readable - dry-run
 
 ```text
 Pack (dry-run)
@@ -107,7 +107,7 @@ Pack (dry-run)
   (no files written)
 ```
 
-### Человекочитаемый - commit
+### Human-readable - commit
 
 ```text
 Pack complete
@@ -131,88 +131,88 @@ Pack complete
 }
 ```
 
-Поля:
+Fields:
 
-| Поле | Смысл |
-|------|--------|
-| `source` | Исходный каталог проекта |
-| `output` | Путь к артефакту (в dry-run — ожидаемый) |
-| `size_bytes` | Размер архива в байтах; `0` в dry-run |
-| `file_count` | Число включённых файлов; `0` в dry-run |
-| `skipped_secret_files` | Число пропущенных секретных файлов (по имени и/или содержимому); `0` в dry-run |
+| Field | Meaning |
+|-------|---------|
+| `source` | Source project directory |
+| `output` | Path to the artifact (expected path in dry-run) |
+| `size_bytes` | Archive size in bytes; `0` in dry-run |
+| `file_count` | Number of included files; `0` in dry-run |
+| `skipped_secret_files` | Number of skipped secret files (by name and/or content); `0` in dry-run |
 | `dry_run` | `true` / `false` |
 
-Размер в человекочитаемом выводе форматируется в бинарных единицах (`B`, `KiB`, `MiB`). Raw-значения секретов в вывод не попадают.
+The size in human-readable output is formatted with binary units (`B`, `KiB`, `MiB`). Raw secret values never appear in output.
 
-## Коды выхода
+## Exit codes
 
-| Код | Когда |
-|-----|--------|
-| `0` | Успех (включая dry-run) |
-| `1` | Ошибка: нет проекта, не каталог, невалидный `--output-name`, IO, конфликт имён, den внутри проекта |
+| Code | When |
+|------|------|
+| `0` | Success (including dry-run) |
+| `1` | Error: missing project, not a directory, invalid `--output-name`, IO, name conflict, den inside the project |
 
-Код `2` (как у `dig`) **не** используется для `pack`.
+Code `2` (as in `dig`) is **not** used by `pack`.
 
-## Примеры
+## Examples
 
 ```bash
-# Dry-run: показать, что будет упаковано
+# Dry-run: show what would be packed
 racc pack --project ~/DEV/PROJS/app-api
 
-# Dry-run в JSON
+# Dry-run in JSON
 racc pack --project ~/DEV/PROJS/app-api --json
 
-# Commit: создать архив в den
+# Commit: create the archive in the den
 racc pack --project ~/DEV/PROJS/app-api --yes
 
-# Commit для CI с JSON
+# Commit for CI with JSON
 racc pack --project "$CI_PROJECT_DIR" --den "$DEN_PATH" --yes --json
 
-# Своё имя артефакта вместо slug__timestamp
+# Custom artifact name instead of slug__timestamp
 racc pack --project ~/DEV/PROJS/app-api --yes --output-name snapshot
 
-# Уровень сжатия zstd
+# zstd compression level
 racc pack --project ~/DEV/PROJS/app-api --yes --zstd-level 19
 
-# Отключить контентный deny (остаётся deny по имени)
+# Disable content deny (name deny remains)
 racc pack --project ~/DEV/PROJS/app-api --yes --no-content-deny
 
-# Явный dry-run, даже если передан --yes
+# Explicit dry-run even when --yes is passed
 racc pack --project ~/DEV/PROJS/app-api --yes --dry-run
 
-# Относительный --project относительно --root
+# Relative --project resolved against --root
 racc pack --root ~/DEV/PROJS --project app-api --yes
 ```
 
-## Частые ошибки
+## Common errors
 
-| Ситуация | Что сделать |
-|----------|-------------|
-| Не указан `--project` | Параметр обязательный — CLI отклонит запуск |
-| «path not found» / «not a directory» | Проверьте, что `--project` существует и является каталогом |
-| `staging path lies inside the project tree` | Den находится внутри проекта — используйте den вне проекта |
-| Невалидный `--output-name` | Имя не должно быть пустым, `.`, `..` или содержать `/`, `\`, `\0` |
-| `pack artifact name collision under den` | Конфликт имени после добавления суффикса (маловероятно) — повторите запуск |
-| В архиве остались секреты при `--no-content-deny` | Контентный deny отключён, но deny по имени остаётся; проверьте проект через `racc dig` |
-| Секреты не удалены из исходников | `pack` не редактирует проект — вынос секретов выполняет `racc stash` |
+| Situation | What to do |
+|-----------|------------|
+| `--project` missing | The flag is required — CLI rejects the run |
+| "path not found" / "not a directory" | Check that `--project` exists and is a directory |
+| `staging path lies inside the project tree` | The den is inside the project — use a den outside the project |
+| Invalid `--output-name` | Name must not be empty, `.`, `..`, or contain `/`, `\`, `\0` |
+| `pack artifact name collision under den` | Name conflict even after adding the suffix (unlikely) — rerun |
+| Secrets remain in the archive with `--no-content-deny` | Content deny is off but name deny stays; inspect the project via `racc dig` |
+| Secrets were not removed from sources | `pack` never edits the project — removing secrets is `racc stash`'s job |
 
-## Безопасность
+## Security
 
-- По умолчанию dry-run — сначала смотрите вывод, затем commit.
-- Deny по имени (риск ≥ `High`) нельзя отключить; контентный deny (риск ≥ `Critical`) по умолчанию включён.
-- Архив **не зашифрован** (tar.zst) — не используйте `pack` как замену `stash` для хранения секретов.
-- Не коммитьте каталог den в git.
-- Raw-значения секретов не попадают в человекочитаемый и JSON-вывод.
+- Dry-run by default — review output first, then commit.
+- Name deny (risk ≥ `High`) cannot be turned off; content deny (risk ≥ `Critical`) is on by default.
+- The archive is **not encrypted** (tar.zst) — do not use `pack` as a replacement for `stash` to store secrets.
+- Never commit the den directory to git.
+- Raw secret values never appear in human-readable or JSON output.
 
-## Связанные команды
+## Related commands
 
-| Команда | Роль |
+| Command | Role |
 |---------|------|
-| `racc sniff` | Найти проекты под `scan_root` |
-| `racc dig` | Найти секреты в проекте перед упаковкой (read-only) |
-| `racc stash` | Вынести секреты в зашифрованный age-архив в den |
-| `racc rinse` | Удалить мусор сборки по стратегиям |
-| `racc raid` | Полный цикл одной командой |
-| [Основные понятия](/concepts) | Den, раскладка, риски, skip-политика |
+| `racc sniff` | Find projects under `scan_root` |
+| `racc dig` | Find secrets in a project before packing (read-only) |
+| `racc stash` | Move secrets into an encrypted age archive in the den |
+| `racc rinse` | Delete build trash by strategies |
+| `racc raid` | Full cycle in one command |
+| [Concepts](/concepts) | Den, layout, risks, skip policy |
 
-*Документ соответствует реализации; при изменении флагов CLI обновляйте страницу в том же PR.*
+*This document matches the implementation; when CLI flags change, update the page in the same PR.*

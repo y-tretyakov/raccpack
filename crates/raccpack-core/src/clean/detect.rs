@@ -17,6 +17,18 @@ use crate::scan::walk::{ensure_scan_root, map_walk_error};
 
 use super::strategy::{StrategyId, TrashPattern, DEFAULT_STRATEGIES};
 
+/// A scope entry for scoped trash discovery (D3.1 DAG mode).
+///
+/// Tells [`find_trash_dirs_scoped`] which directory to scan and which
+/// strategy patterns to search within it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScopeEntry {
+    /// Absolute directory path to scan for trash dirs.
+    pub path: PathBuf,
+    /// Strategy ids whose patterns are searched under this scope.
+    pub strategies: Vec<StrategyId>,
+}
+
 /// A discovered trash-directory candidate.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TrashDir {
@@ -42,6 +54,12 @@ pub struct DetectTrashOptions {
     /// Sum byte size under each hit via a separate restricted walk; `false`
     /// leaves [`TrashDir::size_bytes`] at `0`.
     pub compute_size: bool,
+    /// Scoped search filter (D3.1 DAG mode).
+    ///
+    /// When `Some`, only the scopes listed are searched, each with its own
+    /// strategy list. When `None`, the legacy flat walk is used: the entire
+    /// `target` tree is searched with `strategy_ids`.
+    pub scope_filter: Option<Vec<ScopeEntry>>,
 }
 
 /// A pattern paired with the strategy it came from (both `'static`).
@@ -128,6 +146,75 @@ pub fn find_trash_dirs(opts: &DetectTrashOptions) -> Result<Vec<TrashDir>> {
         }
     }
     Ok(found)
+}
+
+/// Find trash directories under `opts.target`, scoped by `scope_filter`.
+///
+/// When `opts.scope_filter` is `Some`, the flat walk is replaced by a
+/// per-scope walk: each [`ScopeEntry`] in the list is walked independently
+/// using only its own strategy patterns. This supports DAG mode rinse where
+/// `target/` is only deleted under Rust scopes and `node_modules/` only
+/// under Node scopes.
+///
+/// When `opts.scope_filter` is `None`, this delegates to [`find_trash_dirs`].
+///
+/// # Errors
+///
+/// Same as [`find_trash_dirs`] plus:
+/// - A scope path not contained under `opts.target` → [`Error::Other`].
+pub fn find_trash_dirs_scoped(opts: &DetectTrashOptions) -> Result<Vec<TrashDir>> {
+    match &opts.scope_filter {
+        None => find_trash_dirs(opts),
+        Some(scopes) => {
+            ensure_scan_root(&opts.target)?;
+            let mut all: Vec<TrashDir> = Vec::new();
+
+            for (i, scope) in scopes.iter().enumerate() {
+                if scope.path.strip_prefix(&opts.target).is_err() {
+                    return Err(Error::Other {
+                        message: format!(
+                            "scope path {} is not contained under target {}",
+                            scope.path.display(),
+                            opts.target.display()
+                        ),
+                    });
+                }
+
+                let scoped_opts = DetectTrashOptions {
+                    target: scope.path.clone(),
+                    strategy_ids: scope.strategies.clone(),
+                    max_depth: opts.max_depth,
+                    compute_size: opts.compute_size,
+                    scope_filter: None,
+                };
+
+                let found = find_trash_dirs(&scoped_opts)?;
+
+                // Filter: only keep dirs NOT under descendant scopes' roots.
+                // A scope only prunes trash belonging to its own child scopes,
+                // not ancestor scopes (child scope finds are legitimately under
+                // the root scope's path).
+                for dir in found {
+                    let under_descendant_scope = scopes
+                        .iter()
+                        .enumerate()
+                        .filter(|(j, _)| *j != i)
+                        .filter(|(_, other)| {
+                            other.path.starts_with(&scope.path) && other.path != scope.path
+                        })
+                        .any(|(_, other)| dir.path.starts_with(&other.path));
+
+                    if !under_descendant_scope {
+                        all.push(dir);
+                    }
+                }
+            }
+
+            all.sort_by(|a, b| a.path.cmp(&b.path));
+            all.dedup_by(|a, b| a.path == b.path);
+            Ok(all)
+        }
+    }
 }
 
 /// First [`CollectedPattern`] matching `name`, in strategy-then-pattern order.

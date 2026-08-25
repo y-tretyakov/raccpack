@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::domain::{Error, Stack};
 use crate::scan::MarkerHit;
 
-use super::types::StackDetector;
+use super::traits::StackDetector;
 
 /// Detector for the PHP ecosystem.
 pub struct PhpDetector;

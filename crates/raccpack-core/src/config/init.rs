@@ -93,6 +93,11 @@ max_depth = 6
 # Supported catalogs: https://y-tretyakov.github.io/raccpack/supported.html
 [cleanup]
 enabled_strategies = ["rust", "node", "python"]
+
+# -----------------------------------------------------------------------------
+# [detect] — Language & framework detection pipeline for `racc sniff`
+# -----------------------------------------------------------------------------
+# mode = "priority_table"   # default; "composite_dag" = experimental composite pipeline
 "#
     )
 }

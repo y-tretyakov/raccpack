@@ -1,40 +1,58 @@
-//! Shared types for the detect subsystem: the [`StackDetector`] trait, the
-//! §4.1 language-priority table, and small deterministic helpers.
+//! Shared types and helpers for the detect subsystem: the [`Detection`] /
+//! [`StackNode`] composite-tree DTOs, the confidence normalizer
+//! ([`clamp_confidence`]), the §4.1 language-priority table and small
+//! deterministic directory-read/match helpers. The detector contract itself
+//! lives in [`super::traits`].
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use crate::domain::{Error, Stack};
+use crate::domain::Error;
 use crate::scan::MarkerHit;
 
-/// A detector contributing framework knowledge for exactly one ecosystem.
+/// One ecosystem-level detection result for a subtree root.
 ///
-/// Detectors never walk or scan; they read at most one level of the project
-/// directory (see `read_dir_names`, plus a single `config/` peek in the
-/// Ruby detector) to look for framework marker files. The orchestrator
-/// ([`super::detect_stack`]) collects their `frameworks`, resolves `language`
-/// centrally by priority and sets `markers` from the hits, so detectors must
-/// leave both fields empty/unset.
+/// Produced by the composite stack detection pipeline; until that lands
+/// (D2.x) no producer exists and this type fixes only the data contract.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct Detection {
+    /// Ecosystem identifier ("rust", "node", …).
+    pub ecosystem: String,
+    /// Primary language, if resolved for this subtree.
+    pub language: Option<String>,
+    /// Framework / runtime hints contributed by detectors.
+    pub frameworks: Vec<String>,
+    /// Confidence in `0.0..=1.0`; producers must normalize through
+    /// [`clamp_confidence`].
+    pub confidence: f32,
+    /// Subtree root this detection applies to. Filled by the composite_dag
+    /// pipeline in D2.x; currently a passthrough `PathBuf`.
+    pub scope: PathBuf,
+    /// Marker names that contributed to this detection.
+    pub markers: Vec<String>,
+}
+
+/// A recursive node of the composite stack tree: one [`Detection`] plus the
+/// nested subtrees below it.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct StackNode {
+    /// Detection for this node's subtree root.
+    pub detection: Detection,
+    /// Nested subtree nodes (recursion terminates on an empty vec).
+    pub children: Vec<StackNode>,
+}
+
+/// Clamp a detector confidence value into `[0.0, 1.0]`.
 ///
-/// `detect` returns a [`Result`] so shallow-read IO failures surface as
-/// [`Error::Io`] (spec §5), which a bare `-> Stack` signature cannot express.
-pub trait StackDetector: Send + Sync {
-    /// Stable identifier used for diagnostics and future configuration.
-    fn id(&self) -> &'static str;
-
-    /// Whether this detector applies to the given marker hits.
-    ///
-    /// A detector matches when at least one of its ecosystem markers appears
-    /// in `hits`. The orchestrator additionally probes *all* detectors when
-    /// `hits` is empty (path-only detection), so this method only gates the
-    /// marker-driven case.
-    fn matches(&self, hits: &[MarkerHit]) -> bool;
-
-    /// Produce a [`Stack`] contribution for the project at `project_dir`.
-    ///
-    /// Only the returned `frameworks` are used by the orchestrator. A detector
-    /// does its shallow read here and only when the orchestrator decided to
-    /// consult it. Errors from reading the directory map to [`Error::Io`].
-    fn detect(&self, hits: &[MarkerHit], project_dir: &Path) -> Result<Stack, Error>;
+/// Non-finite inputs (`NaN`, `+inf`, `-inf`) map to `0.0`: JSON has no
+/// representation for them (`serde_json` would emit `null`), so mapping them
+/// deterministically keeps serialized output valid and round-trip stable
+/// across platforms and producers.
+pub fn clamp_confidence(value: f32) -> f32 {
+    if value.is_finite() {
+        value.clamp(0.0, 1.0)
+    } else {
+        0.0
+    }
 }
 
 /// Language priority groups from spec §4.1, highest priority first.
@@ -138,4 +156,68 @@ pub fn has_prefix_ext(names: &[String], prefix: &str, exts: &[&str]) -> bool {
             .strip_prefix(prefix)
             .is_some_and(|ext| exts.contains(&ext))
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_detection() -> Detection {
+        Detection {
+            ecosystem: "rust".to_string(),
+            language: Some("Rust".to_string()),
+            frameworks: vec!["Axum".to_string()],
+            confidence: 0.9,
+            scope: PathBuf::from("/tmp/fixture"),
+            markers: vec!["Cargo.toml".to_string()],
+        }
+    }
+
+    #[test]
+    fn clamp_confidence_keeps_in_range_values() {
+        assert_eq!(clamp_confidence(0.0), 0.0);
+        assert_eq!(clamp_confidence(1.0), 1.0);
+        assert_eq!(clamp_confidence(0.42), 0.42);
+    }
+
+    #[test]
+    fn clamp_confidence_pulls_out_of_range_values_to_bounds() {
+        assert_eq!(clamp_confidence(-0.5), 0.0);
+        assert_eq!(clamp_confidence(1.5), 1.0);
+    }
+
+    #[test]
+    fn clamp_confidence_maps_non_finite_to_zero() {
+        assert_eq!(clamp_confidence(f32::NAN), 0.0);
+        assert_eq!(clamp_confidence(f32::INFINITY), 0.0);
+        assert_eq!(clamp_confidence(f32::NEG_INFINITY), 0.0);
+    }
+
+    #[test]
+    fn detection_serde_roundtrip() {
+        let json = serde_json::to_string(&sample_detection()).unwrap();
+        let back: Detection = serde_json::from_str(&json).unwrap();
+        assert_eq!(sample_detection(), back);
+    }
+
+    #[test]
+    fn stack_node_recursive_serde_roundtrip() {
+        let node = StackNode {
+            detection: sample_detection(),
+            children: vec![StackNode {
+                detection: Detection {
+                    ecosystem: "node".to_string(),
+                    language: Some("TypeScript".to_string()),
+                    frameworks: Vec::new(),
+                    confidence: clamp_confidence(2.5),
+                    scope: PathBuf::from("/tmp/fixture/web"),
+                    markers: vec!["package.json".to_string()],
+                },
+                children: Vec::new(),
+            }],
+        };
+        let json = serde_json::to_string(&node).unwrap();
+        let back: StackNode = serde_json::from_str(&json).unwrap();
+        assert_eq!(node, back);
+    }
 }

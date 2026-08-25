@@ -50,3 +50,6 @@ raccpack-agent-workflow.md
 raccpack-facade-and-den.md
 raccpack-markers-detect-modularity.md
 raccpack-modularity.md
+
+# release build outputs (binaries, packages)
+dist/out/

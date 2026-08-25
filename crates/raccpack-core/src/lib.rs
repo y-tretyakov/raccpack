@@ -13,9 +13,10 @@ pub mod scan;
 pub mod secrets;
 
 pub use app::{
-    dig, dig_with_git, exit_code_for_secrets, pack, raid, rinse, sniff, stash, AgeIdentity,
-    AppContext, DigOptions, DigResult, NullProgress, OperationKind, OrchestrationMode, PackOptions,
-    PackPhaseOpts, PackResult, ProgressEvent, ProgressSink, RaidOptions, RaidResult,
+    dig, dig_with_git, exit_code_for_secrets, pack, raid, raid_batch, resolve_stack_tree, rinse,
+    sniff, stash, AgeIdentity, AppContext, DigOptions, DigResult, NullProgress, OperationKind,
+    OrchestrationMode, PackOptions, PackPhaseOpts, PackResult, ProgressEvent, ProgressSink,
+    RaidBatchItem, RaidBatchOptions, RaidBatchOutcome, RaidBatchResult, RaidOptions, RaidResult,
     RaidStageResult, RepeatedSecret, RinseOptions, RinsePhaseOpts, RinseResult, RunMode,
     SecretExitPolicy, SensitiveFile, SniffOptions, SniffResult, StashOptions, StashPhaseOpts,
     StashResult, WorkspacePaths,
@@ -25,13 +26,13 @@ pub use archive::{
 };
 pub use cache::{store_sniff_cache, try_load_sniff_cache};
 pub use clean::{
-    find_trash_dirs, remove_trash_dir, DetectTrashOptions, StrategyDef, StrategyId, TrashDir,
-    TrashMatchKind, TrashPattern, DEFAULT_STRATEGIES,
+    find_trash_dirs, find_trash_dirs_scoped, remove_trash_dir, DetectTrashOptions, ScopeEntry,
+    StrategyDef, StrategyId, TrashDir, TrashMatchKind, TrashPattern, DEFAULT_STRATEGIES,
 };
 pub use config::{
     default_config_path, default_config_version, default_toml, init_config, migrate_to_current,
-    CleanupConfig, ConfigError, InitOptions, InitResult, PathsConfig, RaccConfig, ScannerConfig,
-    CURRENT_CONFIG_VERSION, DEFAULT_DEN_DIR,
+    CleanupConfig, ConfigError, DetectConfig, InitOptions, InitResult, PathsConfig, RaccConfig,
+    ScannerConfig, CURRENT_CONFIG_VERSION, DEFAULT_DEN_DIR,
 };
 pub use den::{
     ensure_den, manifest_relative_path, pack_relative_path, place_pack, place_secrets_archive,
@@ -39,7 +40,10 @@ pub use den::{
     write_manifest, DenManifest, DenPaths, ManifestArtifacts, ManifestStage, PlacePackRequest,
     PlacePackResult, PlaceSecretsRequest, PlaceSecretsResult, DEN_VERSION, MANIFEST_SCHEMA_VERSION,
 };
-pub use detect::{candidate_to_project, detect_stack, detect_stacks, stack_from_candidate};
+pub use detect::{
+    candidate_to_project, clamp_confidence, detect_stack, detect_stacks, detector_registry,
+    scopes_for_rinse, stack_from_candidate, DetectMode, Detection, StackNode, WorkspaceDetector,
+};
 pub use domain::{Error, Project, Result, ScanReport, SensitiveRisk, Stack};
 pub use git::{
     find_repo_root, GitClient, GitFileStatus, GitState, MockGitClient, ProcessGitClient,

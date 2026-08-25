@@ -1,77 +1,77 @@
 ---
-title: Архитектура (высокий уровень)
-description: "Как устроен raccpack: слои core и facade, интерфейсы, границы доверия и поток данных."
+title: Architecture (high level)
+description: "How raccpack is structured: core and facade layers, interfaces, trust boundaries, and the data flow."
 ---
 
-# Архитектура (высокий уровень)
+# Architecture (high level)
 
-Раздел объясняет, как устроен raccpack «сверху вниз», без внутренностей для разработчиков. Знать это не обязательно для работы, но полезно, чтобы понимать, почему поведение одинаково во всех интерфейсах и откуда берутся гарантии безопасности.
+This section explains how raccpack is structured "top down", without developer internals. You don't need to know this to use the tool, but it helps to understand why behavior is identical across all interfaces and where the security guarantees come from.
 
-## Общая схема
+## Overall diagram
 
-![Общая схема: интерфейсы → facade → ядро](/architecture.webp)
+![Overall diagram: interfaces → facade → core](/architecture.webp)
 
-## Главное правило
+## The main rule
 
-Вся бизнес-логика — обнаружение секретов, правила skip, форматы отчётов, структура den — живёт **в ядре** `raccpack-core`. CLI, TUI и Desktop — это только «обёртки», которые вызывают один и тот же публичный контракт (facade) и показывают результат. Поэтому вывод, риски и политики совпадают во всех трёх интерфейсах.
+All business logic — secret detection, skip rules, report formats, den structure — lives **in the core** `raccpack-core`. CLI, TUI, and Desktop are only "wrappers" that call the same public contract (the facade) and display the result. That is why output, risks, and policies match across all three interfaces.
 
-## Что делает каждый слой
+## What each layer does
 
-### Ядро (raccpack-core)
+### Core (raccpack-core)
 
-- **config** — загрузка TOML, проверка и миграция конфигурации, пути.
-- **scan** — обход дерева, правила skip, поиск проектов по маркерам.
-- **detect** — определение языка и фреймворков проекта.
-- **secrets** — поиск секретов по именам и содержимому, модель рисков, маскирование, хеши.
-- **archive** — упаковка `tar.zst`, вынос секретов в `age`-архивы.
-- **den** — раскладка хранилища, именование артефактов, перенос файлов.
-- **cache** — кэш результатов сканирования.
-- **report** — стабильные DTO (структуры данных) для отчётов, пригодные для JSON.
-- **policy** — единые правила «что не обходить / что запрещено при упаковке».
+- **config** — loading TOML, validating and migrating configuration, paths.
+- **scan** — tree traversal, skip rules, project discovery by markers.
+- **detect** — determining a project's language and frameworks.
+- **secrets** — finding secrets by name and content, risk model, masking, hashes.
+- **archive** — packing into `tar.zst`, moving secrets into `age` archives.
+- **den** — storage layout, artifact naming, file placement.
+- **cache** — cache of scan results.
+- **report** — stable DTOs (data structures) for reports, JSON-friendly.
+- **policy** — unified rules for "what not to traverse / what is forbidden when packing".
 
-Ядро не знает про интерфейсы: ни Ratatui, ни React, ни интерактивные запросы. Прогресс длинных операций передаётся наружу через события, на которые подписывается интерфейс.
+The core knows nothing about interfaces: no Ratatui, no React, no interactive prompts. Progress of long operations is reported outward through events that an interface subscribes to.
 
-### Facade (use-case слой)
+### Facade (use-case layer)
 
-Один публичный контракт для всех интерфейсов:
+One public contract for all interfaces:
 
-| Операция | Назначение |
-|----------|------------|
-| `sniff` | Найти проекты, стек, размеры |
-| `dig` | Найти секреты (read-only) |
-| `stash` | Вынести секреты в `age`-архив |
-| `rinse` | Удалить мусор сборки |
-| `pack` | Упаковать проект без секретов и мусора |
-| `raid` | Всё вместе: stash → rinse → pack → финализация в den |
+| Operation | Purpose |
+|-----------|---------|
+| `sniff` | Find projects, stacks, sizes |
+| `dig` | Find secrets (read-only) |
+| `stash` | Move secrets into an `age` archive |
+| `rinse` | Delete build trash |
+| `pack` | Pack a project without secrets or trash |
+| `raid` | All together: stash → rinse → pack → finalize into the den |
 
-### Интерфейсы
+### Interfaces
 
-- **CLI** — аргументы командной строки, человеческий или JSON-вывод, коды выхода.
-- **TUI** — интерактивное дерево, фильтры, прогресс.
-- **Desktop** — React-интерфейс, Tauri-команды как прослойка (BFF) к ядру.
+- **CLI** — command-line arguments, human-readable or JSON output, exit codes.
+- **TUI** — interactive tree, filters, progress.
+- **Desktop** — React interface, Tauri commands as a middle layer (BFF) to the core.
 
-## Границы доверия и безопасность
+## Trust boundaries and security
 
-| Зона | Правило |
-|------|---------|
-| **Ядро** | Единственное место, где сырой секрет допустим в памяти; после использования память затирается |
-| **CLI / TUI** | Могут запросить показ секрета явно; по умолчанию — маскировано |
-| **Desktop (React)** | Не получает сырых секретов — только DTO с маскированными значениями |
-| **Den на диске** | age-файлы; права доступа настраивает пользователь |
-| **CI** | JSON-отчёт + провал по политике; обычно без показа секретов |
+| Zone | Rule |
+|------|------|
+| **Core** | The only place where a raw secret may exist in memory; after use the memory is zeroed |
+| **CLI / TUI** | May request showing a secret explicitly; by default — masked |
+| **Desktop (React)** | Never receives raw secrets — only DTOs with masked values |
+| **Den on disk** | age files; access permissions are configured by the user |
+| **CI** | JSON report + policy-driven failure; usually without showing secrets |
 
-## Поток данных (happy path)
+## Data flow (happy path)
 
-![Поток данных (happy path): sniff → dig → raid](/happy-path.webp)
+![Data flow (happy path): sniff → dig → raid](/happy-path.webp)
 
-## Расширяемость
+## Extensibility
 
-- Новые языки — добавлением маркеров и правил обнаружения в ядро.
-- Новые типы секретов — группами правил в таблицах ядра.
-- Другой алгоритм шифрования — новым backend за общим интерфейсом.
-- Новый интерфейс — просто ещё один frontend на том же facade.
+- New languages — by adding markers and detection rules in the core.
+- New secret types — by rule groups in the core tables.
+- Another encryption algorithm — by a new backend behind a common interface.
+- A new interface — just another frontend on the same facade.
 
-## Дальнейшее чтение
+## Further reading
 
-- [Facade API](/facade-api) — конкретные сигнатуры публичного контракта.
-- [Основные понятия](/concepts) — den, риски, фазы.
+- [Facade API](/facade-api) — concrete signatures of the public contract.
+- [Core concepts](/concepts) — den, risks, phases.

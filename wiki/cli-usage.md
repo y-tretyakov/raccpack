@@ -1,43 +1,43 @@
 ---
-title: Использование CLI
-description: Обзор команд racc — глобальные флаги и типовой сценарий; подробно по командам — на отдельных страницах.
+title: CLI usage
+description: Overview of racc commands — global flags and the typical workflow; each command has its own detailed page.
 ---
 
-# Использование CLI
+# CLI usage
 
-`racc` — командная строка raccpack. Подходит для повседневной работы, скриптов и CI. На этой странице — краткий обзор: глобальные флаги, типовой сценарий и список команд; подробные страницы по каждой команде — внизу раздела.
+`racc` is the raccpack command line. It suits everyday work, scripts, and CI. This page is a short overview: global flags, the typical workflow, and the command list; detailed pages for each command are linked below.
 
-## Глобальные флаги
+## Global flags
 
-Флаги можно указывать до или после подкоманды.
+Flags may be placed before or after the subcommand.
 
-| Флаг | Описание |
-|------|----------|
-| `-c, --config <PATH>` | Файл конфигурации (переопределяет `RACCPACK_CONFIG`) |
-| `--root <PATH>` | Переопределить `scan_root` на текущий запуск (доступен и как флаг отдельных команд) |
-| `--den <PATH>` | Переопределить `den_dir` на текущий запуск (для `sniff` необязателен) |
-| `--json` | Машиночитаемый вывод JSON вместо человекочитаемой таблицы |
-| `-v, --verbose` | Подробные логи в stderr (повторяемый: `-v` info, `-vv` debug, `-vvv` trace) |
+| Flag | Description |
+|------|-------------|
+| `-c, --config <PATH>` | Config file (overrides `RACCPACK_CONFIG`) |
+| `--root <PATH>` | Override `scan_root` for this run (also available as a per-command flag) |
+| `--den <PATH>` | Override `den_dir` for this run (optional for `sniff`) |
+| `--json` | Machine-readable JSON output instead of the human-readable table |
+| `-v, --verbose` | Verbose logs to stderr (repeatable: `-v` info, `-vv` debug, `-vvv` trace) |
 
 ::: info
-`--root` и `--den` переопределяют конфигурацию только на текущий запуск и не изменяют её на диске.
+`--root` and `--den` override the configuration only for the current run and never change it on disk.
 :::
 
-::: tip Вербозность и логи
-Без `-v` racc почти молчит (уровень warn). Логи всегда пишутся в **stderr** — stdout остаётся чистым для данных и JSON, поэтому `racc dig --json -v` безопасно использовать в скриптах. Переменная `RUST_LOG`, если задана, имеет приоритет над `-v` (например, `RUST_LOG=raccpack_core=debug`). В логи никогда не попадают значения секретов и passphrase — только пути, счётчики и источник passphrase.
+::: tip Verbosity and logs
+Without `-v`, racc is nearly silent (warn level). Logs always go to **stderr** — stdout stays clean for data and JSON, so `racc dig --json -v` is safe in scripts. The `RUST_LOG` variable, if set, takes precedence over `-v` (e.g., `RUST_LOG=raccpack_core=debug`). Secret values and passphrases never appear in logs — only paths, counters, and the passphrase source.
 :::
 
-Справка и версия доступны в любом месте: `-h, --help` и `-V, --version`.
+Help and version work anywhere: `-h, --help` and `-V, --version`.
 
-## Типовой сценарий
+## Typical workflow
 
-Перед первым запуском создайте конфигурацию одной командой — [racc init](/init):
+Before the first run, create a configuration with one command — [racc init](/init):
 
 ```bash
 racc init --scan-root ~/DEV/PROJS
 ```
 
-Полный цикл работы с проектами:
+The full project cycle:
 
 ```bash
 racc sniff
@@ -47,105 +47,105 @@ racc rinse --project <PATH> --yes
 racc pack --project <PATH> --yes
 ```
 
-- **init** — создать стартовый `config.toml` (один раз, перед первым запуском);
-- **sniff** — найти проекты под `scan_root`;
-- **dig** — найти секреты (read-only, ничего не пишет);
-- **stash** — вынести секреты в зашифрованный age-архив в den;
-- **rinse** — удалить мусор сборки (`target`, `node_modules`, …);
-- **pack** — упаковать проект БЕЗ секретов в `packs/`.
+- **init** — create the starter `config.toml` (once, before first use);
+- **sniff** — find projects under `scan_root`;
+- **dig** — find secrets (read-only, writes nothing);
+- **stash** — move secrets into an encrypted age archive in the den;
+- **rinse** — remove build trash (`target`, `node_modules`, …);
+- **pack** — pack the project WITHOUT secrets into `packs/`.
 
-## Команды
+## Commands
 
 ### `racc sniff`
 
-Сканирует `scan_root`, находит проекты и печатает таблицу: имя, стек, размер, признак git-репозитория, путь. Результат кэшируется; `--force-refresh` игнорирует кэш, `--max-depth N` ограничивает глубину обхода.
+Scans `scan_root`, finds projects, and prints a table: name, stack, size, git status, path. Results are cached; `--force-refresh` ignores the cache, `--max-depth N` limits walk depth, `--detect-mode` selects the detection pipeline.
 
 ```text
-racc sniff [--force-refresh] [--max-depth N]
+racc sniff [--force-refresh] [--max-depth N] [--detect-mode priority_table|composite_dag]
 ```
 
 ```bash
-# Полный обзор папки с проектами
+# Full overview of the projects folder
 racc sniff
 
-# Принудительное пересканирование без кэша
+# Force rescan without cache
 racc sniff --force-refresh
 
-# Не глубже 3 уровней
+# No deeper than 3 levels
 racc sniff --max-depth 3
 
-# Машиночитаемый результат для скриптов
+# Machine-readable output for scripts
 racc sniff --json
 ```
 
-Подробно: [Sniff](/sniff)
+Details: [Sniff](/sniff)
 
 ### `racc dig`
 
-Ищет чувствительные файлы в `scan_root` (или в одном проекте с `--project`) и возвращает отчёт с уровнями риска. В JSON-выводе каждая находка содержит git-статус файла (`git_status`; `null`, если статус определить нельзя). Команда read-only: ничего не пишет и не удаляет. По умолчанию завершается с кодом `2`, если найдены секреты уровня Critical и выше; порог задаёт `--fail-on`.
+Searches for sensitive files in `scan_root` (or one project with `--project`) and returns a report with risk levels. In JSON output every finding carries the file's git status (`git_status`; `null` when it cannot be determined). The command is read-only: writes and deletes nothing. By default it exits with code `2` when Critical-or-above secrets are found; the threshold is set by `--fail-on`.
 
 ```text
 racc dig [--project PATH] [--no-content] [--repeated] [--fail-on ignore|critical|high] [--max-depth N]
 ```
 
 ```bash
-# Проверить все проекты
+# Check all projects
 racc dig
 
-# Проверить один проект
+# Check one project
 racc dig --project ~/DEV/PROJS/app-api
 
-# Только по именам файлов (быстрее, без чтения содержимого)
+# File names only (faster, no content reading)
 racc dig --no-content
 
-# Проваливать запуск уже при High-находках
+# Fail the run already at High findings
 racc dig --fail-on high
 ```
 
-Подробно: [Dig](/dig)
+Details: [Dig](/dig)
 
 ### `racc pack`
 
-Упаковывает каталог проекта в архив `tar.zst` и кладёт его в den по раскладке `packs/{yyyy}/{mm}/`, исключая секреты. По умолчанию работает в **dry-run** и ничего не пишет — commit только с `--yes`.
+Packs the project directory into a `tar.zst` archive and places it in the den under `packs/{yyyy}/{mm}/`, excluding secrets. Runs as **dry-run** by default and writes nothing — commit requires `--yes`.
 
 ```text
 racc pack --project PATH [--den PATH] [--yes] [--dry-run] [--no-content-deny] [--zstd-level N] [--output-name NAME]
 ```
 
 ```bash
-# Dry-run: показать, что будет упаковано (ничего не пишется)
+# Dry-run: show what would be packed (nothing written)
 racc pack --project ~/DEV/PROJS/app-api
 
-# Commit: создать архив в den
+# Commit: create the archive in the den
 racc pack --project ~/DEV/PROJS/app-api --yes
 
-# Своё имя артефакта вместо slug__timestamp
+# Custom artifact name instead of slug__timestamp
 racc pack --project ~/DEV/PROJS/app-api --yes --output-name snapshot
 ```
 
 ::: warning
-По умолчанию `pack` работает в **dry-run** и ничего не пишет. Запись в den — только с флагом `--yes`.
+By default `pack` runs as **dry-run** and writes nothing. Writing to the den happens only with `--yes`.
 :::
 
-Подробно: [Pack](/pack)
+Details: [Pack](/pack)
 
 ### `racc stash`
 
-Собирает чувствительные файлы проекта в один зашифрованный **age**-архив и кладёт его в den по раскладке `secrets/{yyyy}/{mm}/`, при желании удаляя исходники. По умолчанию работает в **dry-run** — commit только с `--yes`. Passphrase берётся из `RACCPACK_PASSPHRASE`, интерактивного ввода или stdin. Сырые секреты не печатаются и не попадают в вывод.
+Collects the project's sensitive files into a single encrypted **age** archive and places it in the den under `secrets/{yyyy}/{mm}/`, optionally removing the originals. Runs as **dry-run** by default — commit requires `--yes`. The passphrase comes from `RACCPACK_PASSPHRASE`, interactive input, or stdin. Raw secrets are never printed or included in output.
 
 ```text
 racc stash --project PATH [--den PATH] [--yes] [--dry-run] [--remove-sources] [--min-risk LEVEL] [--only PATH] [--batch-id ID]
 ```
 
 ```bash
-# Dry-run: показать, что попадёт в архив (ничего не пишется)
+# Dry-run: show what would be archived (nothing written)
 racc stash --project ~/DEV/PROJS/app-api
 
-# Commit и удалить исходные секретные файлы
+# Commit and remove the original secret files
 racc stash --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes --remove-sources
 ```
 
-Commit с env-passphrase для CI (исходники не удаляются):
+Commit with an env passphrase for CI (sources are not removed):
 
 ::: code-group
 
@@ -173,98 +173,123 @@ racc stash --project $env:CI_PROJECT_DIR --den $env:DEN_PATH --yes
 :::
 
 ::: danger
-Пример с `--remove-sources` удаляет исходные секреты после успешного stash. Подробности и ограничения: [Stash](/stash).
+The `--remove-sources` example deletes original secrets after a successful stash. Details and limitations: [Stash](/stash).
 :::
 
 ::: warning
-По умолчанию `stash` работает в **dry-run** и ничего не пишет. Commit — только с `--yes`.
+By default `stash` runs as **dry-run** and writes nothing. Commit requires `--yes`.
 :::
 
-Подробно: [Stash](/stash)
+Details: [Stash](/stash)
 
 ### `racc rinse`
 
-Удаляет из проекта известные каталоги артефактов сборки по **стратегиям** (`target`, `node_modules`, `__pycache__`, …). По умолчанию работает в **dry-run** и ничего не удаляет — commit только с `--yes`. Стратегии без флага берутся из `config.cleanup.enabled_strategies` (по умолчанию `rust`, `node`, `python`).
+Removes known build artifact directories from the project according to **strategies** (`target`, `node_modules`, `__pycache__`, …). Runs as **dry-run** by default and deletes nothing — commit requires `--yes`. Without the flag, strategies come from `config.cleanup.enabled_strategies` (default `rust`, `node`, `python`).
 
 ```text
 racc rinse --project PATH [--strategy ID ...] [--yes] [--dry-run]
 ```
 
 ```bash
-# Dry-run: показать, что было бы удалено (ничего не удаляется)
+# Dry-run: show what would be removed (nothing deleted)
 racc rinse --project ~/DEV/PROJS/app-api
 
-# Commit: реально удалить найденный мусор
+# Commit: actually remove the found trash
 racc rinse --project ~/DEV/PROJS/app-api --yes
 
-# Только Node-мусор (node_modules, .next, …)
+# Node trash only (node_modules, .next, …)
 racc rinse --project ~/DEV/PROJS/app-api --strategy node --yes
 ```
 
 ::: warning
-По умолчанию `rinse` работает в **dry-run** и ничего не удаляет. Удаление каталогов — только с `--yes`.
+By default `rinse` runs as **dry-run** and deletes nothing. Directory removal happens only with `--yes`.
 :::
 
-Подробно: [Rinse](/rinse)
+Details: [Rinse](/rinse)
 
 ### `racc raid`
 
-Запускает весь конвейер по проекту одной командой: **stash → rinse → pack → move**. По умолчанию — **atomic**: промежуточные файлы в `den/staging/{id}/`, удаления откладываются в commit, падение commit откатывается (`rolled_back`). После успешного commit пишется манифест в `den/manifests/{yyyy}/{mm}/`. По умолчанию работает в **dry-run** — commit только с `--yes`.
+Runs the whole pipeline on a project in one command: **stash → rinse → pack → move**. Default mode is **atomic**: intermediate files go to `den/staging/{id}/`, removals are deferred to commit, and a failed commit is rolled back (`rolled_back`). After a successful commit, a manifest is written to `den/manifests/{yyyy}/{mm}/`. Runs as **dry-run** by default — commit requires `--yes`.
+
+Two modes:
+
+- **Single project** (`--project`): raid one project directory.
+- **Batch** (`--root`): discover all projects under a directory and raid each one sequentially.
 
 ```text
+# Single project
 racc raid --project PATH [--den PATH] [--yes] [--dry-run] [--no-stash] [--no-rinse] [--no-pack] [--min-risk LEVEL] [--keep-sources] [--no-content-deny] [--fail-fast]
+
+# Batch (all projects under root)
+racc raid --root PATH [--den PATH] [--yes] [--dry-run] [--no-stash] [--no-rinse] [--no-pack] [--min-risk LEVEL] [--keep-sources] [--no-content-deny] [--fail-fast] [--only SUBSTR] [--limit N] [--stop-on-error]
 ```
 
+Batch-specific flags:
+
+| Flag | Meaning |
+|------|---------|
+| `--root PATH` | Root directory containing projects (mutually exclusive with `--project`) |
+| `--only SUBSTR` | Only raid projects whose name or path contains `SUBSTR` (repeatable) |
+| `--limit N` | Maximum number of projects to raid |
+| `--stop-on-error` | Stop the batch after the first project failure |
+
 ```bash
-# Dry-run: показать весь конвейер (ничего не пишется)
+# Dry-run: show the whole pipeline (nothing written)
 racc raid --project ~/DEV/PROJS/app-api --den ~/.raccpack/den
 
-# Полный commit (stash + rinse + pack + manifest)
+# Full commit (stash + rinse + pack + manifest)
 export RACCPACK_PASSPHRASE="$STASH_SECRET"
 racc raid --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes
 
-# Без stash: не трогать секреты, passphrase не нужна
+# Without stash: leave secrets alone, no passphrase needed
 racc raid --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes --no-stash
 
-# Не удалять исходные секреты
+# Do not remove the original secrets
 racc raid --project ~/DEV/PROJS/app-api --den ~/.raccpack/den --yes --keep-sources
+
+# Batch: raid all projects under ~/DEV/PROJS (dry-run first)
+racc raid --root ~/DEV/PROJS
+racc raid --root ~/DEV/PROJS --yes
+
+# Batch: only Rust projects, stop on first error
+racc raid --root ~/DEV/PROJS --only rust --stop-on-error --yes
 ```
 
-Exit: `0` при `success == true`, `1` при ошибке или `success == false` (в т.ч. откат commit).
+Exit: `0` on `success == true`, `1` on error or `success == false` (including a rolled-back commit).
 
 ::: warning
-По умолчанию `raid` работает в **dry-run** и ничего не пишет/не удаляет. Commit — только с `--yes`.
+By default `raid` runs as **dry-run** and writes/removes nothing. Commit requires `--yes`.
 :::
 
-Подробно: [Raid](/raid)
+Details: [Raid](/raid)
 
 ### `racc init`
 
-Создаёт стартовый конфигурационный файл с комментированным шаблоном (`config_version = 1`) — по умолчанию в `~/.config/raccpack/config.toml`. С `--ensure-den` дополнительно создаёт скелет den (`.den-version`, `README.txt`). Существующий файл перезаписывается только с `--force`.
+Creates a starter configuration file with a commented template (`config_version = 1`) — by default at `~/.config/raccpack/config.toml`. With `--ensure-den` it additionally creates the den skeleton (`.den-version`, `README.txt`). An existing file is overwritten only with `--force`.
 
 ```text
 racc init [--force] [--scan-root PATH] [--ensure-den]
 ```
 
 ```bash
-# Шаблон в ~/.config/raccpack/config.toml
+# Template at ~/.config/raccpack/config.toml
 racc init
 
-# Сразу указать папку проектов и создать den
+# Point at the projects folder and create the den right away
 racc init --scan-root ~/DEV/PROJS --den ~/.raccpack/den --ensure-den
 ```
 
-Подробно: [Init](/init)
+Details: [Init](/init)
 
-## В разработке
+## In development
 
-Следующие команды планируются в ближайших версиях (см. [Дорожную карту](/roadmap)):
+The following commands are planned for upcoming versions (see the [Roadmap](/roadmap)):
 
-| Команда | Назначение | Статус |
-|---------|------------|--------|
-| `racc den` | Управление den | Планируется |
+| Command | Purpose | Status |
+|---------|---------|--------|
+| `racc den` | Den management | Planned |
 
-## Примечания
+## Notes
 
-- JSON-вывод никогда не содержит raw-значений секретов — только маскированные превью и хеши (подробнее: [Dig](/dig)).
-- Код выхода `2` используется только у `dig` (политика `--fail-on`) и означает сработавшую политику, а не сбой CLI; у `pack`, `stash`, `rinse` и `raid` коды выхода — только `0` (успех) и `1` (ошибка).
+- JSON output never contains raw secret values — only masked previews and hashes (details: [Dig](/dig)).
+- Exit code `2` is used only by `dig` (the `--fail-on` policy) and means the policy triggered, not a CLI failure; `pack`, `stash`, `rinse`, and `raid` use only `0` (success) and `1` (error).

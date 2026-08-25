@@ -9,6 +9,8 @@ pub mod detect;
 pub mod remove;
 pub mod strategy;
 
-pub use detect::{find_trash_dirs, DetectTrashOptions, TrashDir};
+pub use detect::{
+    find_trash_dirs, find_trash_dirs_scoped, DetectTrashOptions, ScopeEntry, TrashDir,
+};
 pub use remove::remove_trash_dir;
 pub use strategy::{StrategyDef, StrategyId, TrashMatchKind, TrashPattern, DEFAULT_STRATEGIES};

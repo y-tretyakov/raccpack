@@ -52,6 +52,7 @@ use super::rinse::RinseResult;
 use super::stash::{AgeIdentity, StashResult};
 
 mod atomic;
+mod batch;
 mod fail_fast;
 mod manifest;
 mod progress;
@@ -59,6 +60,8 @@ mod rollback;
 mod stages;
 mod staging;
 mod wal;
+
+pub use batch::{raid_batch, RaidBatchItem, RaidBatchOptions, RaidBatchOutcome, RaidBatchResult};
 
 use atomic::atomic_raid;
 use fail_fast::fail_fast_raid;

@@ -1,74 +1,74 @@
 ---
-title: Init — стартовая конфигурация
-description: Команда racc init — создание config.toml с комментированным шаблоном и, по желанию, скелета den.
+title: Init — starter configuration
+description: The racc init command — creating a config.toml from a commented template and, optionally, a den skeleton.
 ---
 
-# Init - стартовая конфигурация
+# Init - starter configuration
 
-Команда: `racc init`  
-Статус: реализовано.
+Command: `racc init`  
+Status: implemented.
 
-Эта страница описывает **ровно то поведение**, которое реализует `raccpack` сейчас. Если флаг или путь не указаны здесь — их нет в текущей версии.
+This page describes **exactly the behavior** that `raccpack` implements right now. If a flag or path is not listed here — it does not exist in the current version.
 
-> Вернуться к обзору команд: [Использование CLI](/cli-usage).
+> Back to the command overview: [CLI usage](/cli-usage).
 
-## Что делает
+## What it does
 
-1. Создаёт конфигурационный файл с комментированным шаблоном (`config_version = 1`, секции `[paths]`, `[scanner]`, `[cleanup]`). По умолчанию — XDG-путь `~/.config/raccpack/config.toml`; недостающие каталоги создаются.
-2. С флагом `--ensure-den` дополнительно создаёт скелет den: `.den-version` и `README.txt`.
+1. Creates a configuration file from a commented template (`config_version = 1`, sections `[paths]`, `[scanner]`, `[cleanup]`). By default — the XDG path `~/.config/raccpack/config.toml`; missing directories are created.
+2. With the `--ensure-den` flag, additionally creates a den skeleton: `.den-version` and `README.txt`.
 
-Чего **не** делает:
+What it does **not** do:
 
-- не перезаписывает существующий конфиг без явного `--force`;
-- не проверяет существование `scan_root` — путь только записывается в шаблон;
-- ничего не мигрирует на диске (авто-миграция конфига v0 → v1 выполняется in-memory при загрузке, см. [Конфигурация](/configuration#config-version-и-миграция)).
+- does not overwrite an existing config without explicit `--force`;
+- does not check that `scan_root` exists — the path is only written into the template;
+- migrates nothing on disk (config auto-migration v0 → v1 is performed in-memory at load time, see [Configuration](/configuration)).
 
-## Быстрый старт
+## Quick start
 
 ```bash
-# Создать ~/.config/raccpack/config.toml с шаблоном по умолчанию
+# Create ~/.config/raccpack/config.toml with the default template
 racc init
 
-# Сразу указать папку проектов и создать скелет den
+# Point to your projects folder right away and create the den skeleton
 racc init --scan-root ~/DEV/PROJS --den ~/.raccpack/den --ensure-den
 ```
 
-## Синтаксис
+## Syntax
 
 ```text
 racc init [OPTIONS]
 ```
 
-Обязательных параметров нет.
+There are no required parameters.
 
-## Параметры и флаги
+## Parameters and flags
 
-### Флаги команды
+### Command flags
 
-| Флаг | По умолчанию | Описание |
-|------|--------------|----------|
-| `--force` | выкл. | Перезаписать существующий конфигурационный файл |
-| `--scan-root <PATH>` | `~/DEV/PROJS` | Prefill `paths.scan_root` в генерируемом шаблоне |
-| `--ensure-den` | выкл. | Создать скелет den: `.den-version`, `README.txt` |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--force` | off | Overwrite an existing configuration file |
+| `--scan-root <PATH>` | `~/DEV/PROJS` | Prefill `paths.scan_root` in the generated template |
+| `--ensure-den` | off | Create the den skeleton: `.den-version`, `README.txt` |
 
-### Глобальные флаги
+### Global flags
 
-| Флаг | Описание |
-|------|----------|
-| `-c, --config <PATH>` | Куда писать конфиг (по умолчанию — XDG-путь) |
-| `--root <PATH>` | Альтернатива `--scan-root`: prefill `paths.scan_root` |
-| `--den <PATH>` | Prefill `paths.den_dir`; также место создания den при `--ensure-den` |
-| `--json` | JSON-вывод вместо человекочитаемого |
+| Flag | Description |
+|------|-------------|
+| `-c, --config <PATH>` | Where to write the config (by default — the XDG path) |
+| `--root <PATH>` | Alternative to `--scan-root`: prefills `paths.scan_root` |
+| `--den <PATH>` | Prefills `paths.den_dir`; also the location where the den is created with `--ensure-den` |
+| `--json` | JSON output instead of human-readable |
 
-Приоритеты:
+Precedence:
 
-- если указаны и `--scan-root`, и глобальный `--root` — побеждает `--scan-root`;
-- без `--scan-root` / `--root` в шаблон подставляется `~/DEV/PROJS`;
-- без `--den` в шаблон подставляется `~/.raccpack/den`.
+- if both `--scan-root` and the global `--root` are given, `--scan-root` wins;
+- without `--scan-root` / `--root`, `~/DEV/PROJS` is substituted into the template;
+- without `--den`, `~/.raccpack/den` is substituted into the template.
 
-## Что генерируется
+## What gets generated
 
-Краткий вид шаблона (в файле он дополнен комментариями и ссылками на wiki):
+An abridged view of the template (in the file it is supplemented with comments and links to the wiki):
 
 ```toml
 config_version = 1
@@ -84,9 +84,9 @@ max_depth = 6
 enabled_strategies = ["rust", "node", "python"]
 ```
 
-Значения `scan_root` и `den_dir` подставляются из флагов; остальные поля — значения по умолчанию. Сгенерированный файл проходит валидацию конфигурации.
+The values of `scan_root` and `den_dir` are substituted from flags; the other fields are defaults. The generated file passes configuration validation.
 
-При `--ensure-den` в den создаётся:
+With `--ensure-den`, the following is created in the den:
 
 ```text
 {den_dir}/
@@ -94,18 +94,18 @@ enabled_strategies = ["rust", "node", "python"]
 └── README.txt
 ```
 
-Подробно о формате файла и секциях: [Конфигурация](/configuration).
+For details on the file format and sections, see [Configuration](/configuration).
 
-## Вывод
+## Output
 
-### Человекочитаемый
+### Human-readable
 
 ```text
 Created config file: /home/user/.config/raccpack/config.toml
 Initialized den vault: /home/user/.raccpack/den
 ```
 
-Вторая строка печатается только при `--ensure-den`.
+The second line is printed only with `--ensure-den`.
 
 ### JSON (`--json`)
 
@@ -116,20 +116,20 @@ Initialized den vault: /home/user/.raccpack/den
 }
 ```
 
-Поле `den_dir` равно `null`, если `--ensure-den` не передан.
+The `den_dir` field is `null` if `--ensure-den` was not passed.
 
-## Коды выхода
+## Exit codes
 
-| Код | Когда |
-|-----|--------|
-| `0` | Успех |
-| `1` | Ошибка: конфиг уже существует (без `--force`), IO-ошибка записи, не удалось создать den |
+| Code | When |
+|------|------|
+| `0` | Success |
+| `1` | Error: config already exists (without `--force`), an IO write error, failed to create the den |
 
-Код `2` (как у `dig`) для `init` **не** используется.
+Exit code `2` (as in `dig`) is **not** used for `init`.
 
-## Негативный сценарий: конфиг уже существует
+## Negative scenario: config already exists
 
-Без `--force` команда отказывается перезаписывать файл:
+Without `--force`, the command refuses to overwrite the file:
 
 ```text
 $ racc init
@@ -139,42 +139,42 @@ $ echo $?
 1
 ```
 
-Перезапись — только явно:
+Overwriting is explicit only:
 
 ```bash
 racc init --force
 ```
 
 ::: warning
-`--force` перезаписывает файл целиком: ручные правки в `config.toml` будут потеряны.
+`--force` overwrites the entire file: manual edits in `config.toml` will be lost.
 :::
 
-## Примеры
+## Examples
 
 ```bash
-# Базовый: комментированный шаблон в XDG-путь
+# Basic: commented template into the XDG path
 racc init
 
-# Со своими путями в шаблоне
+# With custom paths in the template
 racc init --scan-root ~/DEV/PROJS --den /mnt/backup/den
 
-# Конфиг в нестандартном месте + создать скелет den
+# Config in a non-standard location + create the den skeleton
 racc init --config ~/cfg/raccpack.toml --ensure-den
 
-# Перезаписать существующий конфиг новым шаблоном
+# Overwrite an existing config with a new template
 racc init --force
 
-# Машиночитаемый вывод для скриптов
+# Machine-readable output for scripts
 racc init --scan-root ~/DEV/PROJS --json
 ```
 
-## Связанные страницы
+## Related pages
 
-| Страница | Роль |
-|----------|------|
-| [Конфигурация](/configuration) | Формат `config.toml`, `config_version` и миграция |
-| [Основные понятия](/concepts) | Den и раскладка хранилища |
-| [Быстрый старт](/quick-start) | Первый прогон за пять минут |
-| [Использование CLI](/cli-usage) | Обзор всех команд |
+| Page | Role |
+|------|------|
+| [Configuration](/configuration) | The `config.toml` format, `config_version`, and migration |
+| [Core concepts](/concepts) | Den and storage layout |
+| [Quick start](/quick-start) | Your first run in five minutes |
+| [CLI usage](/cli-usage) | Overview of all commands |
 
-*Документ соответствует реализации; при изменении флагов CLI обновляйте страницу в том же PR.*
+*Documentation matches the implementation; when CLI flags change, update this page in the same PR.*

@@ -42,6 +42,7 @@ fn opts(target: &Path, strategy_ids: Vec<StrategyId>) -> DetectTrashOptions {
         strategy_ids,
         max_depth: 16,
         compute_size: false,
+        scope_filter: None,
     }
 }
 
@@ -454,6 +455,7 @@ fn find_trash_dirs_respects_max_depth() {
         strategy_ids: vec![StrategyId::Rust],
         max_depth: 1,
         compute_size: false,
+        scope_filter: None,
     })
     .expect("no error at max_depth 1");
     assert!(
@@ -466,6 +468,7 @@ fn find_trash_dirs_respects_max_depth() {
         strategy_ids: vec![StrategyId::Rust],
         max_depth: 2,
         compute_size: false,
+        scope_filter: None,
     })
     .expect("no error at max_depth 2");
     assert!(

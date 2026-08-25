@@ -9,6 +9,7 @@ mod logging;
 mod output;
 mod output_pack;
 mod output_raid;
+mod output_raid_batch;
 mod output_rinse;
 mod output_stash;
 mod passphrase;
