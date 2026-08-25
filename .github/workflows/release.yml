@@ -23,16 +23,14 @@ jobs:
         include:
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
-            arch: amd64
+            arch: x86_64
+            deb_arch: amd64
             cross: true
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
-            arch: arm64
+            arch: aarch64
+            deb_arch: arm64
             cross: true
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            arch: amd64
-            cross: false
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -60,15 +58,15 @@ jobs:
           VERSION="${{ inputs.tag }}"
           VERSION="${VERSION#v}"
           BIN=racc
-          TARGET=${{ matrix.target }}
-          STAGING="staging-${TARGET}"
+          ARCH=${{ matrix.arch }}
+          STAGING="staging-${ARCH}"
           mkdir -p "${STAGING}/raccpack-${VERSION}"
-          cp "target/${TARGET}/release/${BIN}" "${STAGING}/raccpack-${VERSION}/"
+          cp "target/${{ matrix.target }}/release/${BIN}" "${STAGING}/raccpack-${VERSION}/"
           cat > "${STAGING}/raccpack-${VERSION}/README.txt" <<EOF
-          raccpack ${VERSION} — ${TARGET}
+          raccpack ${VERSION} — linux-${ARCH}
 
           Install:
-            tar xzf raccpack-${VERSION}-${TARGET}.tar.gz
+            tar xzf raccpack-${VERSION}-linux-${ARCH}.tar.zst
             cd raccpack-${VERSION}
             sudo cp racc /usr/local/bin/
 
@@ -78,48 +76,27 @@ jobs:
 
           Wiki: https://y-tretyakov.github.io/raccpack/
           EOF
-          tar -czf "raccpack-${VERSION}-${TARGET}.tar.gz" -C "${STAGING}" "raccpack-${VERSION}"
-          echo "TARBALL=raccpack-${VERSION}-${TARGET}.tar.gz" >> $GITHUB_ENV
-          echo "ASSET_PATH=raccpack-${VERSION}-${TARGET}.tar.gz" >> $GITHUB_ENV
+          tar -I zstd -T0 -cf "raccpack-${VERSION}-linux-${ARCH}.tar.zst" -C "${STAGING}" "raccpack-${VERSION}"
 
-      - name: Upload artifact
+      - name: Upload tarball
         uses: actions/upload-artifact@v4
         with:
-          name: raccpack-${{ inputs.tag }}-${{ matrix.target }}
-          path: raccpack-*.tar.gz
+          name: raccpack-${{ inputs.tag }}-linux-${{ matrix.arch }}
+          path: raccpack-*.tar.zst
           retention-days: 1
 
-  # --- Package deb/rpm ---
-  packages:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts/
-          pattern: raccpack-${{ inputs.tag }}-*
-          merge-multiple: true
-
-      - name: Build deb packages
+      - name: Build deb package
         run: |
           VERSION="${{ inputs.tag }}"
           VERSION="${VERSION#v}"
-          for ARCH_DIR in artifacts/raccpack-${{ inputs.tag }}-*; do
-            TARGET=$(basename "$ARCH_DIR" | sed "s/raccpack-${{ inputs.tag }}-//")
-            case "$TARGET" in
-              x86_64-unknown-linux-musl) DEB_ARCH=amd64 ;;
-              aarch64-unknown-linux-musl) DEB_ARCH=arm64 ;;
-              *) continue ;;
-            esac
-            BIN=$(find "$ARCH_DIR" -name "racc" -type f | head -1)
-            if [ -z "$BIN" ]; then echo "No binary found in $ARCH_DIR"; continue; fi
-            TMPDIR=$(mktemp -d)
-            mkdir -p "${TMPDIR}/DEBIAN" "${TMPDIR}/usr/bin"
-            cp "$BIN" "${TMPDIR}/usr/bin/racc"
-            cat > "${TMPDIR}/DEBIAN/control" <<CTRL
+          ARCH=${{ matrix.arch }}
+          DEB_ARCH=${{ matrix.deb_arch }}
+          BIN="target/${{ matrix.target }}/release/racc"
+          TMPDIR=$(mktemp -d)
+          mkdir -p "${TMPDIR}/DEBIAN" "${TMPDIR}/usr/bin"
+          cp "$BIN" "${TMPDIR}/usr/bin/racc"
+          chmod 755 "${TMPDIR}/usr/bin/racc"
+          cat > "${TMPDIR}/DEBIAN/control" <<CTRL
           Package: raccpack
           Version: ${VERSION}
           Section: utils
@@ -130,34 +107,33 @@ jobs:
            Scans project directories for secrets, archives them with age encryption,
            cleans build artifacts, and packs projects into den storage.
           CTRL
-            dpkg-deb --build "${TMPDIR}" "raccpack_${VERSION}_${DEB_ARCH}.deb"
-            rm -rf "${TMPDIR}"
-          done
+          dpkg-deb --build "${TMPDIR}" "raccpack-${VERSION}-1-${DEB_ARCH}.deb"
+          rm -rf "${TMPDIR}"
 
-      - name: Build rpm packages
+      - name: Upload deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: raccpack-${{ inputs.tag }}-deb-${{ matrix.arch }}
+          path: raccpack-*.deb
+          retention-days: 1
+
+      - name: Build rpm package
         run: |
           VERSION="${{ inputs.tag }}"
           VERSION="${VERSION#v}"
-          sudo apt-get install -y -qq rpm 2>/dev/null
-          for ARCH_DIR in artifacts/raccpack-${{ inputs.tag }}-*; do
-            TARGET=$(basename "$ARCH_DIR" | sed "s/raccpack-${{ inputs.tag }}-//")
-            case "$TARGET" in
-              x86_64-unknown-linux-musl) RPM_ARCH=x86_64 ;;
-              aarch64-unknown-linux-musl) RPM_ARCH=aarch64 ;;
-              *) continue ;;
-            esac
-            BIN=$(find "$ARCH_DIR" -name "racc" -type f | head -1)
-            if [ -z "$BIN" ]; then echo "No binary found in $ARCH_DIR"; continue; fi
-            TMPDIR=$(mktemp -d)
-            mkdir -p "${TMPDIR}/usr/bin"
-            cp "$BIN" "${TMPDIR}/usr/bin/racc"
-            cat > "/tmp/raccpack.spec" <<SPEC
+          ARCH=${{ matrix.arch }}
+          BIN="target/${{ matrix.target }}/release/racc"
+          TMPDIR=$(mktemp -d)
+          mkdir -p "${TMPDIR}/usr/bin"
+          cp "$BIN" "${TMPDIR}/usr/bin/racc"
+          chmod 755 "${TMPDIR}/usr/bin/racc"
+          cat > "/tmp/raccpack.spec" <<SPEC
           Name:           raccpack
           Version:        ${VERSION}
           Release:        1
           Summary:        Secrets archiver and project packer
           License:        MIT OR Apache-2.0
-          BuildArch:      ${RPM_ARCH}
+          BuildArch:      ${ARCH}
 
           %description
           Scans project directories for secrets, archives them with age encryption,
@@ -169,94 +145,138 @@ jobs:
           %files
           /usr/bin/racc
           SPEC
-            rpmbuild -bb --define "_topdir /tmp/rpmbuild" --buildroot "${TMPDIR}" /tmp/raccpack.spec 2>/dev/null
-            find /tmp/rpmbuild/RPMS -name "*.rpm" -exec cp {} . \; 2>/dev/null
-            rm -rf "${TMPDIR}" /tmp/rpmbuild
-          done
+          sudo apt-get install -y -qq rpm 2>/dev/null
+          rpmbuild -bb --define "_topdir /tmp/rpmbuild" --buildroot "${TMPDIR}" /tmp/raccpack.spec 2>/dev/null
+          find /tmp/rpmbuild/RPMS -name "*.rpm" -exec cp {} . \; 2>/dev/null
+          rm -rf "${TMPDIR}" /tmp/rpmbuild
 
-      - name: SHA256SUMS
-        run: |
-          rm -f SHA256SUMS
-          sha256sum raccpack-*.tar.gz raccpack_*.deb raccpack-*.rpm > SHA256SUMS 2>/dev/null || true
-          cat SHA256SUMS
-
-      - name: Upload all assets
+      - name: Upload rpm
         uses: actions/upload-artifact@v4
         with:
-          name: release-assets-${{ inputs.tag }}
-          path: |
-            raccpack-*.tar.gz
-            raccpack_*.deb
-            raccpack-*.rpm
-            SHA256SUMS
+          name: raccpack-${{ inputs.tag }}-rpm-${{ matrix.arch }}
+          path: raccpack-*.rpm
           retention-days: 1
 
-  # --- Create GitHub Release ---
+      - name: Build Arch Linux package
+        run: |
+          VERSION="${{ inputs.tag }}"
+          VERSION="${VERSION#v}"
+          ARCH=${{ matrix.arch }}
+          BIN="target/${{ matrix.target }}/release/racc"
+          PKGDIR=$(mktemp -d)
+          mkdir -p "${PKGDIR}/racc-${VERSION}/usr/bin"
+          cp "$BIN" "${PKGDIR}/racc-${VERSION}/usr/bin/racc"
+          chmod 755 "${PKGDIR}/racc-${VERSION}/usr/bin/racc"
+
+          cat > "${PKGDIR}/racc-${VERSION}/.PKGINFO" <<INFO
+          pkgname = raccpack
+          pkgver = ${VERSION}-1
+          pkgdesc = Secrets archiver and project packer
+          url = https://y-tretyakov.github.io/raccpack/
+          arch = ${ARCH}
+          license = MIT
+          license = Apache-2.0
+          depends = glibc
+          INFO
+
+          cd "${PKGDIR}/racc-${VERSION}"
+          find . -name '.PKGINFO' -o -type f | sort > /tmp/mtree.txt
+          tar -czf "${PKGDIR}/raccpack-${VERSION}-1-${ARCH}.pkg.tar.zst" \
+            --transform='s|^\.|/|' \
+            ./.PKGINFO ./
+          cd -
+
+          mv "${PKGDIR}/raccpack-${VERSION}-1-${ARCH}.pkg.tar.zst" .
+          rm -rf "${PKGDIR}"
+
+      - name: Upload pkg
+        uses: actions/upload-artifact@v4
+        with:
+          name: raccpack-${{ inputs.tag }}-pkg-${{ matrix.arch }}
+          path: raccpack-*.pkg.tar.zst
+          retention-days: 1
+
+  # --- Collect & release ---
   release:
-    needs: packages
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download release assets
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: release-assets-${{ inputs.tag }}
           path: dist/
+          pattern: raccpack-${{ inputs.tag }}-*
+          merge-multiple: true
 
-      - name: Download banner
-        run: cp detect-v2-banner.webp dist/ 2>/dev/null || true
+      - name: Collect assets
+        run: |
+          mkdir -p release-dist
+          find dist/ -maxdepth 1 -type f \
+            \( -name "*.tar.zst" -o -name "*.deb" -o -name "*.rpm" -o -name "*.pkg.tar.zst" \) \
+            -exec mv {} release-dist/ \;
+          cp detect-v2-banner.webp release-dist/ 2>/dev/null || true
+          cd release-dist
+          sha256sum raccpack-*.tar.zst raccpack-*.deb raccpack-*.rpm raccpack-*.pkg.tar.zst > SHA256SUMS 2>/dev/null || true
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ inputs.tag }}"
-          ASSETS=$(find dist/ -type f ! -name "*.part" | sort | while read f; do echo "-a $f"; done | tr '\n' ' ')
+          ASSETS=$(find release-dist/ -type f ! -name "*.part" | sort | while read f; do echo "-a $f"; done | tr '\n' ' ')
 
-          cat > /tmp/release-notes.md <<'NOTES'
-          ## raccpack ${{ inputs.tag }} — Detect v2
+          cat > /tmp/release-notes.md <<NOTES
+          ## raccpack ${VERSION} — Detect v2
 
           ### Highlights
-          - **Composite DAG detect** (`--detect-mode composite_dag` / `dag`), `stack_tree` in sniff
+          - **Composite DAG detect** (\`--detect-mode composite_dag\` / \`dag\`), \`stack_tree\` in sniff
           - **DAG-scoped rinse** — cleanup scoped per ecosystem
-          - **Batch raid** — `racc raid --root` (sequential, continue-on-error; `--only` / `--limit` / `--stop-on-error`)
+          - **Batch raid** — \`racc raid --root\` (sequential, continue-on-error; \`--only\` / \`--limit\` / \`--stop-on-error\`)
           - Atomic raid preserved: staging + WAL + rollback; manifests in den
           - Alpha CLI feature set: sniff / dig / stash / rinse / pack / raid
 
           ### Breaking / migration
-          CLI additive. Default detect mode remains `priority_table`. No breaking changes from 0.3.x.
+          CLI additive. Default detect mode remains \`priority_table\`. No breaking changes from 0.3.x.
 
           ### Artifacts
-          - Linux musl tarballs: x86_64, aarch64
-          - Debian packages: amd64, arm64
-          - RPM packages: x86_64, aarch64
-          - SHA256SUMS checksums
-          - Banner: detect-v2-banner.webp
+          Works on Debian, Ubuntu, Fedora, Arch and derivatives.
+
+          - \`\`\`raccpack-${VERSION}-linux-x86_64.tar.zst\`\`\` — Linux x86_64 (musl, universal)
+          - \`\`\`raccpack-${VERSION}-linux-aarch64.tar.zst\`\`\` — Linux ARM64 (musl, universal)
+          - \`\`\`raccpack-${VERSION}-1-amd64.deb\`\`\` — Debian/Ubuntu x86_64
+          - \`\`\`raccpack-${VERSION}-1-arm64.deb\`\`\` — Debian/Ubuntu ARM64
+          - \`\`\`raccpack-${VERSION}-1.x86_64.rpm\`\`\` — Fedora/RHEL x86_64
+          - \`\`\`raccpack-${VERSION}-1.aarch64.rpm\`\`\` — Fedora/RHEL ARM64
+          - \`\`\`raccpack-${VERSION}-1-x86_64.pkg.tar.zst\`\`\` — Arch Linux x86_64
+          - \`\`\`raccpack-${VERSION}-1-aarch64.pkg.tar.zst\`\`\` — Arch Linux ARM64
+          - \`SHA256SUMS\` — checksums
 
           ### Install
-          ```bash
-          # Linux (musl)
-          tar xzf raccpack-${VERSION}-x86_64-unknown-linux-musl.tar.gz
+          \`\`\`bash
+          # Linux x86_64 (musl, universal)
+          tar xzf raccpack-${VERSION}-linux-x86_64.tar.zst
           sudo cp raccpack-${VERSION}/racc /usr/local/bin/
 
           # Debian/Ubuntu
-          sudo dpkg -i raccpack_${VERSION}_amd64.deb
+          sudo dpkg -i raccpack-${VERSION}-1-amd64.deb
 
           # Fedora/RHEL
           sudo rpm -i raccpack-${VERSION}-1.x86_64.rpm
 
+          # Arch Linux
+          sudo pacman -U raccpack-${VERSION}-1-x86_64.pkg.tar.zst
+
           # From source
           cargo install raccpack-cli
-          ```
+          \`\`\`
 
           ### Links
           - [Wiki](https://y-tretyakov.github.io/raccpack/)
           - [Roadmap](https://y-tretyakov.github.io/raccpack/roadmap.html)
           - [CLI Usage](https://y-tretyakov.github.io/raccpack/cli-usage.html)
           NOTES
-
-          sed -i "s/\${{ inputs.tag }}/${VERSION}/g" /tmp/release-notes.md
 
           gh release create "$VERSION" \
             --title "raccpack ${VERSION} — Detect v2" \
