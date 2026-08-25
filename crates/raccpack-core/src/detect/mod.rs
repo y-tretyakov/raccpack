@@ -192,6 +192,8 @@ fn sorted_unique_marker_names(markers: &[MarkerHit]) -> Vec<String> {
 }
 
 #[cfg(test)]
+mod merge_tests;
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod workspace_tests;
