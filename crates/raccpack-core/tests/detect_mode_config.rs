@@ -308,3 +308,86 @@ fn default_run_keeps_cache_hit() {
     );
     assert_eq!(first.report, second.report);
 }
+
+// --- Case 8: Single project works in both modes, no panic -------------------
+
+#[test]
+#[serial]
+fn simple_project_both_modes_no_panic_sensible_stack() {
+    let (temp, root) = workspace();
+    let _env = CacheEnvGuard::set(&isolated_cache_dir(&temp));
+    write_rust_project_fixture(&root);
+
+    // PriorityTable (default)
+    let pt_ctx = ctx_for(RaccConfig::default(), &root);
+    let pt = sniff_once(&pt_ctx, &SniffOptions::default());
+    assert!(
+        !pt.report.projects.is_empty(),
+        "priority_table must discover project"
+    );
+    let pt_proj = &pt.report.projects[0];
+    assert_eq!(pt_proj.stack.language.as_deref(), Some("Rust"));
+    assert!(
+        pt_proj.stack_tree.is_none(),
+        "priority_table must not produce stack_tree"
+    );
+
+    // CompositeDag
+    let dag_ctx = ctx_for(config_with_mode(DetectMode::CompositeDag), &root);
+    let dag = sniff_once(&dag_ctx, &SniffOptions::default());
+    assert!(
+        !dag.report.projects.is_empty(),
+        "composite_dag must discover project"
+    );
+    let dag_proj = &dag.report.projects[0];
+    assert_eq!(dag_proj.stack.language.as_deref(), Some("Rust"));
+    assert!(
+        dag_proj.stack_tree.is_some(),
+        "composite_dag must produce stack_tree"
+    );
+
+    // Both modes discover the same project name
+    assert_eq!(pt_proj.name, dag_proj.name);
+}
+
+// --- Case 9: CompositeDag tree for Python root + nested JS frontend ----------
+
+#[test]
+#[serial]
+fn python_js_monorepo_composite_dag_tree() {
+    let (temp, root) = workspace();
+    let _env = CacheEnvGuard::set(&isolated_cache_dir(&temp));
+
+    let repo = root.join("polyrepo");
+    fs::create_dir_all(&repo).expect("create polyrepo dir");
+    fs::write(
+        repo.join("pyproject.toml"),
+        "[project]\nname = \"polyrepo\"\n",
+    )
+    .expect("write pyproject.toml");
+
+    let frontend = repo.join("frontend");
+    fs::create_dir_all(&frontend).expect("create frontend dir");
+    fs::write(frontend.join("package.json"), "{}").expect("write package.json");
+
+    let ctx = ctx_for(config_with_mode(DetectMode::CompositeDag), &root);
+    let result = sniff_once(&ctx, &SniffOptions::default());
+
+    let project = result
+        .report
+        .projects
+        .iter()
+        .find(|p| p.name == "polyrepo")
+        .expect("polyrepo must be discovered");
+
+    assert_eq!(project.stack.language.as_deref(), Some("Python"));
+
+    let tree = project.stack_tree.as_ref().expect("stack_tree filled");
+    assert_eq!(tree.detection.ecosystem, "python");
+    assert_eq!(tree.children.len(), 1);
+    assert_eq!(tree.children[0].detection.ecosystem, "node");
+    assert_eq!(
+        tree.children[0].detection.language.as_deref(),
+        Some("JavaScript")
+    );
+}

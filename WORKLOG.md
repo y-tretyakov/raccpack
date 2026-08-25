@@ -19,7 +19,7 @@
 | **Версия** | **`0.3.7`** (Detect v2, D3.1 закрыт, фаза D3 в работе) |
 | **Веха** | **Detect v2 → 0.4.0**, идёт фаза D3 |
 | **Следующий этап** | **D3.2** — sniff tree output → bump **`0.3.8`** |
-| **Предыдущий** | D3.1 rinse по DAG scopes (PR #98) |
+| **Предыдущий** | D3.1 rinse по DAG scopes + E2E wiring (PR #98, #99) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ⬜ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
