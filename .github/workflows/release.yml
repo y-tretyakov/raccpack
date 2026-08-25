@@ -225,7 +225,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ inputs.tag }}"
-          ASSETS=$(find release-dist/ -type f ! -name "*.part" | sort | while read f; do echo "-a $f"; done | tr '\n' ' ')
+          ASSETS=$(find release-dist/ -type f ! -name "*.part" | sort | tr '\n' ' ')
 
           cat > /tmp/release-notes.md <<NOTES
           ## raccpack ${VERSION} — Detect v2
