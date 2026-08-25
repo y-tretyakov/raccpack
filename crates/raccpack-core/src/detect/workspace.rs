@@ -16,21 +16,23 @@
 //! canonicalized for these comparisons. Children are kept sorted by this
 //! normalized key ascending, so equal inputs always produce equal trees.
 //!
-//! # Multi-ecosystem scopes (current limitation)
+//! # Multi-ecosystem scopes
 //!
 //! Several ecosystems matching on one scope collapse into a **single** node:
 //! primary ecosystem = first applicable detector in registry order, frameworks
-//! = union over all applicable detectors (same merge policy as
-//! [`super::detect_stack`]). Full opinion merging is stage D2.2
-//! (`docs/detect/d2/d2.2-conflict-merge.md`); confidence semantics are refined
-//! there too.
+//! = union over all applicable detectors. How conflicting opinions combine —
+//! nesting, confidence thresholds, framework unions, same-scope merges — is
+//! the D2.2 policy documented in [`super::merge`].
 
 use std::ffi::OsString;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use crate::domain::{Error, Result};
 use crate::scan::{ensure_scan_root, is_path_under_root, MarkerHit};
 
+use super::merge::{
+    attach_draft, extend_frameworks_union, normalization_key, union_hits_keep_first,
+};
 use super::types::{clamp_confidence, resolve_language, Detection, StackNode};
 use super::{detector_registry, sorted_unique_marker_names, StackDetector};
 
@@ -123,11 +125,7 @@ impl WorkspaceDetector {
         let mut frameworks: Vec<String> = Vec::new();
         for detector in &applicable {
             let contribution = detector.detect(hits, scope_dir)?;
-            for framework in contribution.frameworks {
-                if !frameworks.contains(&framework) {
-                    frameworks.push(framework);
-                }
-            }
+            extend_frameworks_union(&mut frameworks, contribution.frameworks);
         }
 
         Ok(Detection {
@@ -144,11 +142,12 @@ impl WorkspaceDetector {
     }
 }
 
-/// Collect validated, deduplicated scopes from the raw `(path, markers)` input.
+/// Collect validated scopes from the raw `(path, markers)` input.
 ///
-/// Entries without hits are ignored; duplicates by normalized path keep the
-/// first occurrence. Each remaining scope must equal `project_root` or lie
-/// under it.
+/// Entries without hits are ignored; duplicates by normalized path merge into
+/// one scope (marker-hit union by name, first occurrence wins — rule 4 of the
+/// [`super::merge`] policy). Each remaining scope must equal `project_root`
+/// or lie under it.
 fn collect_scopes(
     project_root: &Path,
     markers_by_path: &[(PathBuf, Vec<MarkerHit>)],
@@ -168,7 +167,8 @@ fn collect_scopes(
             });
         }
         let key = normalization_key(path);
-        if scopes.iter().any(|scope| scope.key == key) {
+        if let Some(scope) = scopes.iter_mut().find(|scope| scope.key == key) {
+            union_hits_keep_first(&mut scope.hits, hits);
             continue;
         }
         scopes.push(Scope {
@@ -178,36 +178,6 @@ fn collect_scopes(
         });
     }
     Ok(scopes)
-}
-
-/// Insert `node` below `parent` at its nearest containing ancestor.
-///
-/// The deepest existing child whose normalized key strictly prefixes `key`
-/// receives it recursively; with no such child the node is inserted as a
-/// direct child at its sorted position (children stay sorted ascending).
-fn attach_draft(parent: &mut StackNode, key: &[OsString], node: StackNode) {
-    let mut target: Option<usize> = None;
-    let mut target_len = 0;
-    for (index, child) in parent.children.iter().enumerate() {
-        let child_key = normalization_key(&child.detection.scope);
-        if child_key.len() < key.len()
-            && key.starts_with(&child_key)
-            && child_key.len() > target_len
-        {
-            target = Some(index);
-            target_len = child_key.len();
-        }
-    }
-
-    match target {
-        Some(index) => attach_draft(&mut parent.children[index], key, node),
-        None => {
-            let position = parent.children.partition_point(|child| {
-                normalization_key(&child.detection.scope).as_slice() < key
-            });
-            parent.children.insert(position, node);
-        }
-    }
 }
 
 /// Placeholder detection for a tree root absent from the input.
@@ -223,15 +193,4 @@ fn placeholder_stack_node(project_root: &Path) -> StackNode {
         },
         children: Vec::new(),
     }
-}
-
-/// Normalized comparison key: components with interior `.` removed.
-///
-/// `components()` already drops trailing slashes; filtering `CurDir` also
-/// collapses a leading `./`. No symlink resolution happens here.
-fn normalization_key(path: &Path) -> Vec<OsString> {
-    path.components()
-        .filter(|component| !matches!(component, Component::CurDir))
-        .map(|component| component.as_os_str().to_os_string())
-        .collect()
 }
