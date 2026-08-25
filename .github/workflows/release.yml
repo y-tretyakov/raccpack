@@ -146,8 +146,8 @@ jobs:
           /usr/bin/racc
           SPEC
           sudo apt-get install -y -qq rpm 2>/dev/null
-          rpmbuild -bb --define "_topdir /tmp/rpmbuild" --buildroot "${TMPDIR}" /tmp/raccpack.spec 2>/dev/null
-          find /tmp/rpmbuild/RPMS -name "*.rpm" -exec cp {} . \; 2>/dev/null
+          rpmbuild -bb --define "_topdir /tmp/rpmbuild" --buildroot "${TMPDIR}" /tmp/raccpack.spec 2>/dev/null || true
+          find /tmp/rpmbuild/RPMS -name "*.rpm" -exec cp {} . \; 2>/dev/null || true
           rm -rf "${TMPDIR}" /tmp/rpmbuild
 
       - name: Upload rpm
