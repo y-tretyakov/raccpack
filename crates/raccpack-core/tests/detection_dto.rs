@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use raccpack_core::detect::{clamp_confidence, Detection, StackNode};
-use raccpack_core::domain::{Project, Stack};
+use raccpack_core::domain::{Project, ScanReport, Stack};
 
 fn detection_at(scope: &str) -> Detection {
     Detection {
@@ -138,6 +138,49 @@ fn project_serializes_stack_tree_null_and_keeps_flat_stack() {
         serde_json::json!("Cargo.toml")
     );
     assert_eq!(value["name"], serde_json::json!("dto-fixture"));
+}
+
+/// D2.3 serde compat at the report level: a pre-`stack_tree` report (as old
+/// scripts and cache files may contain) still deserializes, the schema version
+/// stays 1 and re-serialization emits `null` for the additive field.
+#[test]
+fn scan_report_legacy_json_without_stack_tree_deserializes_with_schema_version() {
+    let legacy = r#"{
+        "root": "/tmp/legacy-root",
+        "projects": [
+            {
+                "path": "/tmp/legacy-root/app",
+                "name": "app",
+                "stack": {"language": "Go", "frameworks": [], "markers": ["go.mod"]},
+                "size_bytes": 512,
+                "is_git_repo": true
+            }
+        ],
+        "total_size_bytes": 512,
+        "schema_version": 1
+    }"#;
+
+    let report: ScanReport = serde_json::from_str(legacy).expect("legacy report json parses");
+
+    assert_eq!(
+        report.schema_version, 1,
+        "additive stack_tree must not bump schema_version"
+    );
+    assert_eq!(report.projects.len(), 1);
+    let project = &report.projects[0];
+    assert!(
+        project.stack_tree.is_none(),
+        "absent stack_tree key must default to None"
+    );
+    assert_eq!(project.stack.language.as_deref(), Some("Go"));
+    assert_eq!(project.stack.markers, vec!["go.mod".to_string()]);
+
+    let value = serde_json::to_value(&report).expect("reserialize");
+    assert_eq!(
+        value["projects"][0]["stack_tree"],
+        serde_json::Value::Null,
+        "the additive field must serialize as null, never be omitted"
+    );
 }
 
 #[test]

@@ -13,11 +13,17 @@
 //! 10. facade priority_table keeps `stack_tree: None` (regression),
 //! 11. symlinked directories never become scopes (`follow_links(false)`).
 //!
+//! D2.3 additions: the priority-table case also pins the rich flat stack
+//! (language + markers for every known project), and a dedicated test proves
+//! the flat stack is identical across both detect modes, so legacy JSON
+//! consumers reading only `stack` never break (spec §1 compat table).
+//!
 //! Direct-API tests build `markers_by_path` by hand; the symlink test feeds
 //! the detector through the real scanner (`find_candidates`) because that is
 //! where the no-follow invariant actually lives. Facade tests are `#[serial]`
 //! with an isolated `XDG_CACHE_HOME` so tests never touch the real cache.
 
+use std::collections::BTreeMap;
 use std::env;
 use std::ffi::OsString;
 use std::fs;
@@ -26,7 +32,7 @@ use std::path::{Path, PathBuf};
 use raccpack_core::app::{sniff, AppContext, NullProgress, RunMode, SniffOptions, SniffResult};
 use raccpack_core::detect::{DetectMode, StackNode, WorkspaceDetector};
 use raccpack_core::scan::{find_candidates, CandidateOptions, MarkerHit, MarkerKind};
-use raccpack_core::{Error, Project, RaccConfig, ScanReport};
+use raccpack_core::{Error, Project, RaccConfig, ScanReport, Stack};
 use serial_test::serial;
 use tempfile::TempDir;
 
@@ -487,6 +493,78 @@ fn facade_priority_table_keeps_stack_tree_none() {
     }
     let mono = project_named(&result.report, "mono");
     assert_eq!(mono.stack.language.as_deref(), Some("Rust"));
+    assert_eq!(
+        mono.stack.markers,
+        vec!["Cargo.toml".to_string()],
+        "the flat stack must carry the contributing markers"
+    );
+
+    // D2.3: every known project keeps a non-empty flat stack, not just the
+    // primary one — nested projects are still discovered flat in this mode.
+    let web = project_named(&result.report, "web");
+    assert_eq!(web.stack.language.as_deref(), Some("JavaScript"));
+    assert_eq!(
+        web.stack.markers,
+        vec!["package.json".to_string()],
+        "web's flat stack must list its own marker hit"
+    );
+}
+
+// --- D2.3: flat-stack compatibility across modes -----------------------------
+
+/// Same fixture scanned in both modes: the flat `stack` — the only thing
+/// legacy JSON consumers read — must be identical, while `stack_tree` stays
+/// mode-gated (`None` in priority_table, `Some` in composite_dag).
+#[test]
+#[serial]
+fn flat_stack_is_identical_between_priority_table_and_composite_dag() {
+    let (temp, scan_root) = workspace();
+    let _env = CacheEnvGuard::set(&isolated_cache_dir(&temp));
+    write_facade_monorepo(&scan_root);
+    let ctx = ctx_for(&scan_root);
+
+    let flat = sniff_once(&ctx, &SniffOptions::default());
+    let dag_opts = SniffOptions {
+        detect_mode: Some(DetectMode::CompositeDag),
+        ..SniffOptions::default()
+    };
+    let dag = sniff_once(&ctx, &dag_opts);
+
+    assert!(!flat.from_cache && !dag.from_cache);
+
+    let flat_by_name: BTreeMap<String, Stack> = flat
+        .report
+        .projects
+        .iter()
+        .map(|p| (p.name.clone(), p.stack.clone()))
+        .collect();
+    let dag_by_name: BTreeMap<String, Stack> = dag
+        .report
+        .projects
+        .iter()
+        .map(|p| (p.name.clone(), p.stack.clone()))
+        .collect();
+
+    assert_eq!(
+        flat_by_name, dag_by_name,
+        "flat stacks must be equal across detect modes"
+    );
+
+    // Sanity: the shared fixture really produced rich stacks in both modes.
+    let mono_flat = flat_by_name.get("mono").expect("mono present");
+    assert_eq!(mono_flat.language.as_deref(), Some("Rust"));
+    assert_eq!(mono_flat.markers, vec!["Cargo.toml".to_string()]);
+
+    // The tree side of the compat table holds per mode.
+    assert!(
+        project_named(&flat.report, "mono").stack_tree.is_none(),
+        "priority_table keeps stack_tree None"
+    );
+    let dag_tree = project_named(&dag.report, "mono")
+        .stack_tree
+        .as_ref()
+        .expect("composite_dag attaches a tree");
+    assert_eq!(dag_tree.children.len(), 1, "nested web scope attached");
 }
 
 // --- Case 11: Symlinked directories never become scopes ----------------------
