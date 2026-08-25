@@ -9,6 +9,7 @@
 use crate::app::context::AppContext;
 use crate::app::pack::{pack, PackOptions, PackResult};
 use crate::app::progress::ProgressSink;
+use crate::app::resolve::resolve_stack_tree;
 use crate::app::rinse::{rinse, RinseOptions, RinseResult};
 use crate::app::stash::{stash, AgeIdentity, StashOptions, StashResult};
 use crate::domain::{Error, Result};
@@ -205,12 +206,13 @@ fn run_rinse_phase(
     opts: &RaidOptions,
     progress: &mut dyn ProgressSink,
 ) -> Result<RinseResult> {
+    let stack_tree = resolve_stack_tree(ctx, &opts.project, &crate::SniffOptions::default());
     let rinse_opts = RinseOptions {
         target: opts.project.clone(),
         strategies: None,
         include_custom_patterns: false,
         collect_only: false,
-        stack_tree: None,
+        stack_tree,
     };
     rinse(ctx, &rinse_opts, progress)
 }
