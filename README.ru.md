@@ -97,7 +97,7 @@ racc rinse --project ~/DEV/PROJS/my-app --yes
 | `racc raid` | Запускает stash → rinse → pack за один раз |
 | `racc init` | Создаёт конфигурацию по умолчанию |
 
-Полный справочник: [wiki / CLI](https://y-tretyakov.github.io/raccpack/cli-usage.html)
+Полный справочник: [wiki / CLI](https://y-tretyakov.github.io/raccpack/ru/cli-usage.html)
 
 ---
 
@@ -108,7 +108,7 @@ racc rinse --project ~/DEV/PROJS/my-app --yes
 - **12 маркеров содержимого:** ключи AWS, токены GitHub, Slack/Stripe, PEM-заголовки, строки подключения, JWT, универсальные `api_key` / `secret`
 - **6 стратегий очистки:** `rust`, `node`, `python` (по умолчанию) + опционально `jvm`, `go`, `generic`
 
-Полная таблица: [wiki / Что поддерживается](https://y-tretyakov.github.io/raccpack/supported.html)
+Полная таблица: [wiki / Что поддерживается](https://y-tretyakov.github.io/raccpack/ru/supported.html)
 
 ---
 

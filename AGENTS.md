@@ -111,7 +111,7 @@ Framework hints — только по файлам в корне (Next, Nuxt, An
 
 Skip dirs (18): `node_modules`, `target`, `dist`, `build`, VCS, Python caches/venvs, IDE, `.raccpack`, `*.egg-info`, …
 
-Полный каталог: wiki → [Что поддерживается](https://y-tretyakov.github.io/raccpack/supported.html).  
+Полный каталог: wiki → [Что поддерживается](https://y-tretyakov.github.io/raccpack/ru/supported.html).  
 **При добавлении маркера/секрета/skip — обновлять wiki в том же изменении (Docs после FINAL или явная UX-задача).**
 
 ### 1.6. Конфиг (runtime)
@@ -801,8 +801,10 @@ gh release view vX.Y.Z --repo y-tretyakov/raccpack --json assets --jq '.assets[]
 1. **Баннер** — `![raccpack vX.Y.Z — <name>](https://github.com/.../releases/download/vX.Y.Z/<banner>.webp)`
 2. **Заголовок** — `# raccpack vX.Y.Z — <name>`
 3. **Переключатель языка** — `[🇬🇧 English](#english) · [🇷🇺 Русский](#russian)`
-4. **EN секция** — What's new, Install (все дистрибутивы + from source), Checksums, Links
-5. **RU секция** — `<details><summary>Русская версия</summary>...</details>` с тем же содержимым
+4. **EN секция** — What's new, Install (все дистрибутивы + from source), Checksums, Links (ссылки на **английскую** wiki: `supported.html`, `cli-usage.html` и т.д.)
+5. **RU секция** — `<details><summary>Русская версия</summary>...</details>` с тем же содержимым, но ссылки на **русскую** wiki: `ru/supported.html`, `ru/cli-usage.html` и т.д.
+
+**Правило ссылок на wiki:** в русскоязычном контенте ссылки ведут на `/ru/...`, в англоязычном — на корень.
 
 Пример тела (см. релиз v0.4.0 как эталон):
 
