@@ -11,7 +11,11 @@ fn key(code: KeyCode) -> KeyEvent {
 #[test]
 fn initial_state_is_overview() {
     let app = App::new();
-    assert_eq!(app.current_view, ViewId::Overview, "initial view must be Overview");
+    assert_eq!(
+        app.current_view,
+        ViewId::Overview,
+        "initial view must be Overview"
+    );
     assert!(!app.help_visible, "help must start hidden");
     assert!(app.running, "app must start running");
 }
@@ -23,16 +27,32 @@ fn number_keys_navigate_to_views() {
     let mut app = App::new();
 
     app.handle_key(key(KeyCode::Char('2')));
-    assert_eq!(app.current_view, ViewId::Projects, "'2' must select Projects");
+    assert_eq!(
+        app.current_view,
+        ViewId::Projects,
+        "'2' must select Projects"
+    );
 
     app.handle_key(key(KeyCode::Char('3')));
-    assert_eq!(app.current_view, ViewId::Findings, "'3' must select Findings");
+    assert_eq!(
+        app.current_view,
+        ViewId::Findings,
+        "'3' must select Findings"
+    );
 
     app.handle_key(key(KeyCode::Char('4')));
-    assert_eq!(app.current_view, ViewId::Operations, "'4' must select Operations");
+    assert_eq!(
+        app.current_view,
+        ViewId::Operations,
+        "'4' must select Operations"
+    );
 
     app.handle_key(key(KeyCode::Char('1')));
-    assert_eq!(app.current_view, ViewId::Overview, "'1' must select Overview");
+    assert_eq!(
+        app.current_view,
+        ViewId::Overview,
+        "'1' must select Overview"
+    );
 }
 
 // ── 3. q_key_returns_quit ─────────────────────────────────────────────────────
@@ -107,7 +127,10 @@ fn view_id_from_char() {
         ('1', ViewId::Overview),
     ] {
         app.handle_key(key(KeyCode::Char(ch)));
-        assert_eq!(app.current_view, expected, "'{ch}' must map to {expected:?}");
+        assert_eq!(
+            app.current_view, expected,
+            "'{ch}' must map to {expected:?}"
+        );
     }
 
     // '5' has no ViewId variant — should be a no-op
@@ -124,12 +147,32 @@ fn view_id_from_char() {
 #[test]
 fn nocturnal_theme_colors_are_distinct() {
     // Pairwise distinctness among the semantic palette
-    assert_ne!(theme::BG, theme::FG, "background must differ from foreground");
+    assert_ne!(
+        theme::BG,
+        theme::FG,
+        "background must differ from foreground"
+    );
     assert_ne!(theme::ACCENT, theme::MUTED, "accent must differ from muted");
-    assert_ne!(theme::DANGER, theme::SUCCESS, "danger must differ from success");
-    assert_ne!(theme::ACCENT, theme::DANGER, "accent must differ from danger");
-    assert_ne!(theme::WARNING, theme::SUCCESS, "warning must differ from success");
-    assert_ne!(theme::SURFACE, theme::SELECTION, "surface must differ from selection");
+    assert_ne!(
+        theme::DANGER,
+        theme::SUCCESS,
+        "danger must differ from success"
+    );
+    assert_ne!(
+        theme::ACCENT,
+        theme::DANGER,
+        "accent must differ from danger"
+    );
+    assert_ne!(
+        theme::WARNING,
+        theme::SUCCESS,
+        "warning must differ from success"
+    );
+    assert_ne!(
+        theme::SURFACE,
+        theme::SELECTION,
+        "surface must differ from selection"
+    );
 }
 
 // ── 9. style_helpers_produce_correct_fg ────────────────────────────────────────
