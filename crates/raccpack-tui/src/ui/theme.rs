@@ -95,4 +95,14 @@ mod tests {
             assert!(matches!(c, Color::Rgb(_, _, _)), "expected RGB: {c:?}");
         }
     }
+
+    #[test]
+    fn semantic_pairs_are_distinct() {
+        assert_ne!(BG, FG);
+        assert_ne!(ACCENT, MUTED);
+        assert_ne!(DANGER, SUCCESS);
+        assert_ne!(ACCENT, DANGER);
+        assert_ne!(WARNING, SUCCESS);
+        assert_ne!(SURFACE, SELECTION);
+    }
 }
