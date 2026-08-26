@@ -4,6 +4,7 @@ members = [
     "crates/raccpack-core",
     "crates/raccpack-cli",
     "crates/raccpack-tui",
+    "crates/synthrodex-tui",
 ]
 
 [workspace.package]
