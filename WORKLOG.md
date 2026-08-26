@@ -289,3 +289,17 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 - `composite_stack_tree` перезапускает find_candidates для каждого кандидата (двойной обход при вложенных проектах) — производительность, рассмотреть в D3/D4.
 - `tests/workspace_detect.rs` 540 строк — крупный integration-файл (в духе F-TEST-SIZE, next touch).
 - Расхождение лексического linking vs канонизирующего containment на symlink-scope — задокументировано в rustdoc; вернуться при D2.2/D3.1.
+
+---
+
+## Post-mortem: synthrodex-tui contamination (2026-08-26)
+
+**Failure:** Mixed unrelated product `synthrodex-tui` (X11 monitor, Rofi, NowBar, FocusGrid) into raccpack B1 TUI PR.
+
+**Root cause:** Hallucination — agent confused task context, generated code for a different product instead of raccpack TUI.
+
+**Impact:** PR #103 contained 13 foreign files (4500+ lines) alongside legitimate raccpack-tui code. Workspace polluted with non-product crate.
+
+**Fix:** Removed `crates/synthrodex-tui/`, cleaned `Cargo.toml`, verified `rg synthrodex → 0 hits`. PR #103 closed, replaced by #104.
+
+**Prevention:** One product per PR. Verify crate name against roadmap before `cargo new`. Never mix unrelated features.
