@@ -487,16 +487,15 @@ Manifests contain operation metadata (paths relative to the den, phases, counter
 ## 12. Checksum verification and installing the binary from a Release
 
 ```bash
-# Download the tarball and the checksum signature (see GitHub Release v0.3.0)
-curl -LO https://github.com/y-tretyakov/raccpack/releases/download/v0.3.0/raccpack-0.3.0-linux-x86_64.tar.gz
-curl -LO https://github.com/y-tretyakov/raccpack/releases/download/v0.3.0/raccpack-0.3.0-linux-x86_64.tar.gz.sha256
+# Download the tarball (see GitHub Release)
+curl -LO https://github.com/y-tretyakov/raccpack/releases/download/v0.4.0/raccpack-0.4.0-linux-x86_64.tar.zst
 
-sha256sum -c raccpack-0.3.0-linux-x86_64.tar.gz.sha256   # OK
-tar xzf raccpack-0.3.0-linux-x86_64.tar.gz               # inside: racc (0755)
-./racc --version                                         # racc 0.3.0
-install -m 0755 racc ~/.local/bin/racc                   # or ~/.cargo/bin
-racc init --scan-root ~/DEV/PROJS --ensure-den
+tar --zstd -xf raccpack-0.4.0-linux-x86_64.tar.zst        # inside: racc (0755)
+sudo cp raccpack-0.4.0/racc /usr/local/bin/
+racc --version                                             # racc 0.4.0
 ```
 
-For ARM64/Raspberry Pi/Graviton take `linux-aarch64`; for Alpine — the `-musl`
-suffix (if that build is present in the release).
+For ARM64/Raspberry Pi/Graviton take `linux-aarch64`.
+Debian/Ubuntu: `sudo dpkg -i raccpack-0.4.0-1-amd64.deb`
+Fedora/RHEL: `sudo rpm -i raccpack-0.4.0-1.x86_64.rpm`
+Arch Linux: `sudo pacman -U raccpack-0.4.0-1-x86_64.pkg.tar.zst`
