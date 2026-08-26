@@ -1,9 +1,0 @@
-pub mod batcher;
-pub mod config;
-pub mod event;
-pub mod mock;
-pub mod monitor;
-pub mod nowbar;
-pub mod perf;
-pub mod rofi;
-pub mod widgets;
