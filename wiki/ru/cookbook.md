@@ -487,15 +487,16 @@ jq '{project, success, phases}' ~/.raccpack/den/manifests/*/*.json | tail -40
 ## 12. Проверка контрольных сумм и установка бинарника из Release
 
 ```bash
-# Скачать tarball (см. GitHub Release)
-curl -LO https://github.com/y-tretyakov/raccpack/releases/download/v0.4.0/raccpack-0.4.0-linux-x86_64.tar.zst
+# Скачать tarball и подпись суммы (см. GitHub Release v0.3.0)
+curl -LO https://github.com/y-tretyakov/raccpack/releases/download/v0.3.0/raccpack-0.3.0-linux-x86_64.tar.gz
+curl -LO https://github.com/y-tretyakov/raccpack/releases/download/v0.3.0/raccpack-0.3.0-linux-x86_64.tar.gz.sha256
 
-tar --zstd -xf raccpack-0.4.0-linux-x86_64.tar.zst         # внутри: racc (0755)
-sudo cp raccpack-0.4.0/racc /usr/local/bin/
-racc --version                                              # racc 0.4.0
+sha256sum -c raccpack-0.3.0-linux-x86_64.tar.gz.sha256   # OK
+tar xzf raccpack-0.3.0-linux-x86_64.tar.gz               # внутри: racc (0755)
+./racc --version                                         # racc 0.3.0
+install -m 0755 racc ~/.local/bin/racc                   # или ~/.cargo/bin
+racc init --scan-root ~/DEV/PROJS --ensure-den
 ```
 
-Для ARM64/Raspberry Pi/Graviton возьмите `linux-aarch64`.
-Debian/Ubuntu: `sudo dpkg -i raccpack-0.4.0-1-amd64.deb`
-Fedora/RHEL: `sudo rpm -i raccpack-0.4.0-1.x86_64.rpm`
-Arch Linux: `sudo pacman -U raccpack-0.4.0-1-x86_64.pkg.tar.zst`
+Для ARM64/Raspberry Pi/Graviton возьмите `linux-aarch64`; для Alpine — суффикс
+`-musl` (если сборка присутствует в релизе).
