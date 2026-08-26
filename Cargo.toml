@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/raccpack-core",
     "crates/raccpack-cli",
+    "crates/raccpack-tui",
 ]
 
 [workspace.package]
