@@ -32,6 +32,15 @@ pub const SURFACE: Color = Color::Rgb(0x1a, 0x1c, 0x20);
 /// Selection — highlighted / focused item.
 pub const SELECTION: Color = Color::Rgb(0x3b, 0x40, 0x48);
 
+/// Accent dim — softer accent when a region is not focused. ← color.semantic.accent-dim
+pub const ACCENT_DIM: Color = Color::Rgb(0x7e, 0xc8, 0xd1);
+
+/// Git clean — git repo present. ← color.semantic.git-clean (equals SUCCESS)
+pub const GIT_CLEAN: Color = Color::Rgb(0x98, 0xc3, 0x79);
+
+/// Git dirty or absent — not a git repo or neutral absent mark. ← color.semantic.git-dirty-or-absent (equals MUTED)
+pub const GIT_DIRTY_OR_ABSENT: Color = Color::Rgb(0x5c, 0x63, 0x70);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -87,9 +96,41 @@ mod tests {
     }
 
     #[test]
+    fn accent_dim_is_softer_teal() {
+        assert_eq!(ACCENT_DIM, Color::Rgb(0x7e, 0xc8, 0xd1));
+    }
+
+    #[test]
+    fn git_clean_is_success() {
+        assert_eq!(GIT_CLEAN, SUCCESS);
+    }
+
+    #[test]
+    fn git_dirty_or_absent_is_muted() {
+        assert_eq!(GIT_DIRTY_OR_ABSENT, MUTED);
+    }
+
+    #[test]
+    fn accent_dim_differs_from_accent() {
+        assert_ne!(ACCENT_DIM, ACCENT);
+    }
+
+    #[test]
     fn all_colours_are_rgb() {
         let colours = [
-            BG, FG, ACCENT, DANGER, WARNING, SUCCESS, MUTED, BORDER, SURFACE, SELECTION,
+            BG,
+            FG,
+            ACCENT,
+            DANGER,
+            WARNING,
+            SUCCESS,
+            MUTED,
+            BORDER,
+            SURFACE,
+            SELECTION,
+            ACCENT_DIM,
+            GIT_CLEAN,
+            GIT_DIRTY_OR_ABSENT,
         ];
         for c in &colours {
             assert!(matches!(c, Color::Rgb(_, _, _)), "expected RGB: {c:?}");
@@ -104,5 +145,7 @@ mod tests {
         assert_ne!(ACCENT, DANGER);
         assert_ne!(WARNING, SUCCESS);
         assert_ne!(SURFACE, SELECTION);
+        assert_ne!(ACCENT, ACCENT_DIM);
+        assert_ne!(GIT_CLEAN, GIT_DIRTY_OR_ABSENT);
     }
 }
