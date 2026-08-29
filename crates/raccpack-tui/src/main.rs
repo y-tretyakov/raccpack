@@ -13,6 +13,13 @@ fn main() -> ExitCode {
     };
 
     let mut app = App::new();
+    // Set default scan root to ~/DEV/PROJS if it exists, otherwise current dir
+    let default_scan_root = dirs::home_dir()
+        .map(|h| h.join("DEV/PROJS"))
+        .filter(|p| p.exists())
+        .unwrap_or_else(|| std::env::current_dir().unwrap());
+    app.sniff_state.scan_root = default_scan_root;
+
     match run_event_loop(&mut app) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {

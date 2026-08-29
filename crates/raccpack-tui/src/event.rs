@@ -14,6 +14,7 @@ use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
 use crate::app::{App, Command};
+use crate::worker::{WorkerEvent, WorkerMsg};
 
 /// Events dispatched into the application loop.
 #[derive(Debug)]
@@ -24,6 +25,8 @@ pub enum AppEvent {
     Resize(u16, u16),
     /// Shutdown requested via Ctrl-C.
     Quit,
+    /// Event from worker thread (core operations).
+    Worker(WorkerEvent),
 }
 
 /// RAII guard that enters alternate screen + raw mode on creation and
@@ -65,13 +68,16 @@ impl Drop for TerminalGuard {
 /// Run the main event → update → render loop until the app quits.
 pub fn run_event_loop(app: &mut App) -> io::Result<()> {
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
-    let (tx, rx) = mpsc::channel::<AppEvent>();
+    let (ui_tx, ui_rx) = mpsc::channel::<AppEvent>();
+
+    // Spawn worker thread
+    let (worker_sender, _worker_receiver) = crate::worker::spawn_worker();
 
     // Dedicated reader thread — blocks on crossterm::event::read().
-    std::thread::spawn(move || event_reader(tx));
+    std::thread::spawn(move || event_reader(ui_tx));
 
     while app.running {
-        match rx.recv_timeout(Duration::from_millis(100)) {
+        match ui_rx.recv_timeout(Duration::from_millis(100)) {
             Ok(AppEvent::Key(key)) => {
                 if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
                     app.running = false;
@@ -80,12 +86,17 @@ pub fn run_event_loop(app: &mut App) -> io::Result<()> {
                     if matches!(cmd, Command::Quit) {
                         break;
                     }
+                    // Handle sniff commands by sending to worker
+                    handle_app_command(cmd, &worker_sender, app);
                 }
             }
             Ok(AppEvent::Resize(w, h)) => {
                 let _ = terminal.resize(ratatui::layout::Rect::new(0, 0, w, h));
             }
             Ok(AppEvent::Quit) => break,
+            Ok(AppEvent::Worker(worker_event)) => {
+                handle_worker_event(worker_event, app);
+            }
             Err(mpsc::RecvTimeoutError::Timeout) => {}
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
         }
@@ -93,7 +104,86 @@ pub fn run_event_loop(app: &mut App) -> io::Result<()> {
         crate::ui::layout::render(app, &mut terminal)?;
     }
 
+    // Shutdown worker
+    let _ = worker_sender.send(WorkerMsg::Cancel);
+
     Ok(())
+}
+
+/// Handle application commands that require worker interaction.
+fn handle_app_command(cmd: Command, worker_tx: &mpsc::Sender<WorkerMsg>, app: &App) {
+    match cmd {
+        Command::Sniff | Command::SniffRefresh => {
+            let scan_root = app.sniff_state.scan_root.clone();
+            let den_dir = std::env::var("RACCPACK_DEN")
+                .ok()
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|| dirs::home_dir().unwrap().join(".raccpack/den"));
+
+            let _ = worker_tx.send(WorkerMsg::Sniff {
+                scan_root,
+                den_dir,
+                force_refresh: matches!(cmd, Command::SniffRefresh),
+                detect_mode: None,
+                max_depth: None,
+            });
+        }
+        Command::ChangeScanRoot => {
+            // TODO: implement scan root change
+        }
+        _ => {}
+    }
+}
+
+/// Handle events from the worker thread.
+fn handle_worker_event(event: WorkerEvent, app: &mut App) {
+    match event {
+        WorkerEvent::Progress(progress) => {
+            app.sniff_state.progress = Some(progress);
+            if !app.sniff_state.is_loading {
+                app.sniff_state.set_loading(true);
+            }
+        }
+        WorkerEvent::SniffDone(result) => {
+            app.sniff_state.set_loading(false);
+            app.sniff_state.progress = None;
+            app.sniff_state.last_refresh = Some(std::time::SystemTime::now());
+
+            match result {
+                Ok(sniff_result) => {
+                    app.sniff_state.from_cache = sniff_result.from_cache;
+                    app.sniff_state.projects = sniff_result
+                        .report
+                        .projects
+                        .into_iter()
+                        .map(|p| crate::app::sniff::ProjectRow {
+                            name: p.name,
+                            language: p.stack.language,
+                            frameworks: p.stack.frameworks,
+                            size_bytes: p.size_bytes,
+                            is_git_repo: p.is_git_repo,
+                            path: p.path,
+                        })
+                        .collect();
+                    app.sniff_state.total_size = sniff_result.report.total_size_bytes;
+                    app.sniff_state.scan_root = sniff_result.report.root;
+
+                    if app.sniff_state.table_state.selected().is_none()
+                        && !app.sniff_state.projects.is_empty()
+                    {
+                        app.sniff_state.table_state.select(Some(0));
+                    }
+                }
+                Err(e) => {
+                    app.sniff_state.error = Some(e.to_string());
+                }
+            }
+        }
+        WorkerEvent::Cancelled => {
+            app.sniff_state.set_loading(false);
+            app.sniff_state.progress = None;
+        }
+    }
 }
 
 /// Blocking reader that translates crossterm events into `AppEvent`s.
