@@ -3,7 +3,7 @@
 pub mod help;
 pub mod sniff;
 
-use ratatui::layout::Rect;
+use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
@@ -15,20 +15,39 @@ use crate::ui::theme;
 /// Render the given screen into `area`.
 pub fn render_screen(f: &mut Frame, area: Rect, app: &mut App) {
     match app.current_view {
-        ViewId::Overview => render_overview(f, area),
+        ViewId::Overview => render_stub(
+            f,
+            area,
+            "Overview",
+            "No projects scanned yet.\nRun `racc sniff` to get started.",
+            theme::ACCENT,
+        ),
         ViewId::Projects => crate::ui::screens::sniff::render(f, area, &mut app.sniff_state),
-        ViewId::Findings => render_findings(f, area),
-        ViewId::Operations => render_operations(f, area),
+        ViewId::Findings => render_stub(
+            f,
+            area,
+            "Findings",
+            "No findings yet.\nResults will appear after a scan.",
+            theme::WARNING,
+        ),
+        ViewId::Operations => render_stub(
+            f,
+            area,
+            "Operations",
+            "No operations in progress.\nHistory will appear here.",
+            theme::DANGER,
+        ),
     }
 }
 
-fn render_overview(f: &mut Frame, area: Rect) {
-    let (title, text, accent) = (
-        "Overview",
-        "No projects scanned yet.\nRun `racc sniff` to get started.",
-        theme::ACCENT,
-    );
-
+/// Shared placeholder for not-yet-implemented screens.
+fn render_stub(
+    f: &mut Frame,
+    area: Rect,
+    title: &str,
+    subtitle: &str,
+    accent: ratatui::style::Color,
+) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme::BORDER))
@@ -37,62 +56,23 @@ fn render_overview(f: &mut Frame, area: Rect) {
             Style::default().fg(accent).add_modifier(Modifier::BOLD),
         ));
 
-    let lines: Vec<Line<'_>> = text.lines().map(Line::from).collect();
+    let body = vec![
+        Line::from(""),
+        Line::from(Span::styled(subtitle, Style::default().fg(theme::MUTED))),
+        Line::from(""),
+        Line::from(Span::styled(
+            "press 2 or Tab for Projects",
+            Style::default()
+                .fg(theme::MUTED)
+                .add_modifier(Modifier::ITALIC),
+        )),
+    ];
 
     f.render_widget(
-        Paragraph::new(lines)
+        Paragraph::new(body)
             .block(block)
-            .style(Style::default().bg(theme::BG).fg(theme::FG)),
-        area,
-    );
-}
-
-fn render_findings(f: &mut Frame, area: Rect) {
-    let (title, text, accent) = (
-        "Findings",
-        "No findings yet.\nResults will appear after a scan.",
-        theme::WARNING,
-    );
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(theme::BORDER))
-        .title(Span::styled(
-            format!(" {title} "),
-            Style::default().fg(accent).add_modifier(Modifier::BOLD),
-        ));
-
-    let lines: Vec<Line<'_>> = text.lines().map(Line::from).collect();
-
-    f.render_widget(
-        Paragraph::new(lines)
-            .block(block)
-            .style(Style::default().bg(theme::BG).fg(theme::FG)),
-        area,
-    );
-}
-
-fn render_operations(f: &mut Frame, area: Rect) {
-    let (title, text, accent) = (
-        "Operations",
-        "No operations in progress.\nHistory will appear here.",
-        theme::DANGER,
-    );
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(theme::BORDER))
-        .title(Span::styled(
-            format!(" {title} "),
-            Style::default().fg(accent).add_modifier(Modifier::BOLD),
-        ));
-
-    let lines: Vec<Line<'_>> = text.lines().map(Line::from).collect();
-
-    f.render_widget(
-        Paragraph::new(lines)
-            .block(block)
-            .style(Style::default().bg(theme::BG).fg(theme::FG)),
+            .style(Style::default().bg(theme::BG).fg(theme::FG))
+            .alignment(Alignment::Center),
         area,
     );
 }
@@ -144,5 +124,13 @@ mod tests {
             theme::SUCCESS,
         );
         assert!(text.contains("detect"));
+    }
+
+    #[test]
+    fn stub_hints_point_to_projects() {
+        // The stub copy must always offer a way forward to the sniff screen.
+        let hint = "press 2 or Tab for Projects";
+        assert!(hint.contains("Tab"));
+        assert!(hint.contains("Projects"));
     }
 }

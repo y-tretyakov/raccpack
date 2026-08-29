@@ -1,139 +1,87 @@
 //! Sniff screen — project table with stack, size, git status.
 
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Rect};
 use ratatui::style::{Modifier, Style};
-use ratatui::text::{Line, Span};
+use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, Cell, Row, Table};
 use ratatui::Frame;
 
 use crate::app::sniff::SniffScreenState;
-
-#[cfg(test)]
-use crate::app::sniff::ProjectRow;
 use crate::ui::theme;
 
-/// Render the sniff screen.
+/// Render the sniff screen. The table (or a loading/error/empty placeholder)
+/// owns the whole area; the chrome lives in the global header/footer.
 pub fn render(f: &mut Frame, area: Rect, state: &mut SniffScreenState) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3), // header
-            Constraint::Min(0),    // table
-            Constraint::Length(2), // status
-        ])
-        .split(area);
-
-    render_header(f, chunks[0], state);
-    render_table(f, chunks[1], state);
-    render_status(f, chunks[2], state);
+    if state.is_loading {
+        render_loading(f, area, state);
+    } else if let Some(error) = &state.error {
+        render_error(f, area, error);
+    } else if state.projects.is_empty() {
+        render_empty(f, area);
+    } else {
+        render_table(f, area, state);
+    }
 }
 
-fn render_header(f: &mut Frame, area: Rect, state: &SniffScreenState) {
-    let root_display = state.scan_root.display().to_string();
-    let project_count = state.projects.len();
-
-    let lines = vec![
-        Line::from(vec![
-            Span::styled(
-                "  Projects",
-                Style::default()
-                    .fg(theme::ACCENT)
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(" │ "),
-            Span::styled(
-                format!("{} projects", project_count),
-                Style::default().fg(theme::FG),
-            ),
-            Span::raw(" │ "),
-            Span::styled(
-                format_bytes(state.total_size).to_string(),
-                Style::default().fg(theme::MUTED),
-            ),
-            Span::raw(" │ "),
-            Span::styled(root_display, Style::default().fg(theme::MUTED)),
-        ]),
-        Line::from(vec![Span::styled(
-            "  [r] refresh  [o] change root  [j/k] navigate  [Enter] dig  [Esc] back",
-            Style::default().fg(theme::MUTED),
-        )]),
-    ];
-
+fn render_loading(f: &mut Frame, area: Rect, state: &SniffScreenState) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme::BORDER))
-        .title(Span::styled(" Sniff ", Style::default().fg(theme::ACCENT)));
+        .title(Span::styled(
+            " Scanning… ",
+            Style::default().fg(theme::WARNING),
+        ));
+
+    let text = if let Some(progress) = &state.progress {
+        format!("{}% — {}", progress.percent, progress.message)
+    } else {
+        "Scanning projects…".to_string()
+    };
 
     f.render_widget(
-        ratatui::widgets::Paragraph::new(lines)
+        ratatui::widgets::Paragraph::new(text)
             .block(block)
-            .style(Style::default().bg(theme::BG).fg(theme::FG)),
+            .style(Style::default().bg(theme::BG).fg(theme::FG))
+            .alignment(ratatui::layout::Alignment::Center),
+        area,
+    );
+}
+
+fn render_error(f: &mut Frame, area: Rect, error: &str) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme::DANGER))
+        .title(Span::styled(" Error ", Style::default().fg(theme::DANGER)));
+
+    f.render_widget(
+        ratatui::widgets::Paragraph::new(error)
+            .block(block)
+            .style(Style::default().bg(theme::BG).fg(theme::DANGER))
+            .alignment(ratatui::layout::Alignment::Center)
+            .wrap(ratatui::widgets::Wrap { trim: true }),
+        area,
+    );
+}
+
+fn render_empty(f: &mut Frame, area: Rect) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme::BORDER))
+        .title(Span::styled(
+            " No Projects ",
+            Style::default().fg(theme::MUTED),
+        ));
+
+    f.render_widget(
+        ratatui::widgets::Paragraph::new("Press [r] to scan for projects")
+            .block(block)
+            .style(Style::default().bg(theme::BG).fg(theme::MUTED))
+            .alignment(ratatui::layout::Alignment::Center),
         area,
     );
 }
 
 fn render_table(f: &mut Frame, area: Rect, state: &mut SniffScreenState) {
-    if state.is_loading {
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme::BORDER))
-            .title(Span::styled(
-                " Scanning… ",
-                Style::default().fg(theme::WARNING),
-            ));
-
-        let text = if let Some(progress) = &state.progress {
-            format!("{}% — {}", progress.percent, progress.message)
-        } else {
-            "Scanning projects…".to_string()
-        };
-
-        f.render_widget(
-            ratatui::widgets::Paragraph::new(text)
-                .block(block)
-                .style(Style::default().bg(theme::BG).fg(theme::FG))
-                .alignment(ratatui::layout::Alignment::Center),
-            area,
-        );
-        return;
-    }
-
-    if let Some(error) = &state.error {
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme::DANGER))
-            .title(Span::styled(" Error ", Style::default().fg(theme::DANGER)));
-
-        f.render_widget(
-            ratatui::widgets::Paragraph::new(error.as_str())
-                .block(block)
-                .style(Style::default().bg(theme::BG).fg(theme::DANGER))
-                .alignment(ratatui::layout::Alignment::Center)
-                .wrap(ratatui::widgets::Wrap { trim: true }),
-            area,
-        );
-        return;
-    }
-
-    if state.projects.is_empty() {
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme::BORDER))
-            .title(Span::styled(
-                " No Projects ",
-                Style::default().fg(theme::MUTED),
-            ));
-
-        f.render_widget(
-            ratatui::widgets::Paragraph::new("Press [r] to scan for projects")
-                .block(block)
-                .style(Style::default().bg(theme::BG).fg(theme::MUTED))
-                .alignment(ratatui::layout::Alignment::Center),
-            area,
-        );
-        return;
-    }
-
     let header = Row::new(vec![
         Cell::from("Name").style(
             Style::default()
@@ -223,35 +171,6 @@ fn render_table(f: &mut Frame, area: Rect, state: &mut SniffScreenState) {
     f.render_stateful_widget(table, area, &mut state.table_state);
 }
 
-fn render_status(f: &mut Frame, area: Rect, state: &SniffScreenState) {
-    let cache_indicator = if state.from_cache {
-        " (from cache)"
-    } else {
-        ""
-    };
-
-    let text = if state.is_loading {
-        "Loading…".to_string()
-    } else if state.error.is_some() {
-        "Error — press [r] to retry".to_string()
-    } else if state.projects.is_empty() {
-        "No projects found — press [r] to scan".to_string()
-    } else {
-        let timestamp = state
-            .last_refresh
-            .map(|t| humantime::format_rfc3339(t).to_string())
-            .unwrap_or_else(|| "unknown".to_string());
-        format!("Last refresh: {}{cache_indicator}", timestamp)
-    };
-
-    f.render_widget(
-        ratatui::widgets::Paragraph::new(text)
-            .style(Style::default().bg(theme::BG).fg(theme::MUTED))
-            .alignment(ratatui::layout::Alignment::Left),
-        area,
-    );
-}
-
 /// Format bytes as human-readable string.
 fn format_bytes(bytes: u64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
@@ -287,7 +206,7 @@ mod tests {
 
     #[test]
     fn project_row_creation() {
-        let row = ProjectRow {
+        let row = crate::app::sniff::ProjectRow {
             name: "test".into(),
             language: Some("Rust".into()),
             frameworks: vec!["Axum".into()],

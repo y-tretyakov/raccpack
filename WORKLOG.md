@@ -99,6 +99,22 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 - **Файлы:** `crates/raccpack-tui/src/worker.rs`, `event.rs`, `app.rs`, `src/ui/screens/sniff.rs`, `tests/worker_bridge_test.rs`
 - **Решения:** wiring через dedicated bridge thread (по образцу `event_reader`), а не select!/mux — проще при стандартном `std::sync::mpsc`.
 
+### 2026-08-29 — B1.2.1 — TUI chrome + navigation polish (B1.2 follow-up) ✅ CLOSED
+
+- **Ветка:** `b1.2.1-tui-chrome-nav` → `dev`
+- **Версия:** без bump (полировка B1.2, остаётся 0.4.2)
+- **DoD:**
+  - [x] Keyboard contract §3: `Tab`/`Shift+Tab` cycle views; `j`/`k`/arrows — focus-aware (Sidebar = views, Main+Projects = rows); `h`/`l`/arrows и `Esc` переключают фокус; `1`–`4` jump; `r`/`o` (view-scoped) не зависят от фокуса
+  - [x] Focus model `Focus::{Sidebar, Main}` + `ViewId::prev()` + `ALL_VIEWS` registry
+  - [x] Chrome: single-line dense header (title/root/hotkeys с truncation по ширине), sidebar 23 колонки (accent bar + key hints, SELECTION при фокусе), footer left=status / right=focus·view без hardcoded spacer spaces
+  - [x] Stub-экраны Overview/Findings/Operations — подсказка «press 2 or Tab for Projects»
+  - [x] Help обновлён под реальную keymap; `g`/`G` first/last row
+  - [x] Worker bridge, loading/error/empty состояния и sniff table сохранены
+  - [x] Тесты: Tab/BackTab, sidebar j/k/arrows, focus h/l/arrows/Esc, rows только при Focus::Main, help блокирует навигацию, prev/next round-trip
+  - [x] `cargo test -p raccpack-tui` green (88), `cargo test --workspace` green (1015), fmt + clippy `-D warnings` чистые
+- **Файлы:** `crates/raccpack-tui/src/app.rs`, `src/ui/layout.rs`, `src/ui/screens/{mod,sniff,help}.rs`, `tests/{app_test,sniff_integration_test}.rs`
+- **Решения:** Tab = next view (не focus cycle); простая модель фокуса — sidebar cursor всегда = `current_view`, `Enter` на Sidebar активирует Main; заголовок/футер рендерятся без спейсов-хакеров (два перекрывающихся Paragraph на футере).
+
 ### 2026-08-29 — B1.1 — TUI skeleton (`raccpack-tui`) ✅ CLOSED
 
 - **Ветка:** `b1-tui-skeleton` (PR → `dev`, squash)
