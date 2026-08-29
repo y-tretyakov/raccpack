@@ -73,6 +73,12 @@ pub fn run_event_loop(app: &mut App) -> io::Result<()> {
     // Spawn worker thread
     let (worker_sender, worker_receiver) = crate::worker::spawn_worker();
 
+    // If `--refresh` was requested on a Projects view, kick off a sniff refresh
+    // immediately (before the first render).
+    if app.refresh_on_start && app.current_view == crate::app::ViewId::Projects {
+        handle_app_command(Command::SniffRefresh, &worker_sender, app);
+    }
+
     // Dedicated reader thread — blocks on crossterm::event::read().
     // Clone keeps the original `ui_tx` alive for the worker bridge below.
     let reader_tx = ui_tx.clone();
@@ -121,10 +127,7 @@ fn handle_app_command(cmd: Command, worker_tx: &mpsc::Sender<WorkerMsg>, app: &m
         Command::Sniff | Command::SniffRefresh => {
             app.sniff_state.set_loading(true);
             let scan_root = app.sniff_state.scan_root.clone();
-            let den_dir = std::env::var("RACCPACK_DEN")
-                .ok()
-                .map(std::path::PathBuf::from)
-                .unwrap_or_else(|| dirs::home_dir().unwrap().join(".raccpack/den"));
+            let den_dir = app.den_dir.clone();
 
             let _ = worker_tx.send(WorkerMsg::Sniff {
                 scan_root,
