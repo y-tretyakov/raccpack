@@ -1,5 +1,7 @@
 //! Application state, key mapping, and update logic.
 
+use std::path::PathBuf;
+
 use crossterm::event::{KeyCode, KeyEvent};
 
 /// Which region of the UI currently owns list/arrow keys.
@@ -106,6 +108,10 @@ pub struct App {
     pub running: bool,
     /// State for the sniff screen.
     pub sniff_state: sniff::SniffScreenState,
+    /// Resolved den directory (flag > env > default `~/.raccpack/den`).
+    pub den_dir: PathBuf,
+    /// Whether to run a sniff refresh automatically once the loop starts.
+    pub refresh_on_start: bool,
 }
 
 impl Default for App {
@@ -124,6 +130,8 @@ impl App {
             help_visible: false,
             running: true,
             sniff_state: sniff::SniffScreenState::default(),
+            den_dir: PathBuf::new(),
+            refresh_on_start: false,
         }
     }
 

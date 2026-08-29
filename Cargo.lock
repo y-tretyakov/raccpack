@@ -1605,6 +1605,7 @@ dependencies = [
 name = "raccpack-tui"
 version = "0.4.2"
 dependencies = [
+ "clap",
  "crossterm",
  "dirs",
  "humantime",
