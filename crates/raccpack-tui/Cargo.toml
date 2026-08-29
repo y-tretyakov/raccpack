@@ -15,5 +15,8 @@ raccpack-core = { path = "../raccpack-core" }
 ratatui = "0.29"
 crossterm = "0.28"
 thiserror = "1"
+humantime = "2"
+dirs = "6"
 
 [dev-dependencies]
+tempfile = "3"

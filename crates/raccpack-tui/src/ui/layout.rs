@@ -16,7 +16,10 @@ use crate::ui::theme;
 const SIDEBAR_WIDTH: u16 = 16;
 
 /// Render one complete frame.
-pub fn render(app: &App, terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
+pub fn render(
+    app: &mut App,
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+) -> io::Result<()> {
     terminal.draw(|f| {
         let area = f.area();
 
@@ -61,7 +64,7 @@ fn render_header(f: &mut ratatui::Frame, area: Rect) {
     );
 }
 
-fn render_body(f: &mut ratatui::Frame, area: Rect, app: &App) {
+fn render_body(f: &mut ratatui::Frame, area: Rect, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Length(SIDEBAR_WIDTH), Constraint::Min(0)])
@@ -71,7 +74,7 @@ fn render_body(f: &mut ratatui::Frame, area: Rect, app: &App) {
     render_main(f, chunks[1], app);
 }
 
-fn render_sidebar(f: &mut ratatui::Frame, area: Rect, app: &App) {
+fn render_sidebar(f: &mut ratatui::Frame, area: Rect, app: &mut App) {
     let views = [
         ViewId::Overview,
         ViewId::Projects,
@@ -109,8 +112,8 @@ fn render_sidebar(f: &mut ratatui::Frame, area: Rect, app: &App) {
     );
 }
 
-fn render_main(f: &mut ratatui::Frame, area: Rect, app: &App) {
-    screens::render_screen(f, area, app.current_view);
+fn render_main(f: &mut ratatui::Frame, area: Rect, app: &mut App) {
+    screens::render_screen(f, area, app);
 }
 
 fn render_footer(f: &mut ratatui::Frame, area: Rect) {

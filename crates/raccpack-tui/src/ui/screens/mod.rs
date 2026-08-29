@@ -1,6 +1,7 @@
 //! Screen registry — routes ViewId to its renderer.
 
 pub mod help;
+pub mod sniff;
 
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
@@ -8,33 +9,75 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
 
-use crate::app::ViewId;
+use crate::app::{App, ViewId};
 use crate::ui::theme;
 
 /// Render the given screen into `area`.
-pub fn render_screen(f: &mut Frame, area: Rect, view: ViewId) {
-    let (title, text, accent) = match view {
-        ViewId::Overview => (
-            "Overview",
-            "No projects scanned yet.\nRun `racc sniff` to get started.",
-            theme::ACCENT,
-        ),
-        ViewId::Projects => (
-            "Projects",
-            "No projects loaded.\nRun `racc sniff` to detect projects.",
-            theme::SUCCESS,
-        ),
-        ViewId::Findings => (
-            "Findings",
-            "No findings yet.\nResults will appear after a scan.",
-            theme::WARNING,
-        ),
-        ViewId::Operations => (
-            "Operations",
-            "No operations in progress.\nHistory will appear here.",
-            theme::DANGER,
-        ),
-    };
+pub fn render_screen(f: &mut Frame, area: Rect, app: &mut App) {
+    match app.current_view {
+        ViewId::Overview => render_overview(f, area),
+        ViewId::Projects => crate::ui::screens::sniff::render(f, area, &mut app.sniff_state),
+        ViewId::Findings => render_findings(f, area),
+        ViewId::Operations => render_operations(f, area),
+    }
+}
+
+fn render_overview(f: &mut Frame, area: Rect) {
+    let (title, text, accent) = (
+        "Overview",
+        "No projects scanned yet.\nRun `racc sniff` to get started.",
+        theme::ACCENT,
+    );
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme::BORDER))
+        .title(Span::styled(
+            format!(" {title} "),
+            Style::default().fg(accent).add_modifier(Modifier::BOLD),
+        ));
+
+    let lines: Vec<Line<'_>> = text.lines().map(Line::from).collect();
+
+    f.render_widget(
+        Paragraph::new(lines)
+            .block(block)
+            .style(Style::default().bg(theme::BG).fg(theme::FG)),
+        area,
+    );
+}
+
+fn render_findings(f: &mut Frame, area: Rect) {
+    let (title, text, accent) = (
+        "Findings",
+        "No findings yet.\nResults will appear after a scan.",
+        theme::WARNING,
+    );
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme::BORDER))
+        .title(Span::styled(
+            format!(" {title} "),
+            Style::default().fg(accent).add_modifier(Modifier::BOLD),
+        ));
+
+    let lines: Vec<Line<'_>> = text.lines().map(Line::from).collect();
+
+    f.render_widget(
+        Paragraph::new(lines)
+            .block(block)
+            .style(Style::default().bg(theme::BG).fg(theme::FG)),
+        area,
+    );
+}
+
+fn render_operations(f: &mut Frame, area: Rect) {
+    let (title, text, accent) = (
+        "Operations",
+        "No operations in progress.\nHistory will appear here.",
+        theme::DANGER,
+    );
 
     let block = Block::default()
         .borders(Borders::ALL)
