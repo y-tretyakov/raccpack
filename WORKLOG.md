@@ -115,6 +115,25 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 - **Файлы:** `crates/raccpack-tui/src/app.rs`, `src/ui/layout.rs`, `src/ui/screens/{mod,sniff,help}.rs`, `tests/{app_test,sniff_integration_test}.rs`
 - **Решения:** Tab = next view (не focus cycle); простая модель фокуса — sidebar cursor всегда = `current_view`, `Enter` на Sidebar активирует Main; заголовок/футер рендерятся без спейсов-хакеров (два перекрывающихся Paragraph на футере).
 
+### 2026-08-29 — B1.2.2 — TUI launch args contract: clap + pre-TTY version/help ✅ CLOSED
+
+- **Ветка:** `b1.2.2-tui-clap-launch` (PR #110 → `dev`, squash)
+- **Версия:** без bump (полировка B1.2, остаётся 0.4.2)
+- **DoD:**
+  - [x] clap (derive) интегрирован в `raccpack-tui`; `pub mod cli` с `Cli` (name `racc-tui`, version) — argv парсится **до** любого terminal init
+  - [x] `--version`/`-V` и `--help`/`-h` работают **без** TerminalGuard (exit 0)
+  - [x] Non-TTY / pipe-safe: `racc-tui requires an interactive terminal` (stderr) + exit 1 **до** raw mode (`std::io::IsTerminal` на stdin/stdout)
+  - [x] Launch-флаги: `--root`, `--den`, `--view`, `--refresh` реализованы; `--config`/`-c`, `-v/--verbose` — parse+store (stub). Имена совпадают со словарём CLI (`raccpack-cli`)
+  - [x] `--den` > `RACCPACK_DEN` > `~/.raccpack/den`; den передаётся в worker из `app.den_dir` (форма `WorkerMsg::Sniff` не менялась)
+  - [x] `ViewArg` ↔ `ViewId` биекция; default view = Overview (существующие onvg-тесты не тронуты)
+  - [x] `--refresh` → `Command::SniffRefresh` на старте loop, когда view == Projects
+  - [x] `docs/launch-contract.md` — общий контракт семантики флагов TUI + future Desktop (B2)
+  - [x] Тесты: cli parse unit (default/root/den/config/view/invalid/refresh/verbose + биекция) + binary `launch_args_test` (version без TTY, help, badflag, non-TTY refusal)
+  - [x] `cargo test -p raccpack-tui` green (74 lib + 19 app + 5 launch + 3 sniff + 5 worker), `cargo test --workspace` green (49 suites), fmt + clippy `-D warnings` чистые; `racc-tui --version` → `racc-tui 0.4.2`, `echo test | racc-tui` → clean refusal exit 1
+- **Файлы:** `crates/raccpack-tui/{Cargo.toml,src/{main,cli,lib,event,app}.rs}`, `tests/launch_args_test.rs` (created), `docs/launch-contract.md` (created), `Cargo.lock`
+- **Решения:** version/help — встроенные clap short-circuit’ы (DisplayVersion/DisplayHelp), не вызываем TerminalGuard ни в одном meta-пути; den-резолвер живёт в binary main.rs (`apply_launch_args`/`resolve_den_dir`), а не в lib — чистая функция без unit-теста (покрыт flag-capture). Worker bridge (`WorkerMsg`/`WorkerEvent`) не тронут.
+- **Follow-up:** вынести den-резолвер в `lib`/core как чистую `resolve_den(flag, env, default)` и покрыть unit-тестом (сейчас в binary); wiki `tui-usage` синхронизировать при B1 Docs-проходе.
+
 ### 2026-08-29 — B1.1 — TUI skeleton (`raccpack-tui`) ✅ CLOSED
 
 - **Ветка:** `b1-tui-skeleton` (PR → `dev`, squash)
