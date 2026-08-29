@@ -1,0 +1,103 @@
+{
+  "$schema": "https://design-tokens.org/schema/2025.10/basic.json",
+  "$description": "raccpack design tokens — single source for TUI (Ratatui) and future Desktop (CSS/TS). DTCG-shaped. Primitive → semantic. Component tokens optional and minimal.",
+  "color": {
+    "primitive": {
+      "black-950": { "$value": "#0b0c0e", "$type": "color", "$description": "Near-black base" },
+      "gray-900": { "$value": "#1a1c20", "$type": "color", "$description": "Elevated surface" },
+      "gray-700": { "$value": "#3b4048", "$type": "color", "$description": "Selection / highlight wash" },
+      "gray-600": { "$value": "#3e4451", "$type": "color", "$description": "Borders and rules" },
+      "gray-500": { "$value": "#5c6370", "$type": "color", "$description": "Muted secondary text" },
+      "cream-100": { "$value": "#e8e6e1", "$type": "color", "$description": "Warm off-white foreground" },
+      "teal-400": { "$value": "#56b6c2", "$type": "color", "$description": "Brand / interactive accent" },
+      "teal-300": { "$value": "#7ec8d1", "$type": "color", "$description": "Optional softer accent (unfocused active)" },
+      "red-400": { "$value": "#e06c75", "$type": "color", "$description": "Danger / error" },
+      "amber-300": { "$value": "#e5c07b", "$type": "color", "$description": "Warning" },
+      "green-400": { "$value": "#98c379", "$type": "color", "$description": "Success / clean git" }
+    },
+    "semantic": {
+      "bg": { "$value": "{color.primitive.black-950}", "$type": "color", "$description": "App background" },
+      "fg": { "$value": "{color.primitive.cream-100}", "$type": "color", "$description": "Primary text" },
+      "muted": { "$value": "{color.primitive.gray-500}", "$type": "color", "$description": "Secondary text, hints, empty placeholders" },
+      "accent": { "$value": "{color.primitive.teal-400}", "$type": "color", "$description": "Brand accent — active nav, titles, strong selection bar" },
+      "accent-dim": { "$value": "{color.primitive.teal-300}", "$type": "color", "$description": "Softer accent when region is not focused" },
+      "danger": { "$value": "{color.primitive.red-400}", "$type": "color", "$description": "Errors, destructive" },
+      "warning": { "$value": "{color.primitive.amber-300}", "$type": "color", "$description": "Warnings, loading emphasis" },
+      "success": { "$value": "{color.primitive.green-400}", "$type": "color", "$description": "Success, git clean" },
+      "border": { "$value": "{color.primitive.gray-600}", "$type": "color", "$description": "Rules, panel edges" },
+      "surface": { "$value": "{color.primitive.gray-900}", "$type": "color", "$description": "Cards, subtle zebra, elevated panels" },
+      "selection": { "$value": "{color.primitive.gray-700}", "$type": "color", "$description": "Selected row / active sidebar wash" },
+      "git-clean": { "$value": "{color.semantic.success}", "$type": "color", "$description": "Git repo present" },
+      "git-dirty-or-absent": { "$value": "{color.semantic.muted}", "$type": "color", "$description": "Not a git repo or neutral absent mark (prefer muted over danger for absent)" }
+    }
+  },
+  "space": {
+    "primitive": {
+      "0": { "$value": "0", "$type": "dimension" },
+      "1": { "$value": "1", "$type": "dimension", "$description": "1 cell / 4px desktop baseline unit encoding differs by platform" },
+      "2": { "$value": "2", "$type": "dimension" },
+      "3": { "$value": "3", "$type": "dimension" },
+      "4": { "$value": "4", "$type": "dimension" },
+      "6": { "$value": "6", "$type": "dimension" },
+      "8": { "$value": "8", "$type": "dimension" }
+    },
+    "semantic": {
+      "sidebar-width": { "$value": "23", "$type": "dimension", "$description": "TUI: character columns. Desktop: map to ~240px or 15rem in transform." },
+      "header-height": { "$value": "1", "$type": "dimension", "$description": "TUI rows" },
+      "footer-height": { "$value": "1", "$type": "dimension", "$description": "TUI rows" },
+      "detail-height": { "$value": "7", "$type": "dimension", "$description": "TUI rows under project table (detail strip)" },
+      "sidebar-accent-bar": { "$value": "2", "$type": "dimension", "$description": "TUI columns for active rail bar" },
+      "row-accent-bar": { "$value": "1", "$type": "dimension", "$description": "TUI columns for selected table row bar" }
+    }
+  },
+  "typography": {
+    "semantic": {
+      "label-emphasis": { "$value": "bold", "$type": "fontWeight", "$description": "Selected name, active nav label (TUI Modifier::BOLD / CSS 700)" },
+      "label-default": { "$value": "regular", "$type": "fontWeight", "$description": "Default UI text" }
+    }
+  },
+  "component": {
+    "sidebar": {
+      "item-active-bg": { "$value": "{color.semantic.selection}", "$type": "color" },
+      "item-active-fg": { "$value": "{color.semantic.fg}", "$type": "color" },
+      "item-active-bar": { "$value": "{color.semantic.accent}", "$type": "color" },
+      "item-inactive-fg": { "$value": "{color.semantic.muted}", "$type": "color" },
+      "width": { "$value": "{space.semantic.sidebar-width}", "$type": "dimension" }
+    },
+    "table": {
+      "row-selected-bg": { "$value": "{color.semantic.selection}", "$type": "color" },
+      "row-selected-bar": { "$value": "{color.semantic.accent}", "$type": "color" },
+      "row-selected-name-fg": { "$value": "{color.semantic.fg}", "$type": "color" },
+      "empty-placeholder": { "$value": "{color.semantic.muted}", "$type": "color", "$description": "Use middle-dot glyph · not hyphen-minus for empty cells" },
+      "header-fg": { "$value": "{color.semantic.accent}", "$type": "color" }
+    },
+    "detail": {
+      "title-fg": { "$value": "{color.semantic.accent}", "$type": "color" },
+      "path-fg": { "$value": "{color.semantic.muted}", "$type": "color" },
+      "height": { "$value": "{space.semantic.detail-height}", "$type": "dimension" }
+    },
+    "header": {
+      "brand-fg": { "$value": "{color.semantic.accent}", "$type": "color" },
+      "root-fg": { "$value": "{color.semantic.muted}", "$type": "color" },
+      "hotkey-fg": { "$value": "{color.semantic.muted}", "$type": "color" }
+    },
+    "footer": {
+      "fg": { "$value": "{color.semantic.muted}", "$type": "color" }
+    },
+    "git": {
+      "clean-fg": { "$value": "{color.semantic.git-clean}", "$type": "color" },
+      "absent-fg": { "$value": "{color.semantic.git-dirty-or-absent}", "$type": "color" },
+      "clean-glyph": { "$value": "●", "$type": "string", "$description": "Preferred over checkmark" },
+      "absent-glyph": { "$value": "·", "$type": "string", "$description": "Quiet absent mark" }
+    }
+  },
+  "meta": {
+    "name": { "$value": "raccpack Nocturnal", "$type": "string" },
+    "version": { "$value": "0.1.0", "$type": "string", "$description": "Token pack version — independent of app semver" },
+    "platforms": { "$value": "tui, desktop", "$type": "string" },
+    "mapping": {
+      "tui": { "$value": "crates/raccpack-tui/src/ui/theme.rs — semantic color.* → Color::Rgb; space.semantic.* → layout u16", "$type": "string" },
+      "desktop": { "$value": "Future: CSS variables --rp-color-accent etc. from same file via Style Directory or hand export", "$type": "string" }
+    }
+  }
+}
