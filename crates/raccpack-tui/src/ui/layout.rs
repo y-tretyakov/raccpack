@@ -13,9 +13,6 @@ use crate::app::{App, Focus, ViewId, ALL_VIEWS};
 use crate::ui::screens;
 use crate::ui::theme;
 
-/// Sidebar width in columns. Comfortable room for label + accent bar + key hint.
-const SIDEBAR_WIDTH: u16 = 23;
-
 /// Render one complete frame.
 pub fn render(
     app: &mut App,
@@ -27,9 +24,9 @@ pub fn render(
         let outer = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(1), // header
-                Constraint::Min(0),    // body
-                Constraint::Length(1), // footer
+                Constraint::Length(theme::SPACE_HEADER_HEIGHT), // header
+                Constraint::Min(0),                             // body
+                Constraint::Length(theme::SPACE_FOOTER_HEIGHT), // footer
             ])
             .split(area);
 
@@ -87,7 +84,7 @@ fn render_header(f: &mut ratatui::Frame, area: Rect, app: &App) {
 
 fn render_body(f: &mut ratatui::Frame, area: Rect, app: &mut App) {
     // Clamp sidebar to the available width so tiny terminals never panic.
-    let sidebar_width = area.width.min(SIDEBAR_WIDTH);
+    let sidebar_width = area.width.min(theme::SPACE_SIDEBAR_WIDTH);
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Length(sidebar_width), Constraint::Min(0)])
@@ -211,8 +208,9 @@ mod tests {
     #[test]
     fn sidebar_width_within_spec_range() {
         assert!(
-            (22..=24).contains(&SIDEBAR_WIDTH),
-            "sidebar must be 22-24 columns, got {SIDEBAR_WIDTH}"
+            (22..=24).contains(&theme::SPACE_SIDEBAR_WIDTH),
+            "sidebar must be 22-24 columns, got {}",
+            theme::SPACE_SIDEBAR_WIDTH
         );
     }
 
@@ -228,7 +226,7 @@ mod tests {
 
     #[test]
     fn sidebar_split_constraints() {
-        let constraints = [Constraint::Length(SIDEBAR_WIDTH), Constraint::Min(0)];
+        let constraints = [Constraint::Length(theme::SPACE_SIDEBAR_WIDTH), Constraint::Min(0)];
         assert_eq!(constraints.len(), 2);
     }
 
@@ -283,11 +281,13 @@ mod tests {
         // Row = leading space + bar + space + label(=prefix) + pad + hint(1).
         for view in ALL_VIEWS {
             let prefix_width = 3 + view.label().chars().count();
-            let pad = SIDEBAR_WIDTH.saturating_sub(prefix_width as u16 + 1);
+            let pad = theme::SPACE_SIDEBAR_WIDTH.saturating_sub(prefix_width as u16 + 1);
             let total = prefix_width as u16 + pad + 1;
             assert_eq!(
-                total, SIDEBAR_WIDTH,
-                "{view:?} row (len {total}) must fill sidebar width {SIDEBAR_WIDTH}"
+                total,
+                theme::SPACE_SIDEBAR_WIDTH,
+                "{view:?} row (len {total}) must fill sidebar width {}",
+                theme::SPACE_SIDEBAR_WIDTH
             );
         }
     }

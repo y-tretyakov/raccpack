@@ -41,6 +41,40 @@ pub const GIT_CLEAN: Color = Color::Rgb(0x98, 0xc3, 0x79);
 /// Git dirty or absent — not a git repo or neutral absent mark. ← color.semantic.git-dirty-or-absent (equals MUTED)
 pub const GIT_DIRTY_OR_ABSENT: Color = Color::Rgb(0x5c, 0x63, 0x70);
 
+// ── Space tokens (terminal cells/columns) ─────────────────────────────────────
+// Source of truth: `docs/design-tokens/raccpack.tokens.json` → `space.semantic.*`.
+// The TUI shares these only by name with Desktop (which maps them to px/rem in
+// its own transform); keep the numeric values here in sync with the JSON.
+
+/// Sidebar width in character columns. ← space.semantic.sidebar-width (23).
+pub const SPACE_SIDEBAR_WIDTH: u16 = 23;
+
+/// Header height in rows. ← space.semantic.header-height (1).
+pub const SPACE_HEADER_HEIGHT: u16 = 1;
+
+/// Footer height in rows. ← space.semantic.footer-height (1).
+pub const SPACE_FOOTER_HEIGHT: u16 = 1;
+
+/// Detail strip height in rows. ← space.semantic.detail-height (7).
+pub const SPACE_DETAIL_HEIGHT: u16 = 7;
+
+/// Accent rail width for the active sidebar item. ← space.semantic.sidebar-accent-bar (2).
+pub const SPACE_SIDEBAR_ACCENT_BAR: u16 = 2;
+
+/// Accent bar width for the selected table row. ← space.semantic.row-accent-bar (1).
+pub const SPACE_ROW_ACCENT_BAR: u16 = 1;
+
+// ── Component glyphs ──────────────────────────────────────────────────────────
+
+/// Git repo present. ← component.git.clean-glyph (●).
+pub const GIT_CLEAN_GLYPH: &str = "●";
+
+/// Git repo absent / neutral mark. ← component.git.absent-glyph (·).
+pub const GIT_ABSENT_GLYPH: &str = "·";
+
+/// Empty-cell placeholder. ← component.table.empty-placeholder (use `·`, not `-`).
+pub const EMPTY_PLACEHOLDER: &str = "·";
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -147,5 +181,57 @@ mod tests {
         assert_ne!(SURFACE, SELECTION);
         assert_ne!(ACCENT, ACCENT_DIM);
         assert_ne!(GIT_CLEAN, GIT_DIRTY_OR_ABSENT);
+    }
+
+    // ── space tokens ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn space_tokens_match_design_tokens_json() {
+        // Docs/design-tokens/raccpack.tokens.json → space.semantic.*. Keeping
+        // the numeric values here in sync is a hard contract (UI ↔ Desktop).
+        assert_eq!(SPACE_SIDEBAR_WIDTH, 23, "sidebar-width");
+        assert_eq!(SPACE_HEADER_HEIGHT, 1, "header-height");
+        assert_eq!(SPACE_FOOTER_HEIGHT, 1, "footer-height");
+        assert_eq!(SPACE_DETAIL_HEIGHT, 7, "detail-height");
+        assert_eq!(SPACE_SIDEBAR_ACCENT_BAR, 2, "sidebar-accent-bar");
+        assert_eq!(SPACE_ROW_ACCENT_BAR, 1, "row-accent-bar");
+    }
+
+    #[test]
+    fn space_tokens_are_positive() {
+        for value in [
+            SPACE_SIDEBAR_WIDTH,
+            SPACE_HEADER_HEIGHT,
+            SPACE_FOOTER_HEIGHT,
+            SPACE_DETAIL_HEIGHT,
+            SPACE_SIDEBAR_ACCENT_BAR,
+            SPACE_ROW_ACCENT_BAR,
+        ] {
+            assert!(value > 0, "space token must be positive, got {value}");
+        }
+    }
+
+    #[test]
+    fn detail_height_fits_labels_and_values() {
+        // The strip must comfortably hold project/finding metadata lines
+        // (title row + label/value pairs) inside the bordered panel.
+        assert!(SPACE_DETAIL_HEIGHT >= 5, "strip must not be impractically thin");
+    }
+
+    // ── glyphs / placeholder ──────────────────────────────────────────────────
+
+    #[test]
+    fn git_glyphs_match_token_values() {
+        assert_eq!(GIT_CLEAN_GLYPH, "●", "component.git.clean-glyph");
+        assert_eq!(GIT_ABSENT_GLYPH, "·", "component.git.absent-glyph");
+        assert_ne!(GIT_CLEAN_GLYPH, GIT_ABSENT_GLYPH);
+    }
+
+    #[test]
+    fn empty_placeholder_is_middle_dot_not_hyphen() {
+        // component.table.empty-placeholder mandates `·` (U+00B7), not `-`.
+        assert_eq!(EMPTY_PLACEHOLDER, "·");
+        assert_ne!(EMPTY_PLACEHOLDER, "-");
+        assert_eq!(EMPTY_PLACEHOLDER.chars().count(), 1);
     }
 }
