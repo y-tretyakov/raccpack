@@ -29,7 +29,7 @@ fn help_items() -> Vec<HelpItem> {
         },
         HelpItem {
             key: "j / k / ↓ / ↑",
-            description: "Sidebar: switch view · Projects: row",
+            description: "Sidebar: switch view · rows: Projects, Findings",
         },
         HelpItem {
             key: "h / ←",
@@ -41,15 +41,23 @@ fn help_items() -> Vec<HelpItem> {
         },
         HelpItem {
             key: "g / G",
-            description: "First / last row (Projects)",
+            description: "First / last row (Projects, Findings)",
         },
         HelpItem {
             key: "r",
-            description: "Refresh projects (Projects)",
+            description: "Refresh (Projects) · re-dig (Findings)",
         },
         HelpItem {
             key: "Enter",
-            description: "Activate sidebar item / dig placeholder",
+            description: "Activate sidebar item · dig selected project",
+        },
+        HelpItem {
+            key: "f",
+            description: "Findings: filter by min risk",
+        },
+        HelpItem {
+            key: "c",
+            description: "Findings: toggle content scan (re-dig)",
         },
         HelpItem {
             key: "?",
@@ -57,7 +65,7 @@ fn help_items() -> Vec<HelpItem> {
         },
         HelpItem {
             key: "Esc",
-            description: "Close help / focus sidebar",
+            description: "Close help · focus sidebar · back to Projects",
         },
         HelpItem {
             key: "q",
@@ -180,6 +188,17 @@ mod tests {
             "Esc",
             "q",
         ] {
+            assert!(
+                keys.contains(&expected),
+                "help must document {expected:?}, got {keys:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn help_items_cover_dig_keys() {
+        let keys: Vec<_> = help_items().iter().map(|i| i.key).collect();
+        for expected in ["f", "c", "r", "Enter"] {
             assert!(
                 keys.contains(&expected),
                 "help must document {expected:?}, got {keys:?}"

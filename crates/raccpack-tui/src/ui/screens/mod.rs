@@ -1,5 +1,6 @@
 //! Screen registry — routes ViewId to its renderer.
 
+pub mod dig;
 pub mod help;
 pub mod sniff;
 
@@ -23,13 +24,7 @@ pub fn render_screen(f: &mut Frame, area: Rect, app: &mut App) {
             theme::ACCENT,
         ),
         ViewId::Projects => crate::ui::screens::sniff::render(f, area, &mut app.sniff_state),
-        ViewId::Findings => render_stub(
-            f,
-            area,
-            "Findings",
-            "No findings yet.\nResults will appear after a scan.",
-            theme::WARNING,
-        ),
+        ViewId::Findings => crate::ui::screens::dig::render(f, area, &mut app.dig_state),
         ViewId::Operations => render_stub(
             f,
             area,

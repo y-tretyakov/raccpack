@@ -15,10 +15,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.4.2`** |
-| **Веха** | Detect v2 ✅ CLOSED · **Beta B1.2 done (0.4.2)** · Beta → 0.5.0 |
-| **Этап** | **B1.3** — TUI dig screen |
-| **Предыдущее** | B1.2 TUI sniff screen closed (0.4.2) |
+| **Версия** | **`0.4.3`** |
+| **Веха** | Detect v2 ✅ CLOSED · **Beta B1.3 done (0.4.3)** · Beta → 0.5.0 |
+| **Этап** | **B1.4** — TUI raid + progress |
+| **Предыдущее** | B1.3 TUI dig screen closed (0.4.3) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
@@ -34,7 +34,9 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 [x] B1.1 TUI skeleton (0.4.1)
 [x] B1.2  TUI sniff screen (0.4.2)
 [x] B1.2.3 Design tokens source of truth (DTCG), нет bump
-[ ] B1.3  TUI dig screen
+[x] B1.2.4 Sidebar-space token в token-const, нет bump
+[x] B1.2.5 Detail strip (detail-height 7, git-маркеры, empty placeholder `·`), нет bump
+[x] B1.3  TUI dig screen (0.4.3)
 [ ] B1.4  TUI raid + progress
 [ ] B1.5  TUI reveal modal
 [ ] B2  Desktop (Tauri + React) + BFF + ephemeral reveal
@@ -83,6 +85,37 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 ---
 
 ## Этапы (Beta)
+
+### 2026-08-29 — B1.3 — TUI dig screen (Findings) ✅ CLOSED
+
+- **Ветка:** `b1.3-tui-dig-screen` (PR #112 → `dev`, squash)
+- **Версия:** 0.4.3
+- **DoD:**
+  - [x] Worker `Dig` (пакет в одном треде с Sniff): `WorkerMsg::Dig { project, den_dir, scan_content }` → `WorkerEvent::DigDone(Result<DigResult, Error>)`; реальный core `dig` (read-only, DryRun)
+  - [x] Enter на выбранном проекте (Projects, Focus::Main) → dig; sidebar Enter на Projects по-прежнему фокусирует Main
+  - [x] Экран Findings: loading (progress %) / error / no-scope / empty (0 findings или фильтр вырезал всё) / таблица Risk·Path·Kind·Git
+  - [x] **Masked-only (DoD security):** `FindingRow` не хранит `content_match`/masked (module-doc контракт) — raw и masked не пересекают core→UI; интеграционный тест пинает это напрямую (fixture `.env` + AWS content)
+  - [x] Risk-цвета (Critical=DANGER, High=WARNING, Medium=FG, Low=MUTED), git-глифы `●`/`·`, empty `·`; shared detail strip (compact: Risk/Path/Kind/Git/Project) через `widgets/detail.rs`
+  - [x] `f` — cycle min-risk (all → critical → high+ → medium+), `c` — toggle content-scan + re-dig, `r` — re-dig, `Esc` — обратно в Projects (освобождает scope); j/k/g/G — навигация по строкам Findings
+  - [x] Progress events роутится по `OperationKind::{Sniff,Dig}` (другие операции — заглушка до B1.4)
+  - [x] footer dig-status (findings · filter · content on/off · project); help обновлён
+  - [x] Тесты: unit app/dig.rs (map без content_match, sort risk+path, filter/clamp/leave), app.rs key-flow (Enter/Esc/f/c/r, sidebar-anchored guards), worker DigDone fixture, `tests/dig_screen_test.rs` (bridge + no-leak + no-content-scan + missing-root)
+  - [x] `cargo test --workspace` green, `cargo fmt --check` ok, `cargo clippy -p raccpack-tui --all-targets -- -D warnings` ok
+- **Файлы:** worker.rs, app.rs, app/dig.rs (created), event.rs, ui/widgets/{mod,detail}.rs (created), ui/mod.rs, ui/theme.rs, ui/layout.rs, ui/screens/{mod,dig,help,sniff}.rs, tests/dig_screen_test.rs (created)
+- **Решения:** единственный scope dig = выбранный проект (dig всего scan_root — не в B1.3); `leave()` близкий к краю сбрасывает project/selection, но сохраняет результаты для возврата Tab; filter применяется к видимой копии (all_findings хранит канон); `v` reveal — B1.5, здесь явно не вводится
+- **Follow-up:** B1.4 raid+progress приконнектит `OperationKind::Stash//Rinse//Pack//Raid` к роутингу progress; reveal `v` (B1.5) получит доступ к маскированным preview уже без правки контракта строк.
+
+### 2026-08-29 — B1.2.4 / B1.2.5 — sidebar-space token + detail strip ✅ CLOSED (no bump)
+
+- **Ветка:** `b1.3-tui-dig-screen` (закрыт вместе с B1.3 тем же PR)
+- **Версия:** без bump (полировка B1.2, закрыто вместе с B1.3 в PR #112)
+- **DoD:**
+  - [x] `theme.rs`: space-токены `SPACE_SIDEBAR_WIDTH/HEADER_HEIGHT/FOOTER_HEIGHT/DETAIL_HEIGHT/…_ACCENT_BAR` 1:1 с `space.semantic.*` токен-JSON + glyph/placeholder const (`●`, `·`, `·`)
+  - [x] `widgets/detail.rs` — общий bordered detail strip (token-высота, `·` для пустого, muted-path) для sniff и dig
+  - [x] layout.rs на токенах; sniff: git-глифы, empty `·`, selected-радар `▎`, detail strip под таблицей
+  - [x] unit-тесты space/glyph контрактов (сверка с design tokens JSON)
+  - [x] fmt + clippy `-D warnings`, `cargo test -p raccpack-tui` green
+- **Файлы:** ui/theme.rs, ui/widgets/{mod,detail}.rs (created), ui/mod.rs, ui/layout.rs, ui/screens/sniff.rs
 
 ### 2026-08-29 — B1.2.3 — Design tokens source of truth (DTCG) ✅ CLOSED
 

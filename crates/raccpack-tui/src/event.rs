@@ -15,6 +15,7 @@ use ratatui::Terminal;
 
 use crate::app::{App, Command};
 use crate::worker::{WorkerEvent, WorkerMsg};
+use raccpack_core::app::OperationKind;
 
 /// Events dispatched into the application loop.
 #[derive(Debug)]
@@ -137,20 +138,67 @@ fn handle_app_command(cmd: Command, worker_tx: &mpsc::Sender<WorkerMsg>, app: &m
                 max_depth: None,
             });
         }
+        Command::Dig => {
+            let Some(project) = app.sniff_state.selected_project().map(|p| p.path.clone()) else {
+                return;
+            };
+            start_dig(project, app, worker_tx);
+        }
+        Command::DigRefresh => {
+            let Some(project) = app.dig_state.project.clone() else {
+                return;
+            };
+            start_dig(project, app, worker_tx);
+        }
+        Command::ToggleContentScan => {
+            // Flip the flag once here, then re-dig with the new value when a
+            // project is in scope.
+            app.dig_state.scan_content = !app.dig_state.scan_content;
+            if let Some(project) = app.dig_state.project.clone() {
+                start_dig(project, app, worker_tx);
+            }
+        }
         Command::ChangeScanRoot => {
             // TODO: implement scan root change
         }
+        // Pure-in-app commands were already applied inside `App::handle_key`.
+        Command::BackToProjects | Command::CycleRiskFilter => {}
         _ => {}
     }
+}
+
+/// Send one dig run for `project` to the worker.
+fn start_dig(project: std::path::PathBuf, app: &mut App, worker_tx: &mpsc::Sender<WorkerMsg>) {
+    app.dig_state.set_loading(true);
+    app.dig_state.project = Some(project.clone());
+    let den_dir = app.den_dir.clone();
+    let scan_content = app.dig_state.scan_content;
+    let _ = worker_tx.send(WorkerMsg::Dig {
+        project,
+        den_dir,
+        scan_content,
+    });
 }
 
 /// Handle events from the worker thread.
 fn handle_worker_event(event: WorkerEvent, app: &mut App) {
     match event {
         WorkerEvent::Progress(progress) => {
-            app.sniff_state.progress = Some(progress);
-            if !app.sniff_state.is_loading {
-                app.sniff_state.set_loading(true);
+            match progress.operation {
+                OperationKind::Sniff => {
+                    app.sniff_state.progress = Some(progress);
+                    if !app.sniff_state.is_loading {
+                        app.sniff_state.set_loading(true);
+                    }
+                }
+                OperationKind::Dig => {
+                    app.dig_state.progress = Some(progress);
+                    if !app.dig_state.is_loading {
+                        app.dig_state.set_loading(true);
+                    }
+                }
+                // Stash/rinse/pack/raid progress has no screen yet.
+                _ => {}
             }
         }
         WorkerEvent::SniffDone(result) => {
@@ -188,9 +236,27 @@ fn handle_worker_event(event: WorkerEvent, app: &mut App) {
                 }
             }
         }
+        WorkerEvent::DigDone(result) => {
+            app.dig_state.set_loading(false);
+            app.dig_state.progress = None;
+            app.dig_state.last_run = Some(std::time::SystemTime::now());
+
+            match result {
+                Ok(dig_result) => {
+                    app.dig_state.set_dig_result(dig_result);
+                    // Move the selection onto the first visible row.
+                    app.dig_state.select_first();
+                }
+                Err(e) => {
+                    app.dig_state.error = Some(e.to_string());
+                }
+            }
+        }
         WorkerEvent::Cancelled => {
             app.sniff_state.set_loading(false);
             app.sniff_state.progress = None;
+            app.dig_state.set_loading(false);
+            app.dig_state.progress = None;
         }
     }
 }
