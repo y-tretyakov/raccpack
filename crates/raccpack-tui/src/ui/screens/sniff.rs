@@ -116,15 +116,15 @@ fn render_table(f: &mut Frame, area: Rect, state: &mut SniffScreenState) {
             };
 
             let accent_bar = if selected {
-                Cell::from(Span::styled(
-                    "▎",
-                    Style::default().fg(theme::ACCENT).bg(bg),
-                ))
+                Cell::from(Span::styled("▎", Style::default().fg(theme::ACCENT).bg(bg)))
             } else {
                 Cell::from(Span::raw(" ").style(Style::default().bg(bg)))
             };
 
-            let language = project.language.as_deref().unwrap_or(theme::EMPTY_PLACEHOLDER);
+            let language = project
+                .language
+                .as_deref()
+                .unwrap_or(theme::EMPTY_PLACEHOLDER);
             let frameworks = if project.frameworks.is_empty() {
                 theme::EMPTY_PLACEHOLDER.to_string()
             } else {

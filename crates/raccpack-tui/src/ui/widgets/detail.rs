@@ -61,10 +61,7 @@ pub fn render(f: &mut Frame, area: Rect, title: &str, lines: &[DetailLine]) {
                 .add_modifier(Modifier::BOLD),
         ));
 
-    let body: Vec<Line> = lines
-        .iter()
-        .map(detail_line_to_line)
-        .collect();
+    let body: Vec<Line> = lines.iter().map(detail_line_to_line).collect();
 
     f.render_widget(
         Paragraph::new(body)
@@ -97,7 +94,11 @@ mod tests {
     fn empty_value_becomes_placeholder() {
         let line = DetailLine::new("Risk", "");
         let rendered = detail_line_to_line(&line);
-        let text: String = rendered.spans.iter().map(|s| s.content.to_string()).collect();
+        let text: String = rendered
+            .spans
+            .iter()
+            .map(|s| s.content.to_string())
+            .collect();
         assert!(
             text.contains(theme::EMPTY_PLACEHOLDER),
             "empty value must render the · placeholder, got {text:?}"
@@ -109,7 +110,11 @@ mod tests {
     fn full_value_is_kept() {
         let line = DetailLine::new("Path", "/a/b/c");
         let rendered = detail_line_to_line(&line);
-        let text: String = rendered.spans.iter().map(|s| s.content.to_string()).collect();
+        let text: String = rendered
+            .spans
+            .iter()
+            .map(|s| s.content.to_string())
+            .collect();
         assert!(text.contains("/a/b/c"));
         assert!(text.contains("Path"));
     }
@@ -128,7 +133,9 @@ mod tests {
             DetailLine::new("Risk", "Critical"),
             DetailLine::new("Kind", ""),
         ];
-        let rendered: Vec<String> = lines.iter().map(detail_line_to_line)
+        let rendered: Vec<String> = lines
+            .iter()
+            .map(detail_line_to_line)
             .map(|l| l.spans.iter().map(|s| s.content.to_string()).collect())
             .collect();
         assert!(rendered[0].contains("Critical"));

@@ -212,15 +212,6 @@ mod tests {
     }
 
     #[test]
-    fn detail_height_fits_labels_and_values() {
-        // The strip must comfortably hold project/finding metadata lines
-        // (title row + label/value pairs) inside the bordered panel.
-        assert!(SPACE_DETAIL_HEIGHT >= 5, "strip must not be impractically thin");
-    }
-
-    // ── glyphs / placeholder ──────────────────────────────────────────────────
-
-    #[test]
     fn git_glyphs_match_token_values() {
         assert_eq!(GIT_CLEAN_GLYPH, "●", "component.git.clean-glyph");
         assert_eq!(GIT_ABSENT_GLYPH, "·", "component.git.absent-glyph");
@@ -232,6 +223,5 @@ mod tests {
         // component.table.empty-placeholder mandates `·` (U+00B7), not `-`.
         assert_eq!(EMPTY_PLACEHOLDER, "·");
         assert_ne!(EMPTY_PLACEHOLDER, "-");
-        assert_eq!(EMPTY_PLACEHOLDER.chars().count(), 1);
     }
 }

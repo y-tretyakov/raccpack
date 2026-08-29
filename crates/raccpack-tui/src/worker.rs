@@ -5,7 +5,8 @@ use std::sync::mpsc;
 use std::thread;
 
 use raccpack_core::app::{
-    AppContext, ProgressEvent, ProgressSink, RunMode, SniffOptions, SniffResult,
+    AppContext, DigOptions, DigResult, ProgressEvent, ProgressSink, RunMode, SniffOptions,
+    SniffResult,
 };
 use raccpack_core::config::RaccConfig;
 use raccpack_core::detect::DetectMode;
@@ -18,6 +19,8 @@ pub enum WorkerEvent {
     Progress(ProgressEvent),
     /// Sniff completed with result.
     SniffDone(Result<SniffResult, Error>),
+    /// Dig completed with result (never carries raw secrets).
+    DigDone(Result<DigResult, Error>),
     /// Operation cancelled.
     Cancelled,
 }
@@ -32,6 +35,12 @@ pub enum WorkerMsg {
         force_refresh: bool,
         detect_mode: Option<DetectMode>,
         max_depth: Option<usize>,
+    },
+    /// Run dig for a single project directory.
+    Dig {
+        project: PathBuf,
+        den_dir: PathBuf,
+        scan_content: bool,
     },
     /// Cancel current operation.
     Cancel,
@@ -54,21 +63,29 @@ pub fn spawn_worker() -> (mpsc::Sender<WorkerMsg>, mpsc::Receiver<WorkerEvent>) 
                     detect_mode,
                     max_depth,
                 } => {
-                    let config = build_config(scan_root.clone(), den_dir);
-                    let ctx = AppContext::from_config(config, RunMode::DryRun);
-                    if let Err(e) = ctx {
-                        let _ = event_tx.send(WorkerEvent::SniffDone(Err(e.into())));
-                        continue;
-                    }
-                    let ctx = ctx.unwrap();
+                    let config = build_config(scan_root, den_dir);
                     let opts = SniffOptions {
                         force_refresh,
                         max_depth,
                         detect_mode,
                     };
-                    let mut sink = TuiProgressSink::new(event_tx.clone());
-                    let result = raccpack_core::app::sniff(&ctx, &opts, &mut sink);
-                    let _ = event_tx.send(WorkerEvent::SniffDone(result));
+                    run_sniff(config, opts, event_tx.clone());
+                }
+                WorkerMsg::Dig {
+                    project,
+                    den_dir,
+                    scan_content,
+                } => {
+                    // Dig always targets one project directory; that directory
+                    // becomes the resolved scan root for the run.
+                    let config = build_config(project, den_dir);
+                    let opts = DigOptions {
+                        project: None,
+                        find_repeated: false,
+                        scan_content,
+                        use_heuristics: None,
+                    };
+                    run_dig(config, opts, event_tx.clone());
                 }
                 WorkerMsg::Cancel => {
                     let _ = event_tx.send(WorkerEvent::Cancelled);
@@ -78,6 +95,33 @@ pub fn spawn_worker() -> (mpsc::Sender<WorkerMsg>, mpsc::Receiver<WorkerEvent>) 
     });
 
     (worker_tx, event_rx)
+}
+
+/// Build a minimal config quick enough for the worker's own tests.
+fn run_sniff(config: RaccConfig, opts: SniffOptions, event_tx: mpsc::Sender<WorkerEvent>) {
+    let ctx = match AppContext::from_config(config, RunMode::DryRun) {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            let _ = event_tx.send(WorkerEvent::SniffDone(Err(e.into())));
+            return;
+        }
+    };
+    let mut sink = TuiProgressSink::new(event_tx.clone());
+    let result = raccpack_core::app::sniff(&ctx, &opts, &mut sink);
+    let _ = event_tx.send(WorkerEvent::SniffDone(result));
+}
+
+fn run_dig(config: RaccConfig, opts: DigOptions, event_tx: mpsc::Sender<WorkerEvent>) {
+    let ctx = match AppContext::from_config(config, RunMode::DryRun) {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            let _ = event_tx.send(WorkerEvent::DigDone(Err(e.into())));
+            return;
+        }
+    };
+    let mut sink = TuiProgressSink::new(event_tx.clone());
+    let result = raccpack_core::app::dig(&ctx, &opts, &mut sink);
+    let _ = event_tx.send(WorkerEvent::DigDone(result));
 }
 
 /// Build a minimal config for the given paths.
@@ -141,5 +185,40 @@ mod tests {
         // Should receive SniffDone event (with error)
         let event = event_rx.recv_timeout(Duration::from_secs(2)).unwrap();
         assert!(matches!(event, WorkerEvent::SniffDone(_)));
+    }
+
+    #[test]
+    fn worker_can_dig_a_project_and_report_findings() {
+        let tmp =
+            std::env::temp_dir().join(format!("raccpack-tui-dig-test-{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(tmp.join(".env"), "DATABASE_URL=postgres://localhost/app").unwrap();
+
+        let (worker_tx, event_rx) = spawn_worker();
+        let den_dir = std::path::PathBuf::from("/tmp/den");
+        worker_tx
+            .send(WorkerMsg::Dig {
+                project: tmp.clone(),
+                den_dir,
+                scan_content: true,
+            })
+            .unwrap();
+
+        // Digest progress events until DigDone arrives.
+        let mut done = None;
+        for _ in 0..20 {
+            let event = event_rx.recv_timeout(Duration::from_millis(500)).unwrap();
+            if let WorkerEvent::DigDone(result) = event {
+                done = Some(result);
+                break;
+            }
+        }
+        std::fs::remove_dir_all(&tmp).unwrap();
+
+        let result = done.expect("DigDone must arrive").expect("dig run ok");
+        assert!(
+            result.files.iter().any(|f| f.path.ends_with(".env")),
+            "the .env fixture must be reported"
+        );
     }
 }

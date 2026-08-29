@@ -97,6 +97,16 @@ pub enum Command {
     SniffRefresh,
     /// Change scan root.
     ChangeScanRoot,
+    /// Dig the project selected on the Projects screen.
+    Dig,
+    /// Re-run dig for the project currently on the Findings screen.
+    DigRefresh,
+    /// Toggle content scanning and re-run dig for the current project.
+    ToggleContentScan,
+    /// Advance the min-risk filter (handled purely in-app).
+    CycleRiskFilter,
+    /// Return from the Findings screen to the Projects screen.
+    BackToProjects,
 }
 
 /// Top-level application state.
@@ -108,6 +118,8 @@ pub struct App {
     pub running: bool,
     /// State for the sniff screen.
     pub sniff_state: sniff::SniffScreenState,
+    /// State for the dig screen.
+    pub dig_state: dig::DigScreenState,
     /// Resolved den directory (flag > env > default `~/.raccpack/den`).
     pub den_dir: PathBuf,
     /// Whether to run a sniff refresh automatically once the loop starts.
@@ -130,6 +142,7 @@ impl App {
             help_visible: false,
             running: true,
             sniff_state: sniff::SniffScreenState::default(),
+            dig_state: dig::DigScreenState::default(),
             den_dir: PathBuf::new(),
             refresh_on_start: false,
         }
@@ -169,9 +182,29 @@ impl App {
             return match key.code {
                 KeyCode::Char('r') => Some(Command::SniffRefresh),
                 KeyCode::Char('o') => Some(Command::ChangeScanRoot),
-                // `Enter` is a placeholder for dig; consumes the key so it
-                // does not also move focus when browsing the sidebar.
-                KeyCode::Enter => Some(Command::None),
+                // Events go to the project that is selected in the table.
+                KeyCode::Enter if self.focus == Focus::Main => {
+                    if self.sniff_state.selected_project().is_some() {
+                        Some(Command::Dig)
+                    } else {
+                        Some(Command::None)
+                    }
+                }
+                // Sidebar Enter still means "move focus to main", not dig.
+                KeyCode::Enter => None,
+                _ => None,
+            };
+        }
+        if self.current_view == ViewId::Findings {
+            return match key.code {
+                // `r` re-digs only when a project is scoped (guard in event.rs).
+                KeyCode::Char('r') => Some(Command::DigRefresh),
+                KeyCode::Char('c') => Some(Command::ToggleContentScan),
+                // `f` is purely local state, no worker round-trip needed.
+                KeyCode::Char('f') => {
+                    self.dig_state.cycle_min_risk();
+                    Some(Command::None)
+                }
                 _ => None,
             };
         }
@@ -233,6 +266,13 @@ impl App {
     /// Keys while the main area owns list/arrow navigation.
     fn handle_key_main(&mut self, key: KeyEvent) -> Command {
         match key.code {
+            // Esc on Findings returns to the project list (dig scope closes);
+            // elsewhere it returns to the sidebar.
+            KeyCode::Esc if self.current_view == ViewId::Findings => {
+                self.current_view = ViewId::Projects;
+                self.dig_state.leave();
+                Command::BackToProjects
+            }
             KeyCode::Char('h') | KeyCode::Left | KeyCode::Esc => {
                 self.focus = Focus::Sidebar;
                 Command::None
@@ -252,6 +292,22 @@ impl App {
             }
             KeyCode::Char('G') if self.current_view == ViewId::Projects => {
                 self.sniff_state.select_last();
+                Command::None
+            }
+            KeyCode::Char('j') | KeyCode::Down if self.current_view == ViewId::Findings => {
+                self.dig_state.select_next();
+                Command::None
+            }
+            KeyCode::Char('k') | KeyCode::Up if self.current_view == ViewId::Findings => {
+                self.dig_state.select_previous();
+                Command::None
+            }
+            KeyCode::Char('g') if self.current_view == ViewId::Findings => {
+                self.dig_state.select_first();
+                Command::None
+            }
+            KeyCode::Char('G') if self.current_view == ViewId::Findings => {
+                self.dig_state.select_last();
                 Command::None
             }
             KeyCode::Tab => {
@@ -290,6 +346,8 @@ impl App {
         }
     }
 }
+
+pub mod dig;
 
 pub mod sniff {
     use ratatui::widgets::TableState;
@@ -755,5 +813,157 @@ mod tests {
         assert_eq!(state.selected_project().unwrap().name, "a");
         state.select_last();
         assert_eq!(state.selected_project().unwrap().name, "b");
+    }
+
+    fn project_row(name: &str, path: &str) -> sniff::ProjectRow {
+        sniff::ProjectRow {
+            name: name.to_string(),
+            language: None,
+            frameworks: vec![],
+            size_bytes: 0,
+            is_git_repo: false,
+            path: std::path::PathBuf::from(path),
+        }
+    }
+
+    #[test]
+    fn enter_on_projects_digs_when_focus_main() {
+        let mut app = App::new();
+        app.current_view = ViewId::Projects;
+        app.focus = Focus::Main;
+        app.sniff_state.projects = vec![project_row("a", "/tmp/a")];
+        app.sniff_state.table_state.select(Some(0));
+
+        assert_eq!(app.handle_key(key(KeyCode::Enter)), Command::Dig);
+        assert_eq!(
+            app.current_view,
+            ViewId::Projects,
+            "dig does not switch views"
+        );
+    }
+
+    #[test]
+    fn enter_on_projects_without_selected_row_is_noop() {
+        let mut app = App::new();
+        app.current_view = ViewId::Projects;
+        app.focus = Focus::Main;
+        // No rows and no selection → nothing to dig.
+        assert_eq!(app.handle_key(key(KeyCode::Enter)), Command::None);
+    }
+
+    #[test]
+    fn sidebar_enter_on_projects_moves_focus_not_dig() {
+        let mut app = App::new();
+        app.current_view = ViewId::Projects;
+        app.focus = Focus::Sidebar;
+        app.sniff_state.projects = vec![project_row("a", "/tmp/a")];
+        app.sniff_state.table_state.select(Some(0));
+
+        assert_eq!(app.handle_key(key(KeyCode::Enter)), Command::None);
+        assert_eq!(app.focus, Focus::Main, "sidebar Enter still focuses main");
+    }
+
+    #[test]
+    fn esc_on_findings_returns_to_projects_and_clears_scope() {
+        let mut app = App::new();
+        app.current_view = ViewId::Findings;
+        app.focus = Focus::Main;
+        app.dig_state.project = Some(std::path::PathBuf::from("/tmp/a"));
+
+        assert_eq!(app.handle_key(key(KeyCode::Esc)), Command::BackToProjects);
+        assert_eq!(app.current_view, ViewId::Projects);
+        assert_eq!(app.dig_state.project, None, "scope is cleared on leave");
+    }
+
+    #[test]
+    fn esc_on_projects_keeps_focus_to_sidebar() {
+        let mut app = App::new();
+        app.current_view = ViewId::Projects;
+        app.focus = Focus::Main;
+
+        assert_eq!(app.handle_key(key(KeyCode::Esc)), Command::None);
+        assert_eq!(app.focus, Focus::Sidebar);
+        assert_eq!(app.current_view, ViewId::Projects);
+    }
+
+    #[test]
+    fn findings_keys_map_to_commands() {
+        let mut app = App::new();
+        app.current_view = ViewId::Findings;
+
+        assert_eq!(app.handle_key(key(KeyCode::Char('r'))), Command::DigRefresh);
+        assert_eq!(
+            app.handle_key(key(KeyCode::Char('c'))),
+            Command::ToggleContentScan
+        );
+    }
+
+    #[test]
+    fn f_on_findings_cycles_risk_filter() {
+        let mut app = App::new();
+        app.current_view = ViewId::Findings;
+        assert_eq!(app.dig_state.min_risk, dig::RiskFilter::ShowAll);
+
+        app.handle_key(key(KeyCode::Char('f')));
+        assert_eq!(app.dig_state.min_risk, dig::RiskFilter::OnlyCritical);
+        app.handle_key(key(KeyCode::Char('f')));
+        app.handle_key(key(KeyCode::Char('f')));
+        assert_eq!(app.dig_state.min_risk, dig::RiskFilter::MediumAndAbove);
+        app.handle_key(key(KeyCode::Char('f')));
+        assert_eq!(app.dig_state.min_risk, dig::RiskFilter::ShowAll);
+    }
+
+    #[test]
+    fn findings_keys_ignored_in_other_views() {
+        let mut app = App::new();
+        app.current_view = ViewId::Overview;
+        assert_eq!(app.handle_key(key(KeyCode::Char('f'))), Command::None);
+        assert_eq!(app.handle_key(key(KeyCode::Char('c'))), Command::None);
+    }
+
+    #[test]
+    fn findings_rows_move_only_when_focus_main() {
+        let mut app = App::new();
+        app.current_view = ViewId::Findings;
+        app.focus = Focus::Main;
+        app.dig_state.all_findings = vec![
+            dig::FindingRow {
+                path: std::path::PathBuf::from("/a"),
+                risk: raccpack_core::domain::SensitiveRisk::Critical,
+                kind: ".env".to_string(),
+                git_status: "tracked".to_string(),
+            },
+            dig::FindingRow {
+                path: std::path::PathBuf::from("/b"),
+                risk: raccpack_core::domain::SensitiveRisk::High,
+                kind: "key".to_string(),
+                git_status: String::new(),
+            },
+        ];
+        app.dig_state.reapply_filter();
+
+        // Sidebar focus: j cycles views, table selection untouched.
+        app.focus = Focus::Sidebar;
+        app.handle_key(key(KeyCode::Char('j')));
+        assert_eq!(app.current_view, ViewId::Operations);
+        assert_eq!(
+            app.dig_state.selected_finding().unwrap().path,
+            std::path::PathBuf::from("/a"),
+            "sidebar j must not move the table selection"
+        );
+
+        // Main focus: j/k move rows, view unchanged.
+        app.current_view = ViewId::Findings;
+        app.focus = Focus::Main;
+        app.handle_key(key(KeyCode::Char('j')));
+        assert_eq!(
+            app.dig_state.selected_finding().unwrap().path,
+            std::path::PathBuf::from("/b")
+        );
+        app.handle_key(key(KeyCode::Char('k')));
+        assert_eq!(
+            app.dig_state.selected_finding().unwrap().path,
+            std::path::PathBuf::from("/a")
+        );
     }
 }

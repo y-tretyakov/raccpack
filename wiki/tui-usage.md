@@ -1,12 +1,12 @@
 ---
 title: TUI (terminal interface)
-description: racc-tui — an interactive terminal interface built on Ratatui. The sniff screen works; dig/raid screens are planned (Beta).
+description: racc-tui — an interactive terminal interface built on Ratatui. The sniff and dig screens work; raid screens are planned (Beta).
 ---
 
 # TUI (terminal interface)
 
 ::: info
-The TUI is being built in Beta (0.5.x). As of **0.4.2** the **sniff screen** works (project table, non-blocking worker sniff); dig/raid screens and the reveal modal are planned.
+The TUI is being built in Beta (0.5.x). As of **0.4.3** the **sniff** and **dig screens** work (project table, non-blocking worker, secret findings with masked details); raid screens and the reveal modal are planned.
 :::
 
 ## What it is
@@ -17,13 +17,21 @@ The TUI is being built in Beta (0.5.x). As of **0.4.2** the **sniff screen** wor
 
 - Lists projects from the scan root in a table: name, language, frameworks, size, git-repository flag.
 - Runs `sniff` in a background worker thread, so the UI stays responsive (shows a progress indicator) while the scan runs.
-- Navigation: `j`/`k` (or arrows) move the selection; `r` triggers a refresh; `o` is reserved for changing the scan root (not yet implemented); `Enter` opens a project (dig — planned).
+- Navigation: `j`/`k` (or arrows) move the selection; `r` triggers a refresh; `o` is reserved for changing the scan root (not yet implemented); `Enter` opens a project (dig, since 0.4.3).
+
+## Dig screen (available since 0.4.3)
+
+- Opens with `Enter` on a project in the Sniff screen and runs the secret scan in a background worker thread.
+- Findings table: risk, path, kind, git status — **masked only**, never raw secret values.
+- Filter by minimum risk: `f` cycles all → critical → high+ → medium+.
+- `c` toggles content scanning (re-runs dig with/without content matched values); `r` re-digs; `Esc` returns to the Sniff screen.
+- Detailed strip under the table shows the selected finding's meta; selection: `j`/`k`, first/last `g`/`G`.
 
 ## Target capabilities
 
-- **dig screen** — secret findings with risk-level filters and masked details.
 - **raid confirmation** — a wizard that shows what will happen at each phase (stash → rinse → pack), with interactive progress.
 - **Dry-run** — a mode where all changes are visible before they are applied.
+- **reveal modal** — safe opt-in reveal of a secret's masked/short value.
 
 ## How it will work
 

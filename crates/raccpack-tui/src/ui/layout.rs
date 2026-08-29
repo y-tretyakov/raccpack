@@ -177,6 +177,10 @@ fn render_footer(f: &mut ratatui::Frame, area: Rect, app: &App) {
 
 /// Current-screen status line shown in the footer.
 fn footer_status(app: &App) -> String {
+    if app.current_view == ViewId::Findings {
+        return dig_footer(app);
+    }
+
     let state = &app.sniff_state;
     if state.is_loading {
         "Loading…".to_string()
@@ -198,6 +202,33 @@ fn footer_status(app: &App) -> String {
         };
         format!("Last refresh: {timestamp}{cache}")
     }
+}
+
+/// Footer status specific to the dig/findings screen.
+fn dig_footer(app: &App) -> String {
+    let state = &app.dig_state;
+    if state.project.is_none() {
+        return "Select a project on Projects and press Enter to dig".to_string();
+    }
+    if state.is_loading {
+        return "Digging…".to_string();
+    }
+    if state.error.is_some() {
+        return "Dig failed — press r to retry".to_string();
+    }
+    let project = state
+        .project
+        .as_deref()
+        .and_then(|p| p.file_name())
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "-".to_string());
+    format!(
+        "{} findings · filter {} · content {} · {}",
+        state.findings.len(),
+        state.min_risk.label(),
+        if state.scan_content { "on" } else { "off" },
+        project,
+    )
 }
 
 #[cfg(test)]
@@ -226,7 +257,10 @@ mod tests {
 
     #[test]
     fn sidebar_split_constraints() {
-        let constraints = [Constraint::Length(theme::SPACE_SIDEBAR_WIDTH), Constraint::Min(0)];
+        let constraints = [
+            Constraint::Length(theme::SPACE_SIDEBAR_WIDTH),
+            Constraint::Min(0),
+        ];
         assert_eq!(constraints.len(), 2);
     }
 
