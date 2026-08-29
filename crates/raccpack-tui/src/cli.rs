@@ -133,4 +133,79 @@ mod tests {
         let cli = Cli::try_parse_from(["racc-tui"]).expect("parses");
         assert_eq!(cli.view.to_view_id(), ViewId::Overview);
     }
+
+    #[test]
+    fn no_args_produce_default_field_values() {
+        let cli = Cli::try_parse_from(["racc-tui"]).expect("parses");
+        assert_eq!(cli.root, None);
+        assert_eq!(cli.den, None);
+        assert_eq!(cli.config, None);
+        assert_eq!(cli.view.to_view_id(), ViewId::Overview);
+        assert!(!cli.refresh, "refresh must default to false");
+        assert_eq!(cli.verbose, 0, "verbose must default to 0");
+    }
+
+    #[test]
+    fn root_flag_is_captured() {
+        let cli = Cli::try_parse_from(["racc-tui", "--root", "/tmp/foo"]).expect("parses");
+        assert_eq!(cli.root, Some(std::path::PathBuf::from("/tmp/foo")));
+    }
+
+    #[test]
+    fn den_flag_is_captured() {
+        let cli = Cli::try_parse_from(["racc-tui", "--den", "/tmp/den"]).expect("parses");
+        assert_eq!(cli.den, Some(std::path::PathBuf::from("/tmp/den")));
+    }
+
+    #[test]
+    fn config_flag_is_captured() {
+        let cli = Cli::try_parse_from(["racc-tui", "--config", "/tmp/racc.toml"]).expect("parses");
+        assert_eq!(cli.config, Some(std::path::PathBuf::from("/tmp/racc.toml")));
+    }
+
+    #[test]
+    fn view_projects_maps_to_viewid_projects() {
+        let cli = Cli::try_parse_from(["racc-tui", "--view", "projects"]).expect("parses");
+        assert_eq!(cli.view, ViewArg::Projects);
+        assert_eq!(cli.view.to_view_id(), ViewId::Projects);
+    }
+
+    #[test]
+    fn invalid_view_value_is_rejected() {
+        let result = Cli::try_parse_from(["racc-tui", "--view", "not-a-view"]);
+        assert!(result.is_err(), "--view not-a-view must not parse");
+    }
+
+    #[test]
+    fn refresh_flag_is_captured() {
+        let cli = Cli::try_parse_from(["racc-tui", "--refresh"]).expect("parses");
+        assert!(cli.refresh, "--refresh must set refresh to true");
+    }
+
+    #[test]
+    fn verbose_count_captures_repetitions() {
+        let cli = Cli::try_parse_from(["racc-tui", "-v"]).expect("parses");
+        assert_eq!(cli.verbose, 1);
+        let cli = Cli::try_parse_from(["racc-tui", "-vvv"]).expect("parses");
+        assert_eq!(cli.verbose, 3);
+    }
+
+    #[test]
+    fn value_enum_exposes_exactly_the_four_view_names() {
+        use clap::ValueEnum;
+        let names: Vec<String> = ViewArg::value_variants()
+            .iter()
+            .map(|v| {
+                v.to_possible_value()
+                    .expect("possible value")
+                    .get_name()
+                    .to_owned()
+            })
+            .collect();
+        assert_eq!(
+            names,
+            ["overview", "projects", "findings", "operations"],
+            "CLI view names must match the four ViewId variants"
+        );
+    }
 }
