@@ -1,4 +1,4 @@
-//! Help overlay — toggled by `?`, dismissed by `Esc`.
+//! Help overlay — toggled by `?`, dismissed by `Esc` / `?`.
 
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -17,15 +17,47 @@ fn help_items() -> Vec<HelpItem> {
     vec![
         HelpItem {
             key: "1-4",
-            description: "Switch view",
+            description: "Jump to view",
+        },
+        HelpItem {
+            key: "Tab",
+            description: "Next view",
+        },
+        HelpItem {
+            key: "Shift+Tab",
+            description: "Previous view",
+        },
+        HelpItem {
+            key: "j / k / ↓ / ↑",
+            description: "Sidebar: switch view · Projects: row",
+        },
+        HelpItem {
+            key: "h / ←",
+            description: "Focus sidebar",
+        },
+        HelpItem {
+            key: "l / →",
+            description: "Focus main",
+        },
+        HelpItem {
+            key: "g / G",
+            description: "First / last row (Projects)",
+        },
+        HelpItem {
+            key: "r",
+            description: "Refresh projects (Projects)",
+        },
+        HelpItem {
+            key: "Enter",
+            description: "Activate sidebar item / dig placeholder",
         },
         HelpItem {
             key: "?",
-            description: "Toggle this help",
+            description: "Toggle help",
         },
         HelpItem {
             key: "Esc",
-            description: "Close help",
+            description: "Close help / focus sidebar",
         },
         HelpItem {
             key: "q",
@@ -40,7 +72,7 @@ fn help_items() -> Vec<HelpItem> {
 
 /// Render the help dialog centered in `area`.
 pub fn render(f: &mut Frame, area: Rect) {
-    let popup = centered_rect(60, 40, area);
+    let popup = centered_rect(65, 85, area);
     f.render_widget(Clear, popup);
 
     let block = Block::default()
@@ -71,14 +103,14 @@ pub fn render(f: &mut Frame, area: Rect) {
     let mut lines = vec![header, Line::from("")];
     for item in help_items() {
         lines.push(Line::from(vec![
-            Span::styled(format!("  {:6}", item.key), Style::default().fg(theme::FG)),
+            Span::styled(format!("  {:10}", item.key), Style::default().fg(theme::FG)),
             Span::styled(item.description, Style::default().fg(theme::MUTED)),
         ]));
     }
 
     lines.push(Line::from(""));
     lines.push(Line::from(vec![Span::styled(
-        "  Press Esc to close",
+        "  Press Esc or ? to close",
         Style::default()
             .fg(theme::MUTED)
             .add_modifier(Modifier::ITALIC),
@@ -135,8 +167,24 @@ mod tests {
     }
 
     #[test]
-    fn help_items_count() {
-        assert_eq!(help_items().len(), 5);
+    fn help_items_cover_global_keys() {
+        let keys: Vec<_> = help_items().iter().map(|i| i.key).collect();
+        for expected in [
+            "Tab",
+            "Shift+Tab",
+            "j / k / ↓ / ↑",
+            "h / ←",
+            "l / →",
+            "1-4",
+            "?",
+            "Esc",
+            "q",
+        ] {
+            assert!(
+                keys.contains(&expected),
+                "help must document {expected:?}, got {keys:?}"
+            );
+        }
     }
 
     #[test]
@@ -150,7 +198,7 @@ mod tests {
     #[test]
     fn centered_rect_has_positive_dimensions() {
         let parent = Rect::new(0, 0, 80, 24);
-        let child = centered_rect(60, 40, parent);
+        let child = centered_rect(60, 85, parent);
         assert!(child.width > 0);
         assert!(child.height > 0);
     }

@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use raccpack_tui::app::{App, Command, ViewId};
+use raccpack_tui::app::{App, Command, Focus, ViewId};
 use raccpack_tui::worker::{spawn_worker, WorkerEvent, WorkerMsg};
 
 fn key(code: KeyCode) -> KeyEvent {
@@ -97,6 +97,7 @@ fn app_handles_sniff_refresh_command() {
     let mut app = App::new();
     app.current_view = ViewId::Projects;
 
+    // `r` is view-scoped: it works even with sidebar focus on Projects.
     let cmd = app.handle_key(key(KeyCode::Char('r')));
     assert_eq!(cmd, Command::SniffRefresh);
 
@@ -110,6 +111,7 @@ fn app_handles_sniff_refresh_command() {
 fn app_handles_navigation_keys() {
     let mut app = App::new();
     app.current_view = ViewId::Projects;
+    app.focus = Focus::Main;
 
     // Add some mock projects
     app.sniff_state.projects = vec![
@@ -132,7 +134,7 @@ fn app_handles_navigation_keys() {
     ];
     app.sniff_state.table_state.select(Some(0));
 
-    // Test j/k navigation
+    // Test j/k navigation (row movement requires Main focus)
     let cmd = app.handle_key(key(KeyCode::Char('j')));
     assert_eq!(cmd, Command::None);
     assert_eq!(app.sniff_state.selected_project().unwrap().name, "b");

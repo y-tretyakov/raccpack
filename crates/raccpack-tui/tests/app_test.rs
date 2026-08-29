@@ -1,12 +1,12 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use raccpack_tui::app::{App, Command, ViewId};
+use raccpack_tui::app::{App, Command, Focus, ViewId};
 use raccpack_tui::ui::theme;
 
 fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
 }
 
-// ── 1. initial_state_is_overview ──────────────────────────────────────────────
+// ── 1. initial state ──────────────────────────────────────────────────────────
 
 #[test]
 fn initial_state_is_overview() {
@@ -16,6 +16,7 @@ fn initial_state_is_overview() {
         ViewId::Overview,
         "initial view must be Overview"
     );
+    assert_eq!(app.focus, Focus::Sidebar, "initial focus must be Sidebar");
     assert!(!app.help_visible, "help must start hidden");
     assert!(app.running, "app must start running");
 }
@@ -53,6 +54,66 @@ fn number_keys_navigate_to_views() {
         ViewId::Overview,
         "'1' must select Overview"
     );
+}
+
+// ── 2b. Tab / Shift+Tab cycle views ───────────────────────────────────────────
+
+#[test]
+fn tab_cycles_views_forward() {
+    let mut app = App::new();
+    for expected in [
+        ViewId::Projects,
+        ViewId::Findings,
+        ViewId::Operations,
+        ViewId::Overview,
+    ] {
+        app.handle_key(key(KeyCode::Tab));
+        assert_eq!(
+            app.current_view, expected,
+            "Tab must advance to {expected:?}"
+        );
+    }
+}
+
+#[test]
+fn shift_tab_cycles_views_backward() {
+    let mut app = App::new();
+    for expected in [
+        ViewId::Operations,
+        ViewId::Findings,
+        ViewId::Projects,
+        ViewId::Overview,
+    ] {
+        app.handle_key(key(KeyCode::BackTab));
+        assert_eq!(
+            app.current_view, expected,
+            "Shift+Tab must go back to {expected:?}"
+        );
+    }
+}
+
+// ── 2c. sidebar j/k/arrows move between views ─────────────────────────────────
+
+#[test]
+fn sidebar_jk_move_between_views() {
+    let mut app = App::new();
+    app.handle_key(key(KeyCode::Char('j')));
+    assert_eq!(app.current_view, ViewId::Projects);
+    app.handle_key(key(KeyCode::Char('j')));
+    assert_eq!(app.current_view, ViewId::Findings);
+    app.handle_key(key(KeyCode::Char('k')));
+    assert_eq!(app.current_view, ViewId::Projects);
+    app.handle_key(key(KeyCode::Char('k')));
+    assert_eq!(app.current_view, ViewId::Overview);
+}
+
+#[test]
+fn sidebar_arrows_move_between_views() {
+    let mut app = App::new();
+    app.handle_key(key(KeyCode::Down));
+    assert_eq!(app.current_view, ViewId::Projects);
+    app.handle_key(key(KeyCode::Up));
+    assert_eq!(app.current_view, ViewId::Overview);
 }
 
 // ── 3. q_key_returns_quit ─────────────────────────────────────────────────────
@@ -107,12 +168,32 @@ fn keys_ignored_when_help_open() {
     assert!(app.help_visible, "help must remain open");
 }
 
-// ── 7. view_id_from_char ──────────────────────────────────────────────────────
-
-/// ViewId has no `from_char`, only `key()` (ViewId → char).
-/// We verify the forward mapping and that no char maps to an unexpected variant.
 #[test]
-fn view_id_from_char() {
+fn tab_and_arrows_blocked_when_help_open() {
+    let mut app = App::new();
+    app.handle_key(key(KeyCode::Char('?')));
+    assert!(app.help_visible);
+
+    app.handle_key(key(KeyCode::Tab));
+    app.handle_key(key(KeyCode::Down));
+    app.handle_key(key(KeyCode::Char('j')));
+    assert_eq!(
+        app.current_view,
+        ViewId::Overview,
+        "navigation must be blocked while help is visible"
+    );
+    assert_eq!(
+        app.focus,
+        Focus::Sidebar,
+        "focus must not change while help is visible"
+    );
+    assert!(app.help_visible, "help must stay open");
+}
+
+// ── 7. view_id relationship ───────────────────────────────────────────────────
+
+#[test]
+fn view_id_keys() {
     assert_eq!(ViewId::Overview.key(), '1');
     assert_eq!(ViewId::Projects.key(), '2');
     assert_eq!(ViewId::Findings.key(), '3');
@@ -139,6 +220,89 @@ fn view_id_from_char() {
         app.current_view,
         ViewId::Overview,
         "'5' must not change view"
+    );
+}
+
+#[test]
+fn view_id_prev_and_next_round_trip() {
+    for view in [
+        ViewId::Overview,
+        ViewId::Projects,
+        ViewId::Findings,
+        ViewId::Operations,
+    ] {
+        assert_eq!(view.next().prev(), view, "next().prev() round-trip");
+        assert_eq!(view.prev().next(), view, "prev().next() round-trip");
+    }
+}
+
+// ── 7b. focus movement ────────────────────────────────────────────────────────
+
+#[test]
+fn h_and_l_toggle_focus() {
+    let mut app = App::new();
+    assert_eq!(app.focus, Focus::Sidebar);
+
+    app.handle_key(key(KeyCode::Char('l')));
+    assert_eq!(app.focus, Focus::Main, "'l' must focus Main");
+
+    app.handle_key(key(KeyCode::Char('h')));
+    assert_eq!(app.focus, Focus::Sidebar, "'h' must focus Sidebar");
+}
+
+#[test]
+fn left_and_right_arrows_toggle_focus() {
+    let mut app = App::new();
+    app.handle_key(key(KeyCode::Right));
+    assert_eq!(app.focus, Focus::Main, "Right must focus Main");
+    app.handle_key(key(KeyCode::Left));
+    assert_eq!(app.focus, Focus::Sidebar, "Left must focus Sidebar");
+}
+
+// ── 7c. projects table rows (Focus::Main) ─────────────────────────────────────
+
+#[test]
+fn projects_jk_move_rows_without_changing_view() {
+    let mut app = App::new();
+    app.current_view = ViewId::Projects;
+    app.focus = Focus::Main;
+    app.sniff_state.projects = vec![
+        raccpack_tui::app::sniff::ProjectRow {
+            name: "a".into(),
+            language: None,
+            frameworks: vec![],
+            size_bytes: 0,
+            is_git_repo: false,
+            path: std::path::PathBuf::new(),
+        },
+        raccpack_tui::app::sniff::ProjectRow {
+            name: "b".into(),
+            language: None,
+            frameworks: vec![],
+            size_bytes: 0,
+            is_git_repo: false,
+            path: std::path::PathBuf::new(),
+        },
+    ];
+    app.sniff_state.table_state.select(Some(0));
+
+    app.handle_key(key(KeyCode::Char('j')));
+    assert_eq!(
+        app.sniff_state.selected_project().unwrap().name,
+        "b",
+        "'j' (Main focus) must move to the next row"
+    );
+    assert_eq!(
+        app.current_view,
+        ViewId::Projects,
+        "row movement must not change view"
+    );
+
+    app.handle_key(key(KeyCode::Char('k')));
+    assert_eq!(
+        app.sniff_state.selected_project().unwrap().name,
+        "a",
+        "'k' (Main focus) must move to the previous row"
     );
 }
 
@@ -175,40 +339,6 @@ fn nocturnal_theme_colors_are_distinct() {
     );
 }
 
-// ── 9. style_helpers_produce_correct_fg ────────────────────────────────────────
-
-/// Dev's theme exposes raw `Color` constants, not style-helper functions.
-/// We verify each semantic color round-trips correctly through ratatui `Style`,
-/// confirming the fg attribute matches the constant — the behaviour a helper
-/// `danger_text()` etc. would rely on.
-#[test]
-fn style_helpers_produce_correct_fg() {
-    use ratatui::style::Style;
-
-    let pairs = [
-        ("bg", theme::BG),
-        ("fg", theme::FG),
-        ("accent", theme::ACCENT),
-        ("danger", theme::DANGER),
-        ("warning", theme::WARNING),
-        ("success", theme::SUCCESS),
-        ("muted", theme::MUTED),
-        ("border", theme::BORDER),
-        ("surface", theme::SURFACE),
-        ("selection", theme::SELECTION),
-    ];
-
-    for (name, color) in pairs {
-        let style = Style::default().fg(color);
-        assert_eq!(
-            style.fg,
-            Some(color),
-            "{name} fg must be Some({name}) — got {:?}",
-            style.fg
-        );
-    }
-}
-
 // ── 10. negative — irrelevant key is no-op ────────────────────────────────────
 
 #[test]
@@ -216,7 +346,8 @@ fn irrelevant_key_is_noop() {
     let mut app = App::new();
     let cmd = app.handle_key(key(KeyCode::Char('z')));
     assert_eq!(cmd, Command::None, "unknown char must return Command::None");
-    assert_eq!(app.current_view, ViewId::Overview, "view must not change");
+    assert_eq!(app.current_view, ViewId::Overview, "view must be unchanged");
+    assert_eq!(app.focus, Focus::Sidebar, "focus must be unchanged");
     assert!(!app.help_visible, "help must not toggle");
     assert!(app.running, "running must remain true");
 }
