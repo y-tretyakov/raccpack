@@ -71,10 +71,15 @@ pub fn run_event_loop(app: &mut App) -> io::Result<()> {
     let (ui_tx, ui_rx) = mpsc::channel::<AppEvent>();
 
     // Spawn worker thread
-    let (worker_sender, _worker_receiver) = crate::worker::spawn_worker();
+    let (worker_sender, worker_receiver) = crate::worker::spawn_worker();
 
     // Dedicated reader thread — blocks on crossterm::event::read().
-    std::thread::spawn(move || event_reader(ui_tx));
+    // Clone keeps the original `ui_tx` alive for the worker bridge below.
+    let reader_tx = ui_tx.clone();
+    std::thread::spawn(move || event_reader(reader_tx));
+
+    // Bridge worker events into the UI event channel.
+    std::thread::spawn(move || worker_bridge(worker_receiver, ui_tx));
 
     while app.running {
         match ui_rx.recv_timeout(Duration::from_millis(100)) {
@@ -111,9 +116,10 @@ pub fn run_event_loop(app: &mut App) -> io::Result<()> {
 }
 
 /// Handle application commands that require worker interaction.
-fn handle_app_command(cmd: Command, worker_tx: &mpsc::Sender<WorkerMsg>, app: &App) {
+fn handle_app_command(cmd: Command, worker_tx: &mpsc::Sender<WorkerMsg>, app: &mut App) {
     match cmd {
         Command::Sniff | Command::SniffRefresh => {
+            app.sniff_state.set_loading(true);
             let scan_root = app.sniff_state.scan_root.clone();
             let den_dir = std::env::var("RACCPACK_DEN")
                 .ok()
@@ -182,6 +188,15 @@ fn handle_worker_event(event: WorkerEvent, app: &mut App) {
         WorkerEvent::Cancelled => {
             app.sniff_state.set_loading(false);
             app.sniff_state.progress = None;
+        }
+    }
+}
+
+/// Bridges worker events into the UI event channel; exits when the worker is gone.
+fn worker_bridge(receiver: mpsc::Receiver<WorkerEvent>, tx: mpsc::Sender<AppEvent>) {
+    while let Ok(ev) = receiver.recv() {
+        if tx.send(AppEvent::Worker(ev)).is_err() {
+            break;
         }
     }
 }
