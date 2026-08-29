@@ -8,7 +8,7 @@ description: How raccpack is evolving toward version 1.0.0 — what is already a
 How raccpack is evolving toward version 1.0.0 — and what you can use today.
 
 ::: info
-Current version: **0.4.0** — Alpha complete; Detect v2 complete (D1 ✅; D2 ✅; D3 ✅; D4 ✅ wiki + E2E + batch raid).
+Current version: **0.4.1** — Alpha complete; Detect v2 complete (D1 ✅; D2 ✅; D3 ✅; D4 ✅ wiki + E2E + batch raid); **Beta B1.1 TUI skeleton done**.
 Dates are approximate. "Available" status means the functionality can be used in the current version built from source.
 :::
 
@@ -37,7 +37,8 @@ Dates are approximate. "Available" status means the functionality can be used in
 
 ## Planned (Beta 0.5.x)
 
-- [ ] TUI (Ratatui) — interactive terminal interface.
+- [x] TUI skeleton — Ratatui binary with navigation, theme, screens (since 0.4.1).
+- [ ] TUI — sniff/dig/raid screens, progress, reveal modal.
 - [ ] Desktop (Tauri + React) — desktop application.
 - [ ] Den management: `racc den list`, `staging` cleanup.
 - [ ] Hard verification that "no secrets end up in logs/errors".

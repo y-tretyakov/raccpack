@@ -117,13 +117,13 @@ fn render_footer(f: &mut ratatui::Frame, area: Rect) {
     let line = Line::from(vec![
         Span::styled("  raccpack-tui v", Style::default().fg(theme::MUTED)),
         Span::styled(env!("CARGO_PKG_VERSION"), Style::default().fg(theme::MUTED)),
-        Span::raw("                              "),
+        Span::styled("  ", Style::default().fg(theme::MUTED)),
         Span::styled("q quit │ ? help", Style::default().fg(theme::MUTED)),
     ]);
-    f.render_widget(
-        Paragraph::new(line).style(Style::default().bg(theme::BG).fg(theme::FG)),
-        area,
-    );
+    let paragraph = Paragraph::new(line)
+        .style(Style::default().bg(theme::BG).fg(theme::FG))
+        .alignment(ratatui::layout::Alignment::Left);
+    f.render_widget(paragraph, area);
 }
 
 #[cfg(test)]

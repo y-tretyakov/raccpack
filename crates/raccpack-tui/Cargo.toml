@@ -13,8 +13,7 @@ path = "src/main.rs"
 [dependencies]
 raccpack-core = { path = "../raccpack-core" }
 ratatui = "0.29"
-crossterm = { version = "0.28", features = ["event-stream"] }
-crossbeam-channel = "0.5"
+crossterm = "0.28"
 thiserror = "1"
 
 [dev-dependencies]
