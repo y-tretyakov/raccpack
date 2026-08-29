@@ -1,0 +1,20 @@
+[package]
+name = "raccpack-tui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Terminal UI for raccpack"
+rust-version.workspace = true
+
+[[bin]]
+name = "racc-tui"
+path = "src/main.rs"
+
+[dependencies]
+raccpack-core = { path = "../raccpack-core" }
+ratatui = "0.29"
+crossterm = { version = "0.28", features = ["event-stream"] }
+crossbeam-channel = "0.5"
+thiserror = "1"
+
+[dev-dependencies]
