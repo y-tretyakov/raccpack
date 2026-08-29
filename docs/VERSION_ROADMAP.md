@@ -24,21 +24,23 @@
 
 ## Текущая позиция
 
-> **Detect v2 exit (0.4.0) done.** **Alpha exit: 0.3.0.**
+> **Detect v2 exit (0.4.0) done.** **Alpha exit: 0.3.0.** **B1.1 TUI skeleton done (0.4.1).**
 
 | | |
 |--|--|
-| **Текущая версия workspace** | **`0.4.0`** |
-| Последний этап | **D4.4** — wiki + E2E = **Detect v2 exit** |
-| Следующий этап | **B1** — TUI (Beta → `0.5.0`) |
+| **Текущая версия workspace** | **`0.4.1`** |
+| Последний этап | **B1.1** — TUI skeleton (`raccpack-tui`) |
+| Следующий этап | **B1.2** — TUI sniff screen (Beta → `0.5.0`) |
 | Detect v2 exit | **`0.4.0`** ✅ (batch raid CLI + wiki + E2E) |
 
 ```text
 0.1.0  MVP
 0.2.0 … 0.2.11  Alpha A1–A3
 0.2.12 … 0.3.0  Alpha A4
-0.3.1 … 0.4.0   Detect v2   ← ВЫ ЗДЕСЬ (0.4.0, D4.4 done; Detect v2 exit)
-0.5.0 …        Beta
+0.3.1 … 0.4.0   Detect v2   ✅ D4.4 done
+0.4.1           Beta B1.1   ← ВЫ ЗДЕСЬ (TUI skeleton)
+0.4.2 …        Beta B1.2+
+0.5.0 …        Beta exit
 0.9.0 …        RC
 1.0.0          Stable
 ```
@@ -131,7 +133,7 @@
 
 | Этап | Версия | Статус |
 |------|--------|--------|
-| B1.1 | **0.4.1** | ⬜ skeleton |
+| B1.1 | **0.4.1** | ✅ skeleton |
 | B1.2 | **0.4.2** | ⬜ sniff screen |
 | B1.3 | **0.4.3** | ⬜ dig screen |
 | B1.4 | **0.4.4** | ⬜ raid + progress |
@@ -213,7 +215,7 @@ version = "0.4.0"
 
 ```bash
 cargo run -p raccpack-cli -- --version
-# raccpack-cli 0.4.0   →  D4.4 (wiki + E2E, Detect v2 exit)
+# raccpack-cli 0.4.1   →  B1.1 (TUI skeleton, Beta)
 ```
 
 | Версия | Значит «есть» |
@@ -258,7 +260,7 @@ cargo run -p raccpack-cli -- --version
 ## Сводка «сейчас»
 
 ```text
-Текущая версия:  0.4.0
-Этап:            D4.4 (wiki + E2E) — CLOSED; Detect v2 exit
-Следующий bump:  0.5.0 (Beta exit)
+Текущая версия:  0.4.1
+Этап:            B1.1 (TUI skeleton) — CLOSED; Beta start
+Следующий bump:  0.4.2 (B1.2 sniff screen)
 ```

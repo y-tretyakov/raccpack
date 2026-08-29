@@ -15,10 +15,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.4.0`** |
-| **Веха** | Detect v2 ✅ CLOSED · **Beta → 0.5.0** |
-| **Этап** | **B1** — TUI skeleton (`raccpack-tui`) |
-| **Предыдущее** | v0.4.0 release (Detect v2 exit) |
+| **Версия** | **`0.4.1`** |
+| **Веха** | Detect v2 ✅ CLOSED · **Beta B1.1 done (0.4.1)** · Beta → 0.5.0 |
+| **Этап** | **B1.2** — TUI sniff screen |
+| **Предыдущее** | B1.1 TUI skeleton closed (0.4.1) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
@@ -31,7 +31,11 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 Кратко (детали — `docs/VERSION_ROADMAP.md` / roadmap-v1):
 
 ```
-[ ] B1  TUI (Ratatui) — skeleton → screens → raid progress → reveal modal
+[x] B1.1 TUI skeleton (0.4.1)
+[ ] B1.2  TUI sniff screen
+[ ] B1.3  TUI dig screen
+[ ] B1.4  TUI raid + progress
+[ ] B1.5  TUI reveal modal
 [ ] B2  Desktop (Tauri + React) + BFF + ephemeral reveal
 [ ] B3  Security hardening + Safe Reveal contract
 [ ] B4  Productization (den gc, parallel sniff, docs) → Beta exit 0.5.0
@@ -78,6 +82,19 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 ---
 
 ## Этапы (Beta)
+
+### 2026-08-29 — B1.1 — TUI skeleton (`raccpack-tui`) ✅ CLOSED
+
+- **Ветка:** `b1-tui-skeleton` (PR → `dev`, squash)
+- **Версия:** 0.4.1
+- **DoD:**
+  - [x] Crate `raccpack-tui` в workspace
+  - [x] Ratatui + crossterm: event loop, screens enum, theme
+  - [x] Навигация: `1`–`4`, `?`, `q`; restore terminal on exit
+  - [x] Stubs only (без реального sniff)
+  - [x] Builds in workspace
+  - [x] `cargo test -p raccpack-tui` (49 tests green)
+- **Файлы:** `crates/raccpack-tui/` (new crate)
 
 ### 2026-08-26 — B1.x — TUI skeleton (in progress)
 
