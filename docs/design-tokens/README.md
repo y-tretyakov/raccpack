@@ -58,13 +58,12 @@ Semantic-цвета в `crates/raccpack-tui/src/ui/theme.rs` совпадают 
 
 1. Новый primitive/semantic: добавь запись в `raccpack.tokens.json` (`color.primitive.*` + `color.semantic.*`).
 2. Если цвет нужен в TUI — добавь const в `theme.rs` с doc-комментарием и ссылкой на token, плюс unit-тест.
-3. Для Desktop (этап B2): сгенери Twitter CSS-переменные `--rp-color-accent` и т.п. из этого же JSON (Style Directory или ручной экспорт).
+3. Для Desktop (этап B2): сгенерировать CSS-переменные `--rp-color-accent` и т.п. из этого же JSON (Style Dictionary или ручной экспорт).
 
 ## Что не делаем пока
 
 - **Style Dictionary / npm / build-пайплайн** — не вводим до Desktop.
 - **Light theme (modes DTCG)** — только один тёмный режим «Nocturnal».
 - **CI-генерация Ratatui из JSON** — ручной sync `theme.rs` достаточен, пока нет Desktop.
-```
 
 *Значения токенов — контракт: не менять без синхронного обновления `theme.rs`, unit-тестов и (в будущем) CSS-выхода Desktop.*
