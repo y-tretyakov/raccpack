@@ -2,9 +2,10 @@
 
 use std::io;
 use std::sync::mpsc;
+use std::sync::OnceLock;
 use std::time::Duration;
 
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -27,7 +28,7 @@ pub enum AppEvent {
 
 /// RAII guard that enters alternate screen + raw mode on creation and
 /// restores the original terminal state on drop. A panic hook is installed
-/// so the terminal is also restored on panic.
+/// once so the terminal is also restored on panic.
 pub struct TerminalGuard {
     _private: (),
 }
@@ -38,14 +39,17 @@ impl TerminalGuard {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen)?;
-        ratatui::Terminal::new(CrosstermBackend::new(stdout))?;
 
-        // Restore terminal even on panic.
-        std::panic::set_hook(Box::new(|info| {
-            let _ = disable_raw_mode();
-            let _ = execute!(io::stdout(), LeaveAlternateScreen);
-            eprintln!("{info}");
-        }));
+        // Restore terminal even on panic (installed once).
+        static PANIC_HOOK: OnceLock<()> = OnceLock::new();
+        PANIC_HOOK.get_or_init(|| {
+            let default_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                let _ = disable_raw_mode();
+                let _ = execute!(io::stdout(), LeaveAlternateScreen);
+                default_hook(info);
+            }));
+        });
 
         Ok(Self { _private: () })
     }
@@ -98,7 +102,8 @@ fn event_reader(tx: mpsc::Sender<AppEvent>) {
         if event::poll(Duration::from_millis(200)).unwrap_or(false) {
             match event::read() {
                 Ok(Event::Key(key)) => {
-                    if tx.send(AppEvent::Key(key)).is_err() {
+                    // Ignore key release/repeat events to avoid double-handling.
+                    if key.kind == KeyEventKind::Press && tx.send(AppEvent::Key(key)).is_err() {
                         break;
                     }
                 }
