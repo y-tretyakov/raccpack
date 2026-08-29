@@ -24,14 +24,16 @@
 
 ## Текущая позиция
 
-> **Detect v2 exit (0.4.0) done.** **Alpha exit: 0.3.0.** **B1.2 TUI sniff screen done (0.4.2).**
+> **Detect v2 exit (0.4.0) done.** **Alpha exit: 0.3.0.** **B1.2 TUI sniff screen done (0.4.2).** **B1.2.3 design tokens done (no bump).**
 
 | | |
 |--|--|
 | **Текущая версия workspace** | **`0.4.2`** |
-| Последний этап | **B1.2** — TUI sniff screen (`raccpack-tui`) |
+| Последний этап | **B1.2.3** — design tokens source of truth (DTCG), нет bump |
 | Следующий этап | **B1.3** — TUI dig screen (Beta → `0.5.0`) |
 | Detect v2 exit | **`0.4.0`** ✅ (batch raid CLI + wiki + E2E) |
+
+Б1.2.x polish (без bump версии): B1.2.1 chrome/nav, B1.2.2 clap launch, B1.2.3 design tokens.
 
 ```text
 0.1.0  MVP

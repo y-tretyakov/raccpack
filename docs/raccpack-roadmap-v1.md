@@ -1,7 +1,7 @@
 # Raccpack — roadmap до 1.0.0
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
-**Текущая точка:** Alpha 0.3.0 закрыт; **Detect v2 0.4.0 закрыт** (D1–D4 all ✅). **Beta B1.2 TUI sniff screen done (0.4.2).** Далее Beta.
+**Текущая точка:** Alpha 0.3.0 закрыт; **Detect v2 0.4.0 закрыт** (D1–D4 all ✅). **Beta B1.2 TUI sniff screen done (0.4.2)** + **B1.2.3 design tokens (DTCG)**. Далее Beta.
 
 **Текущая версия:** `0.4.2` — сверять `docs/VERSION_ROADMAP.md`.
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
@@ -151,7 +151,7 @@
 ## Фаза B1 — TUI (Ratatui)
 
 - ✅ B1.1 — Каркас TUI binary, навигация, theme.
-- B1.2 — Экран sniff: список проектов, стек (и дерево при DAG), размер.
+- ✅ B1.2 — Экран sniff: список проектов, стек (и дерево при DAG), размер. (+ sub-stages: B1.2.1 chrome/nav, B1.2.2 clap launch, B1.2.3 design tokens DTCG)
 - B1.3 — Экран dig: risk filter, masked details.
 - B1.4 — Подтверждение raid + progress; вызов того же facade.
 - B1.5 — Безопасный modal reveal (opt-in).

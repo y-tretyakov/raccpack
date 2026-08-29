@@ -39,6 +39,10 @@ key press  →  TUI screen state  →  facade call
 
 Long operations (a deep `dig`, a full `raid`) send progress events: phase, percentage, message. The TUI redraws the screen on every event without blocking the interface.
 
+## Visual system (design tokens)
+
+The TUI color semantics come from design tokens in **DTCG** format (`docs/design-tokens/raccpack.tokens.json`) — a single source for both the TUI and the future Desktop. Screens use semantic names (`bg`, `fg`, `accent`, `muted`, `danger`, `selection`, etc.), and sizes (sidebar width, panel heights) use **terminal cells**. A visual re-theme is a one-file change, not a grep across widgets.
+
 ## See also
 
 - [Desktop](/desktop-usage) — the graphical interface.

@@ -33,6 +33,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 ```
 [x] B1.1 TUI skeleton (0.4.1)
 [x] B1.2  TUI sniff screen (0.4.2)
+[x] B1.2.3 Design tokens source of truth (DTCG), нет bump
 [ ] B1.3  TUI dig screen
 [ ] B1.4  TUI raid + progress
 [ ] B1.5  TUI reveal modal
@@ -82,6 +83,21 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 ---
 
 ## Этапы (Beta)
+
+### 2026-08-29 — B1.2.3 — Design tokens source of truth (DTCG) ✅ CLOSED
+
+- **Ветка:** `b1.2-tokens-adopt` (PR #111 → `dev`, squash)
+- **Версия:** без bump (полировка B1.2, остаётся 0.4.2)
+- **DoD:**
+  - [x] `docs/design-tokens/raccpack.tokens.json` — DTCG 2025.10 source of truth: primitive → semantic → component (цвет, space, typography)
+  - [x] `docs/design-tokens/README.md` — гайд: слои, таблица theme.rs↔token, правило «space в клетках», «что не делаем пока» (Style Dictionary/light-theme/CI-gen до Desktop)
+  - [x] `theme.rs` — 13 semantic const, имена 1:1 с `color.semantic.*`: добавлены `ACCENT_DIM`, `GIT_CLEAN`, `GIT_DIRTY_OR_ABSENT`; существующие 10 const не тронуты
+  - [x] unit-тесты theme.rs: новые const, `GIT_CLEAN==SUCCESS`, `GIT_DIRTY_OR_ABSENT==MUTED`, `ACCENT_DIM!=ACCENT`
+  - [x] Нет ad-hoc hex в layout-коде (только через `theme::` const)
+  - [x] `cargo test --workspace` green (49 suites, 0 failed), `cargo fmt --check` ok, `cargo clippy -p raccpack-tui/core --all-targets -- -D warnings` ok
+- **Файлы:** `docs/design-tokens/raccpack.tokens.json` (created), `docs/design-tokens/README.md` (created), `crates/raccpack-tui/src/ui/theme.rs` (changed)
+- **Решения:** токены = контракт между TUI и Desktop (не npm-зависимость); числовые space-значения шерим только именами (cell → px/rem); Detail-strip / sidebar numerics в токены-const — отдельный подэтап (B1.2.4), Style Dictionary — только при появлении Desktop (B2).
+- **Follow-up:** B1.2.4 — перенести sidebar (23) и пространственные numerics в token-const; B1.2.5 — detail strip (detail-height 7, git-маркеры, empty placeholder `·`).
 
 ### 2026-08-29 — B1.2 — TUI sniff screen ✅ CLOSED
 
