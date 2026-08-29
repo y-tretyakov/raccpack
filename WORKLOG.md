@@ -15,10 +15,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.4.1`** |
-| **Веха** | Detect v2 ✅ CLOSED · **Beta B1.1 done (0.4.1)** · Beta → 0.5.0 |
-| **Этап** | **B1.2** — TUI sniff screen |
-| **Предыдущее** | B1.1 TUI skeleton closed (0.4.1) |
+| **Версия** | **`0.4.2`** |
+| **Веха** | Detect v2 ✅ CLOSED · **Beta B1.2 done (0.4.2)** · Beta → 0.5.0 |
+| **Этап** | **B1.3** — TUI dig screen |
+| **Предыдущее** | B1.2 TUI sniff screen closed (0.4.2) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
@@ -32,7 +32,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 
 ```
 [x] B1.1 TUI skeleton (0.4.1)
-[ ] B1.2  TUI sniff screen
+[x] B1.2  TUI sniff screen (0.4.2)
 [ ] B1.3  TUI dig screen
 [ ] B1.4  TUI raid + progress
 [ ] B1.5  TUI reveal modal
@@ -82,6 +82,22 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 ---
 
 ## Этапы (Beta)
+
+### 2026-08-29 — B1.2 — TUI sniff screen ✅ CLOSED
+
+- **Ветка:** `b1.2-sniff-screen-fix` (PR #108 → `dev`, squash); исходный PR #107 (B1.2 sniff screen) доделан и закрыт этим фиксом
+- **Версия:** 0.4.2
+- **DoD:**
+  - [x] Отдельный worker-поток + `WorkerMsg`/`WorkerEvent` + `TuiProgressSink` через core `ProgressSink`
+  - [x] Экран проекта (loading / error / empty / table): name, language, frameworks, size, git
+  - [x] Неблокирующий sniff; j/k навигация; progress %; cache indicator
+  - [x] **Fix bridge:** worker `WorkerEvent` → `AppEvent::Worker` (ранее `worker_receiver` отбрасывался, события не доходили до UI)
+  - [x] **Fix loading:** `set_loading(true)` до отправки `WorkerMsg::Sniff`
+  - [x] Panic hook через `OnceLock`; фильтр `KeyEventKind::Press` (фиксы B1.1)
+  - [x] Тесты: worker (cancel/sniff done) + event bridge + state/format_bytes + integration fixture
+  - [x] `cargo test -p raccpack-tui` green (64), fmt + clippy `-D warnings` чистые
+- **Файлы:** `crates/raccpack-tui/src/worker.rs`, `event.rs`, `app.rs`, `src/ui/screens/sniff.rs`, `tests/worker_bridge_test.rs`
+- **Решения:** wiring через dedicated bridge thread (по образцу `event_reader`), а не select!/mux — проще при стандартном `std::sync::mpsc`.
 
 ### 2026-08-29 — B1.1 — TUI skeleton (`raccpack-tui`) ✅ CLOSED
 

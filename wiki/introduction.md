@@ -57,8 +57,7 @@ The full catalog of supported markers, secrets, and deny rules is on the [Suppor
 
 **Coming soon (Beta 0.5.x):**
 
-- TUI skeleton — Ratatui binary with navigation, theme, screens (since 0.4.1).
-- TUI — interactive terminal interface with sniff/dig/raid screens, progress, reveal modal;
+- TUI — interactive terminal interface with sniff/dig/raid screens, progress, reveal modal (sniff screen since 0.4.2).
 - Desktop (Tauri + React) — desktop application.
 
 ## Key security principles
@@ -73,7 +72,7 @@ The full catalog of supported markers, secrets, and deny rules is on the [Suppor
 | Interface | Status | Description |
 |-----------|--------|-------------|
 | **CLI** (`racc`) | Available | Command line, suitable for scripts and CI |
-| **TUI** | Beta (skeleton 0.4.1) | Terminal interface with interactive navigation |
+| **TUI** | Beta (sniff screen 0.4.2) | Interactive terminal interface: project table, non-blocking sniff, navigation |
 | **Desktop** | Planned | Desktop application on Tauri + React |
 
 ::: info

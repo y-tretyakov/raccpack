@@ -1,21 +1,26 @@
 ---
 title: TUI (terminal interface)
-description: Target behavior of racc-tui — an interactive terminal interface built on Ratatui (planned).
+description: racc-tui — an interactive terminal interface built on Ratatui. The sniff screen works; dig/raid screens are planned (Beta).
 ---
 
 # TUI (terminal interface)
 
-::: warning
-The TUI is in development and scheduled for release in Beta (0.5.x). This section describes the target behavior based on vision documents; command examples may change.
+::: info
+The TUI is being built in Beta (0.5.x). As of **0.4.2** the **sniff screen** works (project table, non-blocking worker sniff); dig/raid screens and the reveal modal are planned.
 :::
 
 ## What it is
 
-`racc-tui` is an interactive terminal interface built on Ratatui. It lets you work with projects and secrets without memorizing commands: tree navigation, filters, confirmations.
+`racc-tui` is an interactive terminal interface built on Ratatui. It lets you work with projects and secrets without memorizing commands: navigation, the project table, and confirmations.
+
+## Sniff screen (available since 0.4.2)
+
+- Lists projects from the scan root in a table: name, language, frameworks, size, git-repository flag.
+- Runs `sniff` in a background worker thread, so the UI stays responsive (shows a progress indicator) while the scan runs.
+- Navigation: `j`/`k` (or arrows) move the selection; `r` triggers a refresh; `o` is reserved for changing the scan root (not yet implemented); `Enter` opens a project (dig — planned).
 
 ## Target capabilities
 
-- **sniff screen** — list of projects, stack, size, git-repository flag; keys to open a project.
 - **dig screen** — secret findings with risk-level filters and masked details.
 - **raid confirmation** — a wizard that shows what will happen at each phase (stash → rinse → pack), with interactive progress.
 - **Dry-run** — a mode where all changes are visible before they are applied.
@@ -33,10 +38,6 @@ key press  →  TUI screen state  →  facade call
 ## Progress of long operations
 
 Long operations (a deep `dig`, a full `raid`) send progress events: phase, percentage, message. The TUI redraws the screen on every event without blocking the interface.
-
-## When it will arrive
-
-The TUI is expected in phase **B1** (Beta, 0.5.x), right after the facade contract stabilizes (Alpha). Once released, this page will gain a section on installation and the full key map.
 
 ## See also
 

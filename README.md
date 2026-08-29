@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.85-orange?style=flat-square&logo=rust" alt="Rust"/></a>
   <a href="https://doc.rust-lang.org/cargo/"><img src="https://img.shields.io/badge/Cargo-workspace-blue?style=flat-square&logo=cargo" alt="Cargo"/></a>
-  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.4.1-blue?style=flat-square" alt="version"/></a>
+  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.4.2-blue?style=flat-square" alt="version"/></a>
   <a href="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml"><img src="https://img.shields.io/badge/CI-wiki-success?style=flat-square" alt="CI"/></a>
   <a href="https://github.com/y-tretyakov/raccpack/releases"><img src="https://img.shields.io/badge/OS-Linux-success?style=flat-square" alt="Linux"/></a>
   <a href="https://clap.rs"><img src="https://img.shields.io/badge/CLI-clap-ee4b2b?style=flat-square" alt="CLI"/></a>
@@ -25,7 +25,7 @@ CLI tool for scanning project directories, finding secrets, cleaning build trash
 
 ## Status
 
-**Version `0.4.1`** — MVP `0.1.0` closed; **Alpha `0.3.0` closed** (stash / rinse / raid / git+DX). **Detect v2 `0.4.0` closed** (composite DAG detectors, scoped rinse, batch raid `racc raid --root`, wiki + E2E). **Beta B1.1 TUI skeleton done**. Next: Beta `0.5.0` (TUI + Desktop).
+**Version `0.4.2`** — MVP `0.1.0` closed; **Alpha `0.3.0` closed** (stash / rinse / raid / git+DX). **Detect v2 `0.4.0` closed** (composite DAG detectors, scoped rinse, batch raid `racc raid --root`, wiki + E2E). **Beta B1.2 TUI sniff screen done** (non-blocking worker wiring). Next: Beta `0.5.0` (TUI + Desktop).
 
 | Command | Status | Role |
 |---------|--------|------|
@@ -36,7 +36,8 @@ CLI tool for scanning project directories, finding secrets, cleaning build trash
 | **rinse** | Available (Alpha) | Build-trash cleanup by strategies (`rust`/`node`/`python` default, more opt-in), DryRun default / `--yes` |
 | **raid** | Available (Alpha) | Orchestrated stash → rinse → pack → move in one command; atomic default (staging + WAL + rollback), manifest JSON in den, `--fail-fast` mode, exit 1 on `!success`; `--root` for batch mode across all projects |
 | **init** | Available (Alpha) | Create default config (`config_version = 1`) with prefilled paths; optional den skeleton (`--ensure-den`), `--force` to overwrite |
-| **TUI / Desktop** | Planned (Beta) | Ratatui / Tauri + React |
+| **TUI** | Beta (sniff screen) | Ratatui project table, non-blocking worker sniff, j/k navigation (since 0.4.2) |
+| **Desktop** | Planned (Beta) | Tauri + React |
 
 Details and exact flags: [wiki / CLI](https://y-tretyakov.github.io/raccpack/cli-usage.html).
 
