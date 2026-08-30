@@ -2,6 +2,7 @@
 
 pub mod dig;
 pub mod help;
+pub mod overview;
 pub mod raid;
 pub mod sniff;
 
@@ -17,13 +18,7 @@ use crate::theme;
 /// Render the given screen into `area`.
 pub fn render_screen(f: &mut Frame, area: Rect, app: &mut App) {
     match app.current_view {
-        ViewId::Overview => render_stub(
-            f,
-            area,
-            "Overview",
-            "No projects scanned yet.\nRun `racc sniff` to get started.",
-            theme::FOCUS,
-        ),
+        ViewId::Overview => overview::render(f, area, &app.sniff_state),
         ViewId::Projects => crate::ui::screens::sniff::render(f, area, &mut app.sniff_state),
         ViewId::Findings => crate::ui::screens::dig::render(f, area, &mut app.dig_state),
         ViewId::Operations => render_stub(
@@ -36,7 +31,8 @@ pub fn render_screen(f: &mut Frame, area: Rect, app: &mut App) {
     }
 }
 
-/// Shared placeholder for not-yet-implemented screens.
+/// Shared placeholder for not-yet-implemented screens (currently only
+/// Operations; Overview is a real dashboard, Projects/Findings have screens).
 fn render_stub(
     f: &mut Frame,
     area: Rect,
@@ -103,13 +99,13 @@ mod tests {
     }
 
     #[test]
-    fn overview_text_mentions_sniff() {
-        let (_, text, _) = (
-            ViewId::Overview.label(),
-            "Run `racc sniff` to get started.",
-            theme::FOCUS,
-        );
-        assert!(text.contains("sniff"));
+    fn overview_empty_state_offers_a_way_forward() {
+        // Overview is a dashboard, never a bare stub: its empty state must
+        // still point the user to a first scan (Projects → r).
+        assert!(overview::EMPTY_HINT_ACTION.contains("Projects"));
+        assert!(overview::EMPTY_HINT_ACTION.contains("Tab"));
+        assert!(overview::EMPTY_HINT_ACTION.contains('r'));
+        assert!(!overview::EMPTY_HINT_TITLE.is_empty());
     }
 
     #[test]

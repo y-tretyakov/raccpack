@@ -9,6 +9,7 @@ use ratatui::Frame;
 use crate::app::sniff::SniffScreenState;
 use crate::theme;
 use crate::ui::widgets::detail::{render as render_detail, DetailLine};
+use crate::ui::widgets::format_bytes;
 
 /// Render the sniff screen. The table owns the top area; the detail strip
 /// (selected project metadata) sits below it. The chrome lives in the global
@@ -217,38 +218,10 @@ fn git_glyph_for(is_repo: bool) -> (&'static str, ratatui::style::Color) {
     }
 }
 
-/// Format bytes as human-readable string.
-fn format_bytes(bytes: u64) -> String {
-    const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
-    let mut size = bytes as f64;
-    let mut unit_idx = 0;
-
-    while size >= 1024.0 && unit_idx < UNITS.len() - 1 {
-        size /= 1024.0;
-        unit_idx += 1;
-    }
-
-    if unit_idx == 0 {
-        format!("{} {}", size as u64, UNITS[unit_idx])
-    } else {
-        format!("{:.1} {}", size, UNITS[unit_idx])
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::path::PathBuf;
-
-    #[test]
-    fn format_bytes_test() {
-        assert_eq!(format_bytes(0), "0 B");
-        assert_eq!(format_bytes(512), "512 B");
-        assert_eq!(format_bytes(1024), "1.0 KB");
-        assert_eq!(format_bytes(1536), "1.5 KB");
-        assert_eq!(format_bytes(1024 * 1024), "1.0 MB");
-        assert_eq!(format_bytes(1024 * 1024 * 1024), "1.0 GB");
-    }
 
     #[test]
     fn project_row_creation() {
