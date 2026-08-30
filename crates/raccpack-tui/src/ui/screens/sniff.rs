@@ -7,7 +7,7 @@ use ratatui::widgets::{Block, Borders, Cell, Row, Table};
 use ratatui::Frame;
 
 use crate::app::sniff::SniffScreenState;
-use crate::ui::theme;
+use crate::theme;
 use crate::ui::widgets::detail::{render as render_detail, DetailLine};
 
 /// Render the sniff screen. The table owns the top area; the detail strip
@@ -108,7 +108,7 @@ fn render_table(f: &mut Frame, area: Rect, state: &mut SniffScreenState) {
         .map(|(i, project)| {
             let selected = state.table_state.selected() == Some(i);
             let bg = if selected {
-                theme::SELECTION
+                theme::SURFACE_RAISED
             } else if i % 2 == 0 {
                 theme::SURFACE
             } else {
@@ -116,7 +116,7 @@ fn render_table(f: &mut Frame, area: Rect, state: &mut SniffScreenState) {
             };
 
             let accent_bar = if selected {
-                Cell::from(Span::styled("▎", Style::default().fg(theme::ACCENT).bg(bg)))
+                Cell::from(Span::styled("▎", Style::default().fg(theme::FOCUS).bg(bg)))
             } else {
                 Cell::from(Span::raw(" ").style(Style::default().bg(bg)))
             };
@@ -163,12 +163,12 @@ fn render_table(f: &mut Frame, area: Rect, state: &mut SniffScreenState) {
                 .border_style(Style::default().fg(theme::BORDER))
                 .title(Span::styled(
                     format!(" Projects ({}) ", state.projects.len()),
-                    Style::default().fg(theme::ACCENT),
+                    Style::default().fg(theme::BRAND_PRIMARY),
                 )),
         )
         .row_highlight_style(
             Style::default()
-                .bg(theme::SELECTION)
+                .bg(theme::SURFACE_RAISED)
                 .add_modifier(Modifier::BOLD),
         );
 
@@ -204,7 +204,7 @@ fn render_project_detail(f: &mut Frame, area: Rect, state: &SniffScreenState) {
 
 fn header_style() -> Style {
     Style::default()
-        .fg(theme::ACCENT)
+        .fg(theme::BRAND_PRIMARY)
         .add_modifier(Modifier::BOLD)
 }
 

@@ -1,45 +1,60 @@
-//! Nocturnal semantic colour palette.
+//! Semantic theme tokens — meanings built from primitive hex, plus the layout
+//! space tokens and component glyphs.
 
 use ratatui::style::Color;
 
-/// Background — very dark grey, near-black.
-pub const BG: Color = Color::Rgb(0x0b, 0x0c, 0x0e);
+use crate::theme::primitive;
 
-/// Foreground — warm off-white.
-pub const FG: Color = Color::Rgb(0xe8, 0xe6, 0xe1);
+/// Background. ← color.semantic.bg
+pub const BG: Color = primitive::BG;
 
-/// Accent — muted teal for interactive elements.
-pub const ACCENT: Color = Color::Rgb(0x56, 0xb6, 0xc2);
+/// Base surface. ← color.semantic.surface
+pub const SURFACE: Color = primitive::SURFACE;
 
-/// Danger — errors, critical findings.
-pub const DANGER: Color = Color::Rgb(0xe0, 0x6c, 0x75);
+/// Raised surface — selection wash and active rows. ← color.semantic.surface-raised
+pub const SURFACE_RAISED: Color = primitive::SURFACE_RAISED;
 
-/// Warning — non-critical alerts.
-pub const WARNING: Color = Color::Rgb(0xe5, 0xc0, 0x7b);
+/// Borders and rules. ← color.semantic.border
+pub const BORDER: Color = primitive::BORDER;
 
-/// Success — completed operations, clean state.
-pub const SUCCESS: Color = Color::Rgb(0x98, 0xc3, 0x79);
+/// Primary text. ← color.semantic.text
+pub const TEXT: Color = primitive::TEXT;
 
-/// Muted — secondary text, disabled items.
-pub const MUTED: Color = Color::Rgb(0x5c, 0x63, 0x70);
+/// Secondary text, hints, empty placeholders. ← color.semantic.muted
+pub const MUTED: Color = primitive::MUTED;
 
-/// Border — panel and separator lines.
-pub const BORDER: Color = Color::Rgb(0x3e, 0x44, 0x51);
+/// Brand orange — focus / primary action / identity. ← color.semantic.brand-primary
+pub const BRAND_PRIMARY: Color = primitive::BRAND_PRIMARY;
 
-/// Surface — card and row background tint.
-pub const SURFACE: Color = Color::Rgb(0x1a, 0x1c, 0x20);
+/// Bright brand — hover / strong emphasis. ← color.semantic.brand-bright
+pub const BRAND_BRIGHT: Color = primitive::BRAND_BRIGHT;
 
-/// Selection — highlighted / focused item.
-pub const SELECTION: Color = Color::Rgb(0x3b, 0x40, 0x48);
+/// Dim brand — quiet brand accents. ← color.semantic.brand-dim
+pub const BRAND_DIM: Color = primitive::BRAND_DIM;
 
-/// Accent dim — softer accent when a region is not focused. ← color.semantic.accent-dim
-pub const ACCENT_DIM: Color = Color::Rgb(0x7e, 0xc8, 0xd1);
+/// Success / healthy. ← color.semantic.success
+pub const SUCCESS: Color = primitive::SUCCESS;
 
-/// Git clean — git repo present. ← color.semantic.git-clean (equals SUCCESS)
-pub const GIT_CLEAN: Color = Color::Rgb(0x98, 0xc3, 0x79);
+/// Warning / attention. ← color.semantic.warning
+pub const WARNING: Color = primitive::WARNING;
+
+/// Danger / error / destructive. ← color.semantic.danger
+pub const DANGER: Color = primitive::DANGER;
+
+/// Info / technology. ← color.semantic.info
+pub const INFO: Color = primitive::INFO;
+
+/// Analysis / detection / DAG. ← color.semantic.analysis
+pub const ANALYSIS: Color = primitive::ANALYSIS;
+
+/// Primary foreground — legacy alias for `TEXT` used across screens.
+pub const FG: Color = primitive::TEXT;
+
+/// Git repo present. ← color.semantic.git-clean (equals SUCCESS)
+pub const GIT_CLEAN: Color = primitive::SUCCESS;
 
 /// Git dirty or absent — not a git repo or neutral absent mark. ← color.semantic.git-dirty-or-absent (equals MUTED)
-pub const GIT_DIRTY_OR_ABSENT: Color = Color::Rgb(0x5c, 0x63, 0x70);
+pub const GIT_DIRTY_OR_ABSENT: Color = primitive::MUTED;
 
 // ── Space tokens (terminal cells/columns) ─────────────────────────────────────
 // Source of truth: `docs/design-tokens/raccpack.tokens.json` → `space.semantic.*`.
@@ -80,61 +95,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn bg_is_near_black() {
-        assert_eq!(BG, Color::Rgb(0x0b, 0x0c, 0x0e));
-    }
-
-    #[test]
-    fn fg_is_warm_offwhite() {
-        assert_eq!(FG, Color::Rgb(0xe8, 0xe6, 0xe1));
-    }
-
-    #[test]
-    fn accent_is_teal() {
-        assert_eq!(ACCENT, Color::Rgb(0x56, 0xb6, 0xc2));
-    }
-
-    #[test]
-    fn danger_is_red() {
-        assert_eq!(DANGER, Color::Rgb(0xe0, 0x6c, 0x75));
-    }
-
-    #[test]
-    fn warning_is_yellow() {
-        assert_eq!(WARNING, Color::Rgb(0xe5, 0xc0, 0x7b));
-    }
-
-    #[test]
-    fn success_is_green() {
-        assert_eq!(SUCCESS, Color::Rgb(0x98, 0xc3, 0x79));
-    }
-
-    #[test]
-    fn muted_is_grey() {
-        assert_eq!(MUTED, Color::Rgb(0x5c, 0x63, 0x70));
-    }
-
-    #[test]
-    fn border_is_dark_grey() {
-        assert_eq!(BORDER, Color::Rgb(0x3e, 0x44, 0x51));
-    }
-
-    #[test]
-    fn surface_is_dark() {
-        assert_eq!(SURFACE, Color::Rgb(0x1a, 0x1c, 0x20));
-    }
-
-    #[test]
-    fn selection_is_medium_grey() {
-        assert_eq!(SELECTION, Color::Rgb(0x3b, 0x40, 0x48));
-    }
-
-    #[test]
-    fn accent_dim_is_softer_teal() {
-        assert_eq!(ACCENT_DIM, Color::Rgb(0x7e, 0xc8, 0xd1));
-    }
-
-    #[test]
     fn git_clean_is_success() {
         assert_eq!(GIT_CLEAN, SUCCESS);
     }
@@ -145,24 +105,28 @@ mod tests {
     }
 
     #[test]
-    fn accent_dim_differs_from_accent() {
-        assert_ne!(ACCENT_DIM, ACCENT);
+    fn fg_is_text() {
+        assert_eq!(FG, TEXT);
     }
 
     #[test]
     fn all_colours_are_rgb() {
         let colours = [
             BG,
-            FG,
-            ACCENT,
-            DANGER,
-            WARNING,
-            SUCCESS,
-            MUTED,
-            BORDER,
             SURFACE,
-            SELECTION,
-            ACCENT_DIM,
+            SURFACE_RAISED,
+            BORDER,
+            TEXT,
+            MUTED,
+            BRAND_PRIMARY,
+            BRAND_BRIGHT,
+            BRAND_DIM,
+            SUCCESS,
+            WARNING,
+            DANGER,
+            INFO,
+            ANALYSIS,
+            FG,
             GIT_CLEAN,
             GIT_DIRTY_OR_ABSENT,
         ];
@@ -173,14 +137,16 @@ mod tests {
 
     #[test]
     fn semantic_pairs_are_distinct() {
-        assert_ne!(BG, FG);
-        assert_ne!(ACCENT, MUTED);
+        assert_ne!(BG, TEXT);
+        assert_ne!(BRAND_PRIMARY, MUTED);
         assert_ne!(DANGER, SUCCESS);
-        assert_ne!(ACCENT, DANGER);
+        assert_ne!(BRAND_PRIMARY, DANGER);
         assert_ne!(WARNING, SUCCESS);
-        assert_ne!(SURFACE, SELECTION);
-        assert_ne!(ACCENT, ACCENT_DIM);
+        assert_ne!(SURFACE, SURFACE_RAISED);
+        assert_ne!(BRAND_PRIMARY, BRAND_BRIGHT);
+        assert_ne!(BRAND_PRIMARY, BRAND_DIM);
         assert_ne!(GIT_CLEAN, GIT_DIRTY_OR_ABSENT);
+        assert_ne!(INFO, ANALYSIS);
     }
 
     // ── space tokens ─────────────────────────────────────────────────────────

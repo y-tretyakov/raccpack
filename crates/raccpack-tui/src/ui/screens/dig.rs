@@ -9,7 +9,7 @@ use ratatui::Frame;
 use raccpack_core::domain::SensitiveRisk;
 
 use crate::app::dig::{DigScreenState, FindingRow};
-use crate::ui::theme;
+use crate::theme;
 use crate::ui::widgets::detail::{render as render_detail, DetailLine};
 
 /// Render the dig screen. The findings table owns the top area; the detail
@@ -41,7 +41,7 @@ fn render_no_scope(f: &mut Frame, area: Rect) {
         f,
         area,
         " Findings ",
-        theme::ACCENT,
+        theme::BRAND_PRIMARY,
         "No project selected — press Enter on a project on the Projects screen.",
     );
 }
@@ -141,7 +141,7 @@ fn render_table(f: &mut Frame, area: Rect, state: &mut DigScreenState) {
         .map(|(i, finding)| {
             let selected = state.table_state.selected() == Some(i);
             let bg = if selected {
-                theme::SELECTION
+                theme::SURFACE_RAISED
             } else if i % 2 == 0 {
                 theme::SURFACE
             } else {
@@ -171,12 +171,12 @@ fn render_table(f: &mut Frame, area: Rect, state: &mut DigScreenState) {
                         state.findings.len(),
                         state.min_risk.label()
                     ),
-                    Style::default().fg(theme::ACCENT),
+                    Style::default().fg(theme::BRAND_PRIMARY),
                 )),
         )
         .row_highlight_style(
             Style::default()
-                .bg(theme::SELECTION)
+                .bg(theme::SURFACE_RAISED)
                 .add_modifier(Modifier::BOLD),
         );
 
@@ -187,7 +187,7 @@ fn render_table(f: &mut Frame, area: Rect, state: &mut DigScreenState) {
 /// highlight background; the Risk cell carries the severity color.
 fn finding_row(finding: &FindingRow, selected: bool, bg: ratatui::style::Color) -> Row<'_> {
     let accent_bar = if selected {
-        Cell::from(Span::styled("▎", Style::default().fg(theme::ACCENT).bg(bg)))
+        Cell::from(Span::styled("▎", Style::default().fg(theme::FOCUS).bg(bg)))
     } else {
         Cell::from(Span::raw(" ").style(Style::default().bg(bg)))
     };
@@ -234,7 +234,7 @@ fn render_finding_detail(f: &mut Frame, area: Rect, state: &DigScreenState) {
 
 fn header_style() -> Style {
     Style::default()
-        .fg(theme::ACCENT)
+        .fg(theme::BRAND_PRIMARY)
         .add_modifier(Modifier::BOLD)
 }
 

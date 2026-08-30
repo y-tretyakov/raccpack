@@ -2,7 +2,7 @@
 //!
 //! Shared by the sniff (Projects) and dig (Findings) screens so both use the
 //! same visual language: token colors, fixed height (`space.semantic.detail-height`
-//! → [`crate::ui::theme::SPACE_DETAIL_HEIGHT`]), and the middle-dot `·`
+//! → [`crate::theme::SPACE_DETAIL_HEIGHT`]), and the middle-dot `·`
 //! placeholder for empty values. It never renders secret payloads — callers
 //! pass only label/value pairs.
 
@@ -12,7 +12,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
 
-use crate::ui::theme;
+use crate::theme;
 
 /// One label/value row inside the detail strip.
 #[derive(Debug, Clone)]
@@ -21,8 +21,8 @@ pub struct DetailLine {
     pub label: &'static str,
     /// Display value; an empty string renders as the `·` placeholder.
     pub value: String,
-    /// Foreground for the value. Pass [`crate::ui::theme::MUTED`] for paths
-    /// and other secondary metadata, [`crate::ui::theme::FG`] otherwise.
+    /// Foreground for the value. Pass [`crate::theme::MUTED`] for paths
+    /// and other secondary metadata, [`crate::theme::FG`] otherwise.
     pub fg: Color,
 }
 
@@ -48,7 +48,7 @@ impl DetailLine {
 
 /// Render a bordered detail strip filling exactly `area`.
 ///
-/// The panel height should be [`crate::ui::theme::SPACE_DETAIL_HEIGHT`] (borders
+/// The panel height should be [`crate::theme::SPACE_DETAIL_HEIGHT`] (borders
 /// included); rows beyond the visible area are clipped by the paragraph.
 pub fn render(f: &mut Frame, area: Rect, title: &str, lines: &[DetailLine]) {
     let block = Block::default()
@@ -57,7 +57,7 @@ pub fn render(f: &mut Frame, area: Rect, title: &str, lines: &[DetailLine]) {
         .title(Span::styled(
             format!(" {title} "),
             Style::default()
-                .fg(theme::ACCENT)
+                .fg(theme::BRAND_PRIMARY)
                 .add_modifier(Modifier::BOLD),
         ));
 

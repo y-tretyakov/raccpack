@@ -11,8 +11,8 @@ use ratatui::Terminal;
 
 use crate::app::raid::FlowPhase;
 use crate::app::{App, Focus, ViewId, ALL_VIEWS};
+use crate::theme;
 use crate::ui::screens;
-use crate::ui::theme;
 
 /// Render one complete frame.
 pub fn render(
@@ -49,7 +49,7 @@ fn render_header(f: &mut ratatui::Frame, area: Rect, app: &App) {
     let title = Span::styled(
         " raccpack-tui ",
         Style::default()
-            .fg(theme::ACCENT)
+            .fg(theme::BRAND_PRIMARY)
             .add_modifier(Modifier::BOLD),
     );
     let sep = Span::raw("│");
@@ -107,11 +107,11 @@ fn render_sidebar(f: &mut ratatui::Frame, area: Rect, app: &App) {
         let item_style = if active && sidebar_focused {
             Style::default()
                 .fg(theme::FG)
-                .bg(theme::SELECTION)
+                .bg(theme::SURFACE_RAISED)
                 .add_modifier(Modifier::BOLD)
         } else if active {
             Style::default()
-                .fg(theme::ACCENT)
+                .fg(theme::FOCUS)
                 .bg(theme::SURFACE)
                 .add_modifier(Modifier::BOLD)
         } else {
@@ -120,7 +120,7 @@ fn render_sidebar(f: &mut ratatui::Frame, area: Rect, app: &App) {
 
         let bar = Span::styled(
             if active { "▎" } else { " " },
-            Style::default().fg(theme::ACCENT),
+            Style::default().fg(theme::FOCUS),
         );
         let label = Span::styled(view.label(), item_style);
 
@@ -305,7 +305,7 @@ mod tests {
         let title = Span::styled(
             " raccpack-tui ",
             Style::default()
-                .fg(theme::ACCENT)
+                .fg(theme::BRAND_PRIMARY)
                 .add_modifier(Modifier::BOLD),
         );
         let sep = Span::raw("│");

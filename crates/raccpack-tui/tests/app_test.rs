@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use raccpack_tui::app::{App, Command, Focus, ViewId};
-use raccpack_tui::ui::theme;
+use raccpack_tui::theme;
 
 fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
@@ -306,27 +306,23 @@ fn projects_jk_move_rows_without_changing_view() {
     );
 }
 
-// ── 8. nocturnal_theme_colors_are_distinct ─────────────────────────────────────
+// ── 8. theme_colors_are_distinct ──────────────────────────────────────────────
 
 #[test]
-fn nocturnal_theme_colors_are_distinct() {
+fn theme_colors_are_distinct() {
     // Pairwise distinctness among the semantic palette
     assert_ne!(
         theme::BG,
         theme::FG,
         "background must differ from foreground"
     );
-    assert_ne!(theme::ACCENT, theme::MUTED, "accent must differ from muted");
+    assert_ne!(theme::FOCUS, theme::MUTED, "focus must differ from muted");
     assert_ne!(
         theme::DANGER,
         theme::SUCCESS,
         "danger must differ from success"
     );
-    assert_ne!(
-        theme::ACCENT,
-        theme::DANGER,
-        "accent must differ from danger"
-    );
+    assert_ne!(theme::FOCUS, theme::DANGER, "focus must differ from danger");
     assert_ne!(
         theme::WARNING,
         theme::SUCCESS,
@@ -334,8 +330,8 @@ fn nocturnal_theme_colors_are_distinct() {
     );
     assert_ne!(
         theme::SURFACE,
-        theme::SELECTION,
-        "surface must differ from selection"
+        theme::SURFACE_RAISED,
+        "surface must differ from raised surface"
     );
 }
 
