@@ -42,6 +42,9 @@ pub fn render(
         if let Some(flow) = &app.raid_flow {
             screens::raid::render(f, area, flow);
         }
+        if let Some(modal) = &app.reveal {
+            screens::reveal::render(f, area, modal);
+        }
     })?;
     Ok(())
 }

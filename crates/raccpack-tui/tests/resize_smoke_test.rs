@@ -50,12 +50,14 @@ fn sample_app() -> App {
             risk: raccpack_core::domain::SensitiveRisk::Critical,
             kind: ".env".into(),
             git_status: "tracked".into(),
+            content_ref: None,
         },
         raccpack_tui::app::dig::FindingRow {
             path: PathBuf::from("/workspace/project-0/key"),
             risk: raccpack_core::domain::SensitiveRisk::High,
             kind: "aws_access_key_id".into(),
             git_status: "untracked".into(),
+            content_ref: None,
         },
     ];
     app.dig_state.reapply_filter();
@@ -119,6 +121,9 @@ fn draw_frame(term: &mut Terminal<TestBackend>, app: &mut App, help: bool) {
         if let Some(flow) = &app.raid_flow {
             screens::raid::render(f, area, flow);
         }
+        if let Some(modal) = &app.reveal {
+            screens::reveal::render(f, area, modal);
+        }
     })
     .expect("frame must draw");
 }
@@ -155,6 +160,52 @@ fn overlays_render_at_every_size_without_panic() {
     let mut app = sample_app();
     app.raid_flow = Some(sample_flow());
     for &(w, h) in SIZES {
+        let backend = TestBackend::new(w, h);
+        let mut term = Terminal::new(backend).expect("test backend");
+        draw_frame(&mut term, &mut app, false);
+    }
+}
+
+/// The reveal modal (both confirm and ready-with-value phases) must not panic on
+/// narrow/short terms. The value is only parsed for the render, never asserted.
+#[test]
+fn reveal_modal_renders_at_every_size_without_panic() {
+    use raccpack_core::secrets::FindingRef;
+    use raccpack_tui::app::reveal::RevealModal;
+    use raccpack_tui::worker::WorkerRevealSecret;
+
+    for &(w, h) in SIZES {
+        let mut app = sample_app();
+        let reference = FindingRef {
+            path: PathBuf::from("/workspace/project-0/.env"),
+            marker_id: "aws_access_key".to_string(),
+            line: 1,
+            value_hash: "deadbeef".to_string(),
+        };
+        app.reveal = Some(RevealModal::new(
+            PathBuf::from("/workspace/project-0/.env"),
+            reference,
+        ));
+        let backend = TestBackend::new(w, h);
+        let mut term = Terminal::new(backend).expect("test backend");
+        draw_frame(&mut term, &mut app, false);
+    }
+
+    for &(w, h) in SIZES {
+        let mut app = sample_app();
+        let mut modal = RevealModal::new(
+            PathBuf::from("/workspace/project-0/.env"),
+            FindingRef {
+                path: PathBuf::from("/workspace/project-0/.env"),
+                marker_id: "aws_access_key".to_string(),
+                line: 1,
+                value_hash: "deadbeef".to_string(),
+            },
+        );
+        modal.set_ready(WorkerRevealSecret::new(
+            "AKIASUPERSECRETVALUE123".to_string(),
+        ));
+        app.reveal = Some(modal);
         let backend = TestBackend::new(w, h);
         let mut term = Terminal::new(backend).expect("test backend");
         draw_frame(&mut term, &mut app, false);

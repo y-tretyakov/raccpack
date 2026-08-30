@@ -105,6 +105,7 @@ fn sf(risk: SensitiveRisk) -> SensitiveFile {
         risk,
         labels: Vec::new(),
         content_match: None,
+        content_ref: None,
         git_status: None,
     }
 }

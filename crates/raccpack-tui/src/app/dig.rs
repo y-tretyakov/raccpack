@@ -10,6 +10,7 @@ use std::time::SystemTime;
 
 use raccpack_core::app::{DigResult, ProgressEvent, SensitiveFile};
 use raccpack_core::domain::SensitiveRisk;
+use raccpack_core::secrets::FindingRef;
 use ratatui::widgets::TableState;
 
 /// A display-only row in the findings table.
@@ -23,6 +24,9 @@ pub struct FindingRow {
     pub kind: String,
     /// Git status (`tracked`, `untracked`, `ignored`, …); empty when unknown.
     pub git_status: String,
+    /// Opt-in reference to where a content value lives (marker + line + hash).
+    /// Carries no raw value; when present, the row is revealable via `v`.
+    pub content_ref: Option<FindingRef>,
 }
 
 /// Minimum severity shown in the findings table; `f` cycles the steps.
@@ -195,13 +199,16 @@ impl DigScreenState {
     }
 }
 
-/// Map a core finding to a display row, deliberately dropping `content_match`.
+/// Map a core finding to a display row, deliberately dropping the masked
+/// payload (`content_match`) but keeping the safe `content_ref` so a row can be
+/// revealed on an explicit opt-in (`v`).
 fn file_to_row(file: &SensitiveFile) -> FindingRow {
     FindingRow {
         path: file.path.clone(),
         risk: file.risk,
         kind: file.labels.join(", "),
         git_status: file.git_status.clone().unwrap_or_default(),
+        content_ref: file.content_ref.clone(),
     }
 }
 
@@ -221,6 +228,7 @@ mod tests {
             risk,
             kind: "fixture".to_string(),
             git_status: git.unwrap_or("tracked").to_string(),
+            content_ref: None,
         }
     }
 
@@ -233,6 +241,12 @@ mod tests {
                 masked: "SHOULD-NEVER-LEAK<<<".to_string(),
                 value_hash: "deadbeef".to_string(),
                 original_len: 42,
+            }),
+            content_ref: content.then(|| FindingRef {
+                path: PathBuf::from(path),
+                marker_id: "fixture".to_string(),
+                line: 1,
+                value_hash: "deadbeef".to_string(),
             }),
             git_status: Some("tracked".to_string()),
         }
@@ -252,7 +266,11 @@ mod tests {
             !debug.contains("SHOULD-NEVER-LEAK"),
             "secret leaked via {debug}"
         );
-        assert!(!debug.contains("deadbeef"));
+        // B1.5: the row deliberately retains only a safe `content_ref` — a file
+        // path + marker id + blake3 hash (never the masked/raw payload) so a
+        // row can later be revealed on an explicit opt-in. The masked value
+        // itself must stay out of the row.
+        assert!(row.content_ref.is_some());
     }
 
     #[test]

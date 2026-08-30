@@ -26,6 +26,7 @@ pub mod content;
 pub mod filename;
 pub mod finding;
 pub mod mask;
+pub mod reveal;
 pub mod risk;
 pub mod scan;
 pub mod stash_batch;
@@ -42,6 +43,7 @@ pub use filename::{
 };
 pub use finding::{FindingSource, SensitiveFinding};
 pub use mask::{fingerprint_secret, mask_secret, MaskedValue};
+pub use reveal::{reveal_finding, EphemeralSecret, FindingRef};
 pub use risk::{upgrade_risk, SensitiveRisk};
 pub use scan::{scan_secrets, SecretScanOptions};
 pub use stash_batch::{write_stash_age, StashBatchResult, StashManifestEntry};

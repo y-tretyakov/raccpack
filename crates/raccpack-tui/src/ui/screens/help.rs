@@ -77,6 +77,10 @@ fn help_items() -> Vec<HelpItem> {
             description: "Findings: toggle content scan (re-dig)",
         },
         HelpItem {
+            key: "v",
+            description: "Findings: reveal selected secret (confirm step)",
+        },
+        HelpItem {
             key: "?",
             description: "Toggle help",
         },
@@ -193,7 +197,7 @@ mod tests {
     #[test]
     fn help_items_cover_dig_keys() {
         let keys: Vec<_> = help_items().iter().map(|i| i.key).collect();
-        for expected in ["f", "c", "r", "Enter"] {
+        for expected in ["f", "c", "v", "r", "Enter"] {
             assert!(
                 keys.contains(&expected),
                 "help must document {expected:?}, got {keys:?}"

@@ -152,9 +152,12 @@ pub static DEFAULT_CONTENT_MARKERS: &[ContentMarker] = &[
 ];
 
 /// A [`ContentMarker`] paired with its compiled regex (Regex kind only).
-struct CompiledMarker {
-    marker: &'static ContentMarker,
-    regex: Option<Regex>,
+///
+/// Fields are `pub(crate)` so reveal (`super::reveal`) can re-extract candidates
+/// for a specific marker without duplicating the matching logic.
+pub(crate) struct CompiledMarker {
+    pub(crate) marker: &'static ContentMarker,
+    pub(crate) regex: Option<Regex>,
 }
 
 /// Lazily compiled marker table.
@@ -300,29 +303,47 @@ pub fn scan_file_content(
     for (idx, line) in text.split('\n').enumerate() {
         let line_no = (idx + 1) as u32;
         for compiled in compiled_markers() {
-            let marker = compiled.marker;
-            match marker.kind {
-                ContentMatchKind::Prefix => {
-                    for value in prefix_tokens(line, marker.pattern) {
-                        hits.push(build_hit(marker, &value, line_no));
-                    }
-                }
-                ContentMatchKind::Contains => {
-                    for (_, value) in line.match_indices(marker.pattern) {
-                        hits.push(build_hit(marker, value, line_no));
-                    }
-                }
-                ContentMatchKind::Regex => {
-                    if let Some(regex) = &compiled.regex {
-                        for matched in regex.find_iter(line) {
-                            hits.push(build_hit(marker, matched.as_str(), line_no));
-                        }
-                    }
-                }
+            for value in extract_raw_candidates(compiled, line) {
+                hits.push(build_hit(compiled.marker, &value, line_no));
             }
         }
     }
     Ok(hits)
+}
+
+/// Look up a compiled marker by its stable id.
+///
+/// Returns `None` when the id is not in [`DEFAULT_CONTENT_MARKERS`]. Used by
+/// [`super::reveal`] to re-scan a single marker for a later reveal.
+pub(crate) fn compiled_marker_by_id(id: &str) -> Option<&'static CompiledMarker> {
+    compiled_markers().iter().find(|c| c.marker.id == id)
+}
+
+/// Extract every raw candidate value that `compiled` would match on `line`.
+///
+/// This is the **single** extraction path shared by the scan (which masks each
+/// value via [`mask_secret`]) and reveal (which re-hashes each value). It is
+/// deliberately raw — callers must not route the returned strings anywhere that
+/// leaks without an explicit opt-in.
+pub(crate) fn extract_raw_candidates(compiled: &CompiledMarker, line: &str) -> Vec<String> {
+    let marker = compiled.marker;
+    match marker.kind {
+        ContentMatchKind::Prefix => prefix_tokens(line, marker.pattern),
+        ContentMatchKind::Contains => line
+            .match_indices(marker.pattern)
+            .map(|(_, value)| value.to_string())
+            .collect(),
+        ContentMatchKind::Regex => compiled
+            .regex
+            .as_ref()
+            .map(|regex| {
+                regex
+                    .find_iter(line)
+                    .map(|matched| matched.as_str().to_string())
+                    .collect()
+            })
+            .unwrap_or_default(),
+    }
 }
 
 /// Extract the token starting at every occurrence of `prefix` in `line`.

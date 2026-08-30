@@ -54,11 +54,11 @@ pub use scan::{
     MarkerKind, ProjectCandidate,
 };
 pub use secrets::{
-    fingerprint_secret, mask_secret, match_filename, match_filename_all, scan_file_content,
-    scan_filenames, scan_secrets, upgrade_risk, ContentHit, ContentMarker, ContentMatchKind,
-    ContentScanLimits, FilenameMatch, FilenamePattern, FilenameScanOptions, FindingSource,
-    MaskedValue, NameMatchKind, SecretScanOptions, SensitiveFinding, DEFAULT_CONTENT_MARKERS,
-    DEFAULT_FILENAME_PATTERNS,
+    fingerprint_secret, mask_secret, match_filename, match_filename_all, reveal_finding,
+    scan_file_content, scan_filenames, scan_secrets, upgrade_risk, ContentHit, ContentMarker,
+    ContentMatchKind, ContentScanLimits, EphemeralSecret, FilenameMatch, FilenamePattern,
+    FilenameScanOptions, FindingRef, FindingSource, MaskedValue, NameMatchKind, SecretScanOptions,
+    SensitiveFinding, DEFAULT_CONTENT_MARKERS, DEFAULT_FILENAME_PATTERNS,
 };
 
 /// Placeholder to keep the crate non-empty and testable.
