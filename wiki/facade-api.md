@@ -124,6 +124,8 @@ pub fn exit_code_for_secrets(files: &[SensitiveFile], policy: SecretExitPolicy) 
 
 `SensitiveFile` and `RepeatedSecret` carry only **masked** data: path, risk, labels, masked value, hash. No raw values.
 
+**Ephemeral reveal** (core, used by the TUI reveal modal since 0.4.5): `reveal_finding(path, dir_root, ref: &FindingRef) -> Result<EphemeralSecret>` re-reads the file fresh and returns the raw value only if the referenced `value_hash` still matches; `EphemeralSecret` is `Zeroizing` (wiped on drop), not serializable, redacted in `Debug`, and intended to be shown once and dropped immediately.
+
 **Status: implemented.** CLI: `racc dig`.
 
 ### `stash` - move secrets into an age archive
@@ -294,7 +296,7 @@ Behavior:
 - `ScanReport { root, projects, total_size_bytes, schema_version }`
 - `Project { path, name, stack, size_bytes, is_git_repo }`
 - `Stack { language, frameworks, markers }`
-- `SensitiveFile { path, risk, labels, content_match?, git_status? }`
+- `SensitiveFile { path, risk, labels, content_match?, content_ref?, git_status? }`
 - `SensitiveRisk` — `Low | Medium | High | Critical`
 - `MaskedValue { masked, value_hash, original_len }`
 
@@ -325,7 +327,7 @@ After each raid a manifest is written to `den/manifests/{yyyy}/{mm}/`. Example (
   "stash_manifest": [
     { "original_path": "/home/user/DEV/PROJS/my-api/.env", "risk": "High", "size_bytes": 412 }
   ],
-  "tool": { "name": "raccpack", "core_version": "0.4.4" }
+  "tool": { "name": "raccpack", "core_version": "0.4.5" }
 }
 ```
 

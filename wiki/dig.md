@@ -137,6 +137,7 @@ Fields:
 | `files[].risk` | Risk level: `Low` / `Medium` / `High` / `Critical` |
 | `files[].labels` | Labels: the name-based rule and/or content-based rule |
 | `files[].content_match` | `{ masked, value_hash, original_len }` or `null` |
+| `files[].content_ref` | `null` or `{ path, marker_id, line, value_hash }` — a stable reference to the content match (internal use in interfaces; `path` and `marker_id` identify the finding, `line` is 1-based, `value_hash` matches `content_match.value_hash`). Never carries the raw value. |
 | `files[].git_status` | Git status of the file: `"tracked"` / `"untracked"` / `"ignored"` / `"modified"` / `"staged"` / `"deleted"` / `"unknown"`, or `null` — see [below](#git-status) |
 | `repeated` | Repeated values (populated only with `--repeated`) |
 | `repeated[].value_hash` | blake3 hash of the value (never the value itself) |
@@ -153,7 +154,7 @@ Masking rules: value ≤ 8 bytes → `"****"`; longer → first 4 characters + `
 Both human and JSON `dig` output never contain raw secrets — only a masked preview, the blake3 hash, and the length.
 :::
 
-`content_match` is `null` when only the file name matched (for example, with `--no-content`).
+`content_match` is `null` when only the file name matched (for example, with `--no-content`). `content_ref` is `null` in the same case — a raw reveal is therefore only possible via the interfaces (TUI `v`), never through the CLI.
 
 ### git_status
 

@@ -124,6 +124,8 @@ pub fn exit_code_for_secrets(files: &[SensitiveFile], policy: SecretExitPolicy) 
 
 `SensitiveFile` и `RepeatedSecret` содержат только **masked** данные: путь, риск, метки, маскированное значение, хеш. Сырых значений нет.
 
+**Эфемерный reveal** (ядро, используется reveal-модалкой TUI с 0.4.5): `reveal_finding(path, dir_root, ref: &FindingRef) -> Result<EphemeralSecret>` заново читает файл и возвращает raw-значение только если `value_hash` из ссылки всё ещё совпадает; `EphemeralSecret` — `Zeroizing` (стирается при drop), не сериализуется, в `Debug` отображается ред-актированным и предназначен для показа один раз с немедленным drop.
+
 **Статус: реализовано.** CLI: `racc dig`.
 
 ### `stash` - вынести секреты в age-архив
@@ -294,7 +296,7 @@ pub fn raid_batch(
 - `ScanReport { root, projects, total_size_bytes, schema_version }`
 - `Project { path, name, stack, size_bytes, is_git_repo }`
 - `Stack { language, frameworks, markers }`
-- `SensitiveFile { path, risk, labels, content_match?, git_status? }`
+- `SensitiveFile { path, risk, labels, content_match?, content_ref?, git_status? }`
 - `SensitiveRisk` — `Low | Medium | High | Critical`
 - `MaskedValue { masked, value_hash, original_len }`
 
@@ -325,7 +327,7 @@ pub fn raid_batch(
   "stash_manifest": [
     { "original_path": "/home/user/DEV/PROJS/my-api/.env", "risk": "High", "size_bytes": 412 }
   ],
-  "tool": { "name": "raccpack", "core_version": "0.4.4" }
+  "tool": { "name": "raccpack", "core_version": "0.4.5" }
 }
 ```
 

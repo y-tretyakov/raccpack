@@ -1,9 +1,9 @@
 # Raccpack — roadmap до 1.0.0
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
-**Текущая точка:** Alpha 0.3.0 закрыт; **Detect v2 0.4.0 закрыт** (D1–D4 all ✅). **Beta B1.4 TUI raid + progress done (0.4.4)**. Далее Beta.
+**Текущая точка:** Alpha 0.3.0 закрыт; **Detect v2 0.4.0 закрыт** (D1–D4 all ✅). **Beta B1.4 TUI raid + progress done (0.4.4). Beta B1.5 TUI reveal modal done (0.4.5).** Далее Beta.
 
-**Текущая версия:** `0.4.4` — сверять `docs/VERSION_ROADMAP.md`.
+**Текущая версия:** `0.4.5` — сверять `docs/VERSION_ROADMAP.md`.
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
 
 Версионирование до 1.0.0 — **0.x** (ломающие изменения API допустимы).  
@@ -155,7 +155,7 @@
 - ✅ B1.3 — Экран dig: risk filter `f`, content-toggle `c`, masked-only (без raw), shared detail strip, Esc → Projects.
 - ✅ B1.4 — Развёрнутый raid-flow: preview (dry-run) → passphrase modal → running-pipeline progress → honest result (Atomic/rolled-back/failed); `R` на проекте; K/S/m toggles; вызов того же facade через worker.
 - ✅ B1.4 (нет bump) — Визуальный полиш TUI: тема графит+оранж через design-токены (DTCG v0.2.0), shell (бренд `◈ RACCPACK` + live-бейджи + версия в header), resize-смоук 4 размеров. Остальные эксперименты V2 (overview-дашборд, Projects Cards, activity-лента, split app.rs) откачены.
-- B1.5 — Безопасный modal reveal (opt-in).
+- ✅ B1.5 — Безопасный modal reveal (opt-in): `v` на finding с content-совпадением → confirm → показ значения один раз (эфемерно, zeroize при закрытии; raw никогда в состоянии приложения/логах/DTO).
 
 ## Фаза B2 — Desktop skeleton (Tauri)
 

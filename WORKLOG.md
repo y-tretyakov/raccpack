@@ -15,10 +15,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.4.4`** |
-| **Веха** | Detect v2 ✅ CLOSED · **Beta B1.4 done (0.4.4)** · Beta → 0.5.0 |
-| **Этап** | **B1.5** — TUI reveal modal |
-| **Предыдущее** | B1.4 TUI raid + progress closed (0.4.4) |
+| **Версия** | **`0.4.5`** |
+| **Веха** | Detect v2 ✅ CLOSED · **Beta B1.5 done (0.4.5)** · Beta → 0.5.0 |
+| **Этап** | **B2.1** — Desktop Tauri skeleton |
+| **Предыдущее** | B1.5 TUI reveal modal closed (0.4.5) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
@@ -38,7 +38,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 [x] B1.2.5 Detail strip (detail-height 7, git-маркеры, empty placeholder `·`), нет bump
 [x] B1.3  TUI dig screen (0.4.3)
 [x] B1.4  TUI raid + progress (0.4.4)
-[ ] B1.5  TUI reveal modal
+[x] B1.5  TUI reveal modal (0.4.5)
 [ ] B2  Desktop (Tauri + React) + BFF + ephemeral reveal
 [ ] B3  Security hardening + Safe Reveal contract
 [ ] B4  Productization (den gc, parallel sniff, docs) → Beta exit 0.5.0
@@ -86,6 +86,20 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 ---
 
 ## Этапы (Beta)
+
+### 2026-08-30 — B1.5 — TUI reveal modal ✅ CLOSED (0.4.5)
+
+- **Ветка:** `b1.5-tui-reveal` (PR #121 → `dev`, squash)
+- **Версия:** 0.4.5 (bump)
+- **Сделано:**
+  - Core `secrets/reveal.rs`: `EphemeralSecret` (Zeroizing, !Serialize/!Clone/!Copy, Debug `(**)`, `expose()`), `FindingRef { path, marker_id, line, value_hash }` (Serializable, без raw), `reveal_finding(path, dir_root, ref)` — повторный свежий ре-сканирование файла, извлечение raw через общие `extract_raw_candidates`/`compiled_marker_by_id`, дизaмбигуация по blake3 `value_hash`, containment (`Error::PathOutsideTarget`), regular file (`Error::NotAFile`), stale ref → `Error::Other`.
+  - `app/dig.rs`: `SensitiveFile.content_ref: Option<FindingRef>` (content-совпадения; value_hash зеркалит content_match). Breaking DTO — фикстуры CLI output обновлены.
+  - TUI: Findings `v` → confirm-шаг → worker reveal → значение показывается **только** в modal Ready-фазе → любая клавиша закрывает и дропает (zeroize). `app/reveal.rs` state machine (Confirm → Revealing → Ready/Failed), `WorkerRevealSecret` (Zeroizing, Debug-redacted), `ui/screens/reveal.rs` render-only, `event.rs` dispatch с guard «модалка ещё открыта». Новый dig закрывает модалку. Help-оверлей документирует `v`.
+- **Безопасность:** raw никогда в Debug/Display/логах/serde/состоянии приложения; показывается один раз по явному opt-in; при закрытии — память затёрта (Zeroizing drop).
+- **Тесты:** core `tests/reveal_finding.rs` (12: Debug-редакция, serde FindingRef, точные raw Prefix/Regex, дизaмбигуация кандидатов, stale ref, containment, NotAFile, round-trip mask(reveal)); TUI `tests/reveal_flow_test.rs` (11: no-op без content_ref, Esc/n cancel, close→drop, worker RevealMsg→RevealReady, Debug без raw); `dig_screen_test.rs` case 10 (состояние никогда не содержит raw); resize-smoke 4 размеров с модалкой.
+- **Верификация:** `cargo test --workspace` green (0 failed), `cargo fmt --check` ok, `cargo clippy -p raccpack-core --all-targets -- -D warnings` ok, `cargo clippy -p raccpack-tui --all-targets -- -D warnings` ok. PR #121 → CI green.
+- **Файлы:** crates/raccpack-core/src/secrets/{reveal.rs (created),content.rs,mod.rs}, src/app/dig.rs, lib.rs, tests/{reveal_finding.rs (created),dig.rs}; crates/raccpack-tui/src/{app.rs, app/reveal.rs (created), app/dig.rs, event.rs, worker/mod.rs, ui/layout.rs, ui/screens/{mod.rs,help.rs,reveal.rs (created)}, ui/widgets/sidebar.rs}, tests/{reveal_flow_test.rs (created),dig_screen_test.rs,resize_smoke_test.rs}; crates/raccpack-cli/src/output/mod.rs (fixtures).
+- **Решения:** минимум B3.4 (EphemeralSecret + FindingRef + reveal_finding) pull-forward в B1.5, чтобы TUI мог показать значение один раз; полный B3.4 (audit/checklist) остаётся в B3. Ревью: `EphemeralSecret::new` публичный — приемлемо (!Serialize, Debug redacted). Спеки V2 (untracked) не коммитились.
 
 ### 2026-08-30 — B1.4-vis — TUI visual polish (theme + shell), V2 rollback ✅ CLOSED (no bump)
 

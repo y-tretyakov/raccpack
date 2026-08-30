@@ -1,12 +1,12 @@
 ---
 title: TUI (terminal interface)
-description: racc-tui — an interactive terminal interface built on Ratatui. The sniff, dig, and raid screens work; the reveal modal is planned (Beta).
+description: racc-tui — an interactive terminal interface built on Ratatui. The sniff, dig, and raid screens work, plus an opt-in reveal modal (since 0.4.5).
 ---
 
 # TUI (terminal interface)
 
 ::: info
-The TUI is being built in Beta (0.5.x). As of **0.4.4** the **sniff**, **dig**, and **raid** screens work; the reveal modal is planned.
+The TUI is being built in Beta (0.5.x). As of **0.4.5** the **sniff**, **dig**, and **raid** screens work, plus an **opt-in reveal modal** for secret values.
 :::
 
 ## What it is
@@ -33,6 +33,14 @@ The TUI is being built in Beta (0.5.x). As of **0.4.4** the **sniff**, **dig**, 
 - `c` toggles content scanning (re-runs dig with/without content matched values); `r` re-digs; `Esc` returns to the Sniff screen.
 - Detailed strip under the table shows the selected finding's meta; selection: `j`/`k`, first/last `g`/`G`.
 
+## Reveal modal (available since 0.4.5)
+
+- With a finding selected in the **dig** screen (i.e. it was found in file contents, not by filename), press `v` to open an opt-in reveal.
+- A confirm step asks before anything is decrypted/read; `y` (or `Enter`) proceeds, `n`/`Esc` aborts.
+- The value is then loaded from the file in a background worker and shown **once** in the modal. It lives only in short-lived memory (`Zeroizing`), never in TUI app state, logs, or debug output, and is wiped when the modal closes (any key).
+- If the file changed since the dig (the value no longer matches), the modal reports an error instead of showing a stale value.
+- Filename-only findings (no content match) have no reveal — `v` is a no-op there.
+
 ## Raid flow (available since 0.4.4)
 
 - Press `R` on a selected project in the Sniff screen to open the raid wizard as a modal overlay.
@@ -46,7 +54,7 @@ The TUI is being built in Beta (0.5.x). As of **0.4.4** the **sniff**, **dig**, 
 
 - **raid confirmation** — done (since 0.4.4): wizard with phase-by-phase progress and honest result (see above).
 - **Dry-run** — built into the raid wizard: the preview never writes to the den.
-- **reveal modal** — safe opt-in reveal of a secret's masked/short value (planned, B1.5).
+- **reveal modal** — done (since 0.4.5): safe opt-in reveal, value shown once then zeroized (see above).
 
 ## How it will work
 

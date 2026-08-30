@@ -137,6 +137,7 @@ Repeated secrets:
 | `files[].risk` | Уровень риска: `Low` / `Medium` / `High` / `Critical` |
 | `files[].labels` | Метки: правило по имени и/или по содержимому |
 | `files[].content_match` | `{ masked, value_hash, original_len }` или `null` |
+| `files[].content_ref` | `null` или `{ path, marker_id, line, value_hash }` — стабильная ссылка на совпадение в содержимом (внутреннее использование интерфейсами; `path` и `marker_id` идентифицируют находку, `line` — 1-based, `value_hash` совпадает с `content_match.value_hash`). Никогда не содержит само значение. |
 | `files[].git_status` | Git-статус файла: `"tracked"` / `"untracked"` / `"ignored"` / `"modified"` / `"staged"` / `"deleted"` / `"unknown"` или `null` — см. [ниже](#git-status) |
 | `repeated` | Повторяющиеся значения (заполняется только с `--repeated`) |
 | `repeated[].value_hash` | blake3-хеш значения (никогда само значение) |
@@ -153,7 +154,7 @@ Repeated secrets:
 В human- и JSON-выводе `dig` никогда нет сырых секретов — только маскированное превью, blake3-хеш и длина.
 :::
 
-`content_match` равен `null`, когда сработало только имя файла (например, при `--no-content`).
+`content_match` равен `null`, когда сработало только имя файла (например, при `--no-content`). `content_ref` тоже `null` в этом случае — показать raw можно только через интерфейсы (TUI `v`), никогда через CLI.
 
 ### git_status
 

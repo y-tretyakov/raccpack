@@ -24,13 +24,13 @@
 
 ## Текущая позиция
 
-> **Detect v2 exit (0.4.0) done.** **Alpha exit: 0.3.0.** **B1.2 TUI sniff screen done (0.4.2).** **B1.2.5 detail strip done (no bump).** **B1.3 TUI dig screen done (0.4.3).** **B1.4 TUI raid + progress done (0.4.4).** **TUI visual polish (no bump): графит+оранж тема, shell (бренд ◈ RACCPACK + live-бейджи + версия в header), resize-смоук.**
+> **Detect v2 exit (0.4.0) done.** **Alpha exit: 0.3.0.** **B1.2 TUI sniff screen done (0.4.2).** **B1.2.5 detail strip done (no bump).** **B1.3 TUI dig screen done (0.4.3).** **B1.4 TUI raid + progress done (0.4.4).** **B1.5 TUI reveal modal done (0.4.5).** **TUI visual polish (no bump): графит+оранж тема, shell (бренд ◈ RACCPACK + live-бейджи + версия в header), resize-смоук.**
 
 | | |
 |--|--|
-| **Текущая версия workspace** | **`0.4.4`** |
-| Последний этап | **B1.4** — TUI raid (Atomic) + progress |
-| Следующий этап | **B1.5** — TUI reveal modal (Beta → `0.5.0`) |
+| **Текущая версия workspace** | **`0.4.5`** |
+| Последний этап | **B1.5** — TUI reveal modal (opt-in показ значения секрета, zeroize при закрытии) |
+| Следующий этап | Beta B2 — TUI polish / далее к `0.5.0` |
 | Detect v2 exit | **`0.4.0`** ✅ (batch raid CLI + wiki + E2E) |
 
 Б1.2.x polish (без bump версии): B1.2.1 chrome/nav, B1.2.2 clap launch, B1.2.3 design tokens, B1.2.4 sidebar-space token, B1.2.5 detail strip.
@@ -43,8 +43,8 @@
 0.4.1           Beta B1.1   TUI skeleton
 0.4.2           Beta B1.2   TUI sniff screen        ✅
 0.4.3           Beta B1.3   TUI dig screen          ✅
-0.4.4           Beta B1.4   TUI raid + progress     ← ВЫ ЗДЕСЬ
-0.4.5 …        Beta B1.5+
+0.4.4           Beta B1.4   TUI raid + progress
+0.4.5           Beta B1.5   TUI reveal modal        ← ВЫ ЗДЕСЬ
 0.5.0 …        Beta exit
 0.9.0 …        RC
 1.0.0          Stable
@@ -142,7 +142,7 @@
 | B1.2 | **0.4.2** | ✅ sniff screen |
 | B1.3 | **0.4.3** | ✅ dig screen |
 | B1.4 | **0.4.4** | ✅ raid + progress |
-| B1.5 | **0.4.5** | ⬜ reveal modal |
+| B1.5 | **0.4.5** | ✅ reveal modal |
 
 ### B2 — Desktop
 
@@ -220,7 +220,7 @@ version = "0.4.0"
 
 ```bash
 cargo run -p raccpack-cli -- --version
-# raccpack-cli 0.4.4   →  B1.4 (TUI raid + progress, Beta)
+# raccpack-cli 0.4.5   →  B1.5 (TUI reveal modal, Beta)
 ```
 
 | Версия | Значит «есть» |
@@ -248,7 +248,8 @@ cargo run -p raccpack-cli -- --version
 | ≥ 0.4.2 | TUI sniff screen (worker bridge + loading) |
 | ≥ 0.4.3 | TUI dig screen (findings table + detail strip) |
 | ≥ 0.4.4 | TUI raid flow (preview → passphrase → progress → result) |
-| ≥ 0.5.0 | TUI + Desktop + reveal |
+| ≥ 0.4.5 | TUI reveal modal (opt-in `v` → confirm → ephemeral value → zeroize) |
+| ≥ 0.5.0 | TUI + Desktop + reveal CLI |
 
 ---
 
@@ -268,7 +269,7 @@ cargo run -p raccpack-cli -- --version
 ## Сводка «сейчас»
 
 ```text
-Текущая версия:  0.4.4
-Этап:            B1.4 (TUI raid + progress) — CLOSED
-Следующий bump:  0.4.5 (B1.5 reveal modal)
+Текущая версия:  0.4.5
+Этап:            B1.5 (TUI reveal modal) — CLOSED
+Следующий bump:  0.4.6 (B2.1 Desktop Tauri skeleton)
 ```
