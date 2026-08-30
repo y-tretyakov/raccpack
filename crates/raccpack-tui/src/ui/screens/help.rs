@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
 
-use crate::ui::theme;
+use crate::theme;
 use crate::ui::widgets::centered_rect;
 
 struct HelpItem {
@@ -102,11 +102,11 @@ pub fn render(f: &mut Frame, area: Rect) {
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(theme::ACCENT))
+        .border_style(Style::default().fg(theme::BRAND_PRIMARY))
         .title(Span::styled(
             " Help ",
             Style::default()
-                .fg(theme::ACCENT)
+                .fg(theme::BRAND_PRIMARY)
                 .add_modifier(Modifier::BOLD),
         ));
 
@@ -114,13 +114,13 @@ pub fn render(f: &mut Frame, area: Rect) {
         Span::styled(
             "  Key",
             Style::default()
-                .fg(theme::ACCENT)
+                .fg(theme::BRAND_PRIMARY)
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
             "    Description",
             Style::default()
-                .fg(theme::ACCENT)
+                .fg(theme::BRAND_PRIMARY)
                 .add_modifier(Modifier::BOLD),
         ),
     ]);

@@ -5,5 +5,6 @@
 pub mod app;
 pub mod cli;
 pub mod event;
+pub mod theme;
 pub mod ui;
 pub mod worker;

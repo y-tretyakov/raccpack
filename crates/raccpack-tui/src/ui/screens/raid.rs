@@ -12,7 +12,7 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
 
 use crate::app::raid::{FlowPhase, PassphraseInput, RaidFlow};
-use crate::ui::theme;
+use crate::theme;
 use crate::ui::widgets::centered_rect;
 
 /// Render the raid flow modal centered over `area`.
@@ -41,10 +41,10 @@ pub fn render(f: &mut Frame, area: Rect, flow: &RaidFlow) {
 /// Title accent that maps the current phase to a status color.
 fn phase_banner(flow: &RaidFlow) -> (&'static str, Color) {
     match &flow.phase {
-        FlowPhase::Preparing => ("Raid — preparing", theme::ACCENT),
-        FlowPhase::Preview(_) => ("Raid — preview (dry run)", theme::ACCENT),
+        FlowPhase::Preparing => ("Raid — preparing", theme::FOCUS),
+        FlowPhase::Preview(_) => ("Raid — preview (dry run)", theme::FOCUS),
         FlowPhase::Passphrase(_) => ("Raid — passphrase", theme::WARNING),
-        FlowPhase::Running => ("Raid — running", theme::ACCENT),
+        FlowPhase::Running => ("Raid — running", theme::FOCUS),
         FlowPhase::Done(result) if result.success => ("Raid — success", theme::SUCCESS),
         FlowPhase::Done(result) if result.rolled_back => ("Raid — rolled back", theme::WARNING),
         FlowPhase::Done(_) => ("Raid — failed", theme::DANGER),
@@ -88,7 +88,7 @@ fn preview_lines(flow: &RaidFlow, _result: &RaidResult) -> Vec<Line<'static>> {
 
     vec![
         row("Project", &project, theme::FG),
-        row("Mode", mode_badge(flow.options.mode), theme::ACCENT),
+        row("Mode", mode_badge(flow.options.mode), theme::FOCUS),
         phases_row(flow),
         row("min-risk", "High", theme::FG),
         toggled("keep-sources", flow.options.keep_sources),
@@ -113,7 +113,7 @@ fn phases_row(flow: &RaidFlow) -> Line<'static> {
     for name in flow.planned_names().into_iter().filter(|p| *p != "move") {
         let skipped = name == "stash" && flow.options.skip_stash;
         let label = if skipped { "stash (skip)" } else { name };
-        let color = if skipped { theme::MUTED } else { theme::ACCENT };
+        let color = if skipped { theme::MUTED } else { theme::FOCUS };
         if !first {
             spans.push(Span::raw(" · "));
         }
@@ -167,7 +167,7 @@ fn passphrase_lines(input: &PassphraseInput) -> Vec<Line<'static>> {
         )),
         Line::from(vec![
             Span::styled("  ", Style::default().fg(theme::FG)),
-            Span::styled(dots, Style::default().fg(theme::ACCENT)),
+            Span::styled(dots, Style::default().fg(theme::FOCUS)),
         ]),
         Line::from(""),
         hint("  Enter confirm · Backspace delete · Esc cancel"),
@@ -238,7 +238,7 @@ fn done_lines(flow: &RaidFlow, result: &RaidResult) -> Vec<Line<'static>> {
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
             "  artifacts:",
-            Style::default().fg(theme::ACCENT),
+            Style::default().fg(theme::FOCUS),
         )));
         for artifact in result.den_artifacts.iter().take(5) {
             lines.push(Line::from(Span::styled(
@@ -282,7 +282,7 @@ fn progress_bar(overall: u8) -> Line<'static> {
     );
     Line::from(vec![
         Span::raw("  "),
-        Span::styled(bar, Style::default().fg(theme::ACCENT)),
+        Span::styled(bar, Style::default().fg(theme::FOCUS)),
     ])
 }
 
@@ -290,7 +290,7 @@ fn pipeline_row(name: &str, done: bool, current: bool) -> Line<'static> {
     let (glyph, color) = if done {
         ("✓", theme::SUCCESS)
     } else if current {
-        ("→", theme::ACCENT)
+        ("→", theme::FOCUS)
     } else {
         ("○", theme::MUTED)
     };
@@ -311,7 +311,7 @@ fn row(label: &str, value: &str, value_color: Color) -> Line<'static> {
 
 fn toggled(label: &str, on: bool) -> Line<'static> {
     let (value, color) = if on {
-        ("on", theme::ACCENT)
+        ("on", theme::FOCUS)
     } else {
         ("off", theme::MUTED)
     };

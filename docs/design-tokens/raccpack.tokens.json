@@ -3,30 +3,36 @@
   "$description": "raccpack design tokens — single source for TUI (Ratatui) and future Desktop (CSS/TS). DTCG-shaped. Primitive → semantic. Component tokens optional and minimal.",
   "color": {
     "primitive": {
-      "black-950": { "$value": "#0b0c0e", "$type": "color", "$description": "Near-black base" },
-      "gray-900": { "$value": "#1a1c20", "$type": "color", "$description": "Elevated surface" },
-      "gray-700": { "$value": "#3b4048", "$type": "color", "$description": "Selection / highlight wash" },
-      "gray-600": { "$value": "#3e4451", "$type": "color", "$description": "Borders and rules" },
-      "gray-500": { "$value": "#5c6370", "$type": "color", "$description": "Muted secondary text" },
-      "cream-100": { "$value": "#e8e6e1", "$type": "color", "$description": "Warm off-white foreground" },
-      "teal-400": { "$value": "#56b6c2", "$type": "color", "$description": "Brand / interactive accent" },
-      "teal-300": { "$value": "#7ec8d1", "$type": "color", "$description": "Optional softer accent (unfocused active)" },
-      "red-400": { "$value": "#e06c75", "$type": "color", "$description": "Danger / error" },
-      "amber-300": { "$value": "#e5c07b", "$type": "color", "$description": "Warning" },
-      "green-400": { "$value": "#98c379", "$type": "color", "$description": "Success / clean git" }
+      "bg": { "$value": "#080A0D", "$type": "color", "$description": "Deep graphite background" },
+      "surface": { "$value": "#0D1117", "$type": "color", "$description": "Base surface — panels, zebra rows" },
+      "surface-raised": { "$value": "#131820", "$type": "color", "$description": "Raised surface — selection wash, active rows" },
+      "border": { "$value": "#242B34", "$type": "color", "$description": "Borders and rules" },
+      "text": { "$value": "#E6EDF3", "$type": "color", "$description": "Primary text" },
+      "muted": { "$value": "#6B7785", "$type": "color", "$description": "Secondary text, hints, empty placeholders" },
+      "brand-primary": { "$value": "#FF8A3D", "$type": "color", "$description": "RaccPack brand — focus / primary action / identity" },
+      "brand-bright": { "$value": "#FFB454", "$type": "color", "$description": "Bright brand — hover / strong emphasis" },
+      "brand-dim": { "$value": "#A65329", "$type": "color", "$description": "Dim brand — quiet brand accents" },
+      "success": { "$value": "#7CCB5E", "$type": "color", "$description": "Healthy / clean / ok" },
+      "warning": { "$value": "#E6B450", "$type": "color", "$description": "Warning / attention" },
+      "danger": { "$value": "#F06C75", "$type": "color", "$description": "Error / destructive" },
+      "info": { "$value": "#61AFEF", "$type": "color", "$description": "Technology / information" },
+      "analysis": { "$value": "#C678DD", "$type": "color", "$description": "Detection / DAG / analysis" }
     },
     "semantic": {
-      "bg": { "$value": "{color.primitive.black-950}", "$type": "color", "$description": "App background" },
-      "fg": { "$value": "{color.primitive.cream-100}", "$type": "color", "$description": "Primary text" },
-      "muted": { "$value": "{color.primitive.gray-500}", "$type": "color", "$description": "Secondary text, hints, empty placeholders" },
-      "accent": { "$value": "{color.primitive.teal-400}", "$type": "color", "$description": "Brand accent — active nav, titles, strong selection bar" },
-      "accent-dim": { "$value": "{color.primitive.teal-300}", "$type": "color", "$description": "Softer accent when region is not focused" },
-      "danger": { "$value": "{color.primitive.red-400}", "$type": "color", "$description": "Errors, destructive" },
-      "warning": { "$value": "{color.primitive.amber-300}", "$type": "color", "$description": "Warnings, loading emphasis" },
-      "success": { "$value": "{color.primitive.green-400}", "$type": "color", "$description": "Success, git clean" },
-      "border": { "$value": "{color.primitive.gray-600}", "$type": "color", "$description": "Rules, panel edges" },
-      "surface": { "$value": "{color.primitive.gray-900}", "$type": "color", "$description": "Cards, subtle zebra, elevated panels" },
-      "selection": { "$value": "{color.primitive.gray-700}", "$type": "color", "$description": "Selected row / active sidebar wash" },
+      "bg": { "$value": "{color.primitive.bg}", "$type": "color", "$description": "App background" },
+      "surface": { "$value": "{color.primitive.surface}", "$type": "color", "$description": "Cards, subtle zebra, elevated panels" },
+      "surface-raised": { "$value": "{color.primitive.surface-raised}", "$type": "color", "$description": "Selected row / active sidebar wash" },
+      "border": { "$value": "{color.primitive.border}", "$type": "color", "$description": "Rules, panel edges" },
+      "text": { "$value": "{color.primitive.text}", "$type": "color", "$description": "Primary text" },
+      "muted": { "$value": "{color.primitive.muted}", "$type": "color", "$description": "Secondary text, hints, empty placeholders" },
+      "brand-primary": { "$value": "{color.primitive.brand-primary}", "$type": "color", "$description": "Brand accent — active nav, titles, focus, selection bar" },
+      "brand-bright": { "$value": "{color.primitive.brand-bright}", "$type": "color", "$description": "Hover / strong brand emphasis" },
+      "brand-dim": { "$value": "{color.primitive.brand-dim}", "$type": "color", "$description": "Quiet brand accents" },
+      "success": { "$value": "{color.primitive.success}", "$type": "color", "$description": "Success, git clean" },
+      "warning": { "$value": "{color.primitive.warning}", "$type": "color", "$description": "Warnings, loading emphasis" },
+      "danger": { "$value": "{color.primitive.danger}", "$type": "color", "$description": "Errors, destructive" },
+      "info": { "$value": "{color.primitive.info}", "$type": "color", "$description": "Technology / information" },
+      "analysis": { "$value": "{color.primitive.analysis}", "$type": "color", "$description": "Detection / DAG" },
       "git-clean": { "$value": "{color.semantic.success}", "$type": "color", "$description": "Git repo present" },
       "git-dirty-or-absent": { "$value": "{color.semantic.muted}", "$type": "color", "$description": "Not a git repo or neutral absent mark (prefer muted over danger for absent)" }
     }
@@ -58,26 +64,26 @@
   },
   "component": {
     "sidebar": {
-      "item-active-bg": { "$value": "{color.semantic.selection}", "$type": "color" },
-      "item-active-fg": { "$value": "{color.semantic.fg}", "$type": "color" },
-      "item-active-bar": { "$value": "{color.semantic.accent}", "$type": "color" },
+      "item-active-bg": { "$value": "{color.semantic.surface-raised}", "$type": "color" },
+      "item-active-fg": { "$value": "{color.semantic.text}", "$type": "color" },
+      "item-active-bar": { "$value": "{color.semantic.brand-primary}", "$type": "color" },
       "item-inactive-fg": { "$value": "{color.semantic.muted}", "$type": "color" },
       "width": { "$value": "{space.semantic.sidebar-width}", "$type": "dimension" }
     },
     "table": {
-      "row-selected-bg": { "$value": "{color.semantic.selection}", "$type": "color" },
-      "row-selected-bar": { "$value": "{color.semantic.accent}", "$type": "color" },
-      "row-selected-name-fg": { "$value": "{color.semantic.fg}", "$type": "color" },
+      "row-selected-bg": { "$value": "{color.semantic.surface-raised}", "$type": "color" },
+      "row-selected-bar": { "$value": "{color.semantic.brand-primary}", "$type": "color" },
+      "row-selected-name-fg": { "$value": "{color.semantic.text}", "$type": "color" },
       "empty-placeholder": { "$value": "{color.semantic.muted}", "$type": "color", "$description": "Use middle-dot glyph · not hyphen-minus for empty cells" },
-      "header-fg": { "$value": "{color.semantic.accent}", "$type": "color" }
+      "header-fg": { "$value": "{color.semantic.brand-primary}", "$type": "color" }
     },
     "detail": {
-      "title-fg": { "$value": "{color.semantic.accent}", "$type": "color" },
+      "title-fg": { "$value": "{color.semantic.brand-primary}", "$type": "color" },
       "path-fg": { "$value": "{color.semantic.muted}", "$type": "color" },
       "height": { "$value": "{space.semantic.detail-height}", "$type": "dimension" }
     },
     "header": {
-      "brand-fg": { "$value": "{color.semantic.accent}", "$type": "color" },
+      "brand-fg": { "$value": "{color.semantic.brand-primary}", "$type": "color" },
       "root-fg": { "$value": "{color.semantic.muted}", "$type": "color" },
       "hotkey-fg": { "$value": "{color.semantic.muted}", "$type": "color" }
     },
@@ -92,11 +98,11 @@
     }
   },
   "meta": {
-    "name": { "$value": "raccpack Nocturnal", "$type": "string" },
-    "version": { "$value": "0.1.0", "$type": "string", "$description": "Token pack version — independent of app semver" },
+    "name": { "$value": "raccpack Visual System 2.0", "$type": "string" },
+    "version": { "$value": "0.2.0", "$type": "string", "$description": "Token pack version — independent of app semver" },
     "platforms": { "$value": "tui, desktop", "$type": "string" },
     "mapping": {
-      "tui": { "$value": "crates/raccpack-tui/src/ui/theme.rs — semantic color.* → Color::Rgb; space.semantic.* → layout u16", "$type": "string" },
+      "tui": { "$value": "crates/raccpack-tui/src/theme/ — semantic color.* → Color::Rgb; space.semantic.* → layout u16", "$type": "string" },
       "desktop": { "$value": "Future: CSS variables --rp-color-accent etc. from same file via Style Directory or hand export", "$type": "string" }
     }
   }

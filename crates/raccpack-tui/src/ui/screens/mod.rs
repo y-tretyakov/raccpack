@@ -12,7 +12,7 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
 
 use crate::app::{App, ViewId};
-use crate::ui::theme;
+use crate::theme;
 
 /// Render the given screen into `area`.
 pub fn render_screen(f: &mut Frame, area: Rect, app: &mut App) {
@@ -22,7 +22,7 @@ pub fn render_screen(f: &mut Frame, area: Rect, app: &mut App) {
             area,
             "Overview",
             "No projects scanned yet.\nRun `racc sniff` to get started.",
-            theme::ACCENT,
+            theme::FOCUS,
         ),
         ViewId::Projects => crate::ui::screens::sniff::render(f, area, &mut app.sniff_state),
         ViewId::Findings => crate::ui::screens::dig::render(f, area, &mut app.dig_state),
@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn view_accent_colours_are_distinct() {
-        let accents = [theme::ACCENT, theme::SUCCESS, theme::WARNING, theme::DANGER];
+        let accents = [theme::FOCUS, theme::SUCCESS, theme::WARNING, theme::DANGER];
         let unique: Vec<_> = accents.iter().collect();
         assert_eq!(
             unique.len(),
@@ -107,7 +107,7 @@ mod tests {
         let (_, text, _) = (
             ViewId::Overview.label(),
             "Run `racc sniff` to get started.",
-            theme::ACCENT,
+            theme::FOCUS,
         );
         assert!(text.contains("sniff"));
     }
