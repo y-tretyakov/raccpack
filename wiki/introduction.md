@@ -57,7 +57,7 @@ The full catalog of supported markers, secrets, and deny rules is on the [Suppor
 
 **Coming soon (Beta 0.5.x):**
 
-- TUI — interactive terminal interface with sniff/dig/raid screens, progress, reveal modal (sniff screen since 0.4.2, dig screen since 0.4.3).
+- TUI — interactive terminal interface with sniff/dig/raid screens, progress, reveal modal (sniff screen since 0.4.2, dig since 0.4.3, raid since 0.4.4).
 - Desktop (Tauri + React) — desktop application.
 
 ## Key security principles
@@ -72,7 +72,7 @@ The full catalog of supported markers, secrets, and deny rules is on the [Suppor
 | Interface | Status | Description |
 |-----------|--------|-------------|
 | **CLI** (`racc`) | Available | Command line, suitable for scripts and CI |
-| **TUI** | Beta (sniff + dig screens) | Interactive terminal interface: project table, non-blocking sniff/dig, masked findings, navigation |
+| **TUI** | Beta (sniff + dig + raid) | Interactive terminal interface: project table, non-blocking sniff/dig/raid, masked findings, raid wizard, navigation |
 | **Desktop** | Planned | Desktop application on Tauri + React |
 
 ::: info

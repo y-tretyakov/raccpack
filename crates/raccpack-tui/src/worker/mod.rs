@@ -1,16 +1,28 @@
 //! Worker thread for running core operations asynchronously.
+//!
+//! Submodules: [`self::raid`] hosts the raid preview / commit runs.
+
+pub mod raid;
 
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread;
 
 use raccpack_core::app::{
-    AppContext, DigOptions, DigResult, ProgressEvent, ProgressSink, RunMode, SniffOptions,
-    SniffResult,
+    AppContext, DigOptions, DigResult, OperationKind, ProgressEvent, ProgressSink, RunMode,
+    SniffOptions, SniffResult,
 };
 use raccpack_core::config::RaccConfig;
 use raccpack_core::detect::DetectMode;
 use raccpack_core::domain::Error;
+
+use self::raid::{run_raid_commit, run_raid_preview};
+
+pub use self::raid::{RaidWorkerOpts, WorkerPassphrase};
+
+/// Placeholder identity used where the stash phase is skipped or the run is a
+/// dry run; the passphrase itself is never used and never logged.
+pub(crate) const DRY_RUN_PASSPHRASE: &str = "unused-dry-run-passphrase";
 
 /// Events sent from the worker thread to the UI thread.
 #[derive(Debug)]
@@ -21,6 +33,10 @@ pub enum WorkerEvent {
     SniffDone(Result<SniffResult, Error>),
     /// Dig completed with result (never carries raw secrets).
     DigDone(Result<DigResult, Error>),
+    /// Raid preview completed (dry run, nothing written).
+    RaidPreviewDone(Result<raccpack_core::app::RaidResult, Error>),
+    /// Raid commit completed.
+    RaidDone(Result<raccpack_core::app::RaidResult, Error>),
     /// Operation cancelled.
     Cancelled,
 }
@@ -41,6 +57,19 @@ pub enum WorkerMsg {
         project: PathBuf,
         den_dir: PathBuf,
         scan_content: bool,
+    },
+    /// Run a dry-run raid preview for a project (writes nothing to the den).
+    RaidPreview {
+        project: PathBuf,
+        den_dir: PathBuf,
+        opts: RaidWorkerOpts,
+    },
+    /// Run a raid commit for a project.
+    RaidRun {
+        project: PathBuf,
+        den_dir: PathBuf,
+        opts: RaidWorkerOpts,
+        passphrase: WorkerPassphrase,
     },
     /// Cancel current operation.
     Cancel,
@@ -87,6 +116,21 @@ pub fn spawn_worker() -> (mpsc::Sender<WorkerMsg>, mpsc::Receiver<WorkerEvent>) 
                     };
                     run_dig(config, opts, event_tx.clone());
                 }
+                WorkerMsg::RaidPreview {
+                    project,
+                    den_dir,
+                    opts,
+                } => {
+                    run_raid_preview(project, den_dir, opts, event_tx.clone());
+                }
+                WorkerMsg::RaidRun {
+                    project,
+                    den_dir,
+                    opts,
+                    passphrase,
+                } => {
+                    run_raid_commit(project, den_dir, opts, passphrase, event_tx.clone());
+                }
                 WorkerMsg::Cancel => {
                     let _ = event_tx.send(WorkerEvent::Cancelled);
                 }
@@ -97,7 +141,14 @@ pub fn spawn_worker() -> (mpsc::Sender<WorkerMsg>, mpsc::Receiver<WorkerEvent>) 
     (worker_tx, event_rx)
 }
 
-/// Build a minimal config quick enough for the worker's own tests.
+/// Build a minimal config for the given paths.
+fn build_config(scan_root: PathBuf, den_dir: PathBuf) -> RaccConfig {
+    let mut config = RaccConfig::default();
+    config.paths.scan_root = Some(scan_root.to_string_lossy().to_string());
+    config.paths.den_dir = Some(den_dir.to_string_lossy().to_string());
+    config
+}
+
 fn run_sniff(config: RaccConfig, opts: SniffOptions, event_tx: mpsc::Sender<WorkerEvent>) {
     let ctx = match AppContext::from_config(config, RunMode::DryRun) {
         Ok(ctx) => ctx,
@@ -124,14 +175,6 @@ fn run_dig(config: RaccConfig, opts: DigOptions, event_tx: mpsc::Sender<WorkerEv
     let _ = event_tx.send(WorkerEvent::DigDone(result));
 }
 
-/// Build a minimal config for the given paths.
-fn build_config(scan_root: PathBuf, den_dir: PathBuf) -> RaccConfig {
-    let mut config = RaccConfig::default();
-    config.paths.scan_root = Some(scan_root.to_string_lossy().to_string());
-    config.paths.den_dir = Some(den_dir.to_string_lossy().to_string());
-    config
-}
-
 /// Progress sink that forwards events to the UI via a channel.
 pub struct TuiProgressSink {
     tx: mpsc::Sender<WorkerEvent>,
@@ -149,76 +192,26 @@ impl ProgressSink for TuiProgressSink {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::time::Duration;
+/// Progress sink that forwards only `OperationKind::Raid` events to the UI,
+/// wrapping the shared [`TuiProgressSink`]. Sub-facades (stash/rinse/pack)
+/// emit their own operation kinds; the raid screen listens to raid events only.
+pub struct RaidProgressSink {
+    inner: TuiProgressSink,
+}
 
-    #[test]
-    fn worker_can_spawn_and_receive_cancel() {
-        let (worker_tx, event_rx) = spawn_worker();
-
-        worker_tx.send(WorkerMsg::Cancel).unwrap();
-
-        // Should receive Cancelled event
-        let event = event_rx.recv_timeout(Duration::from_millis(500)).unwrap();
-        assert!(matches!(event, WorkerEvent::Cancelled));
-    }
-
-    #[test]
-    fn worker_can_spawn_and_receive_sniff_done() {
-        let (worker_tx, event_rx) = spawn_worker();
-        let scan_root = std::path::PathBuf::from("/tmp/nonexistent");
-        let den_dir = std::path::PathBuf::from("/tmp/den");
-
-        // This will fail because scan_root doesn't exist, but we should get a SniffDone event with error
-        worker_tx
-            .send(WorkerMsg::Sniff {
-                scan_root,
-                den_dir,
-                force_refresh: true,
-                detect_mode: None,
-                max_depth: None,
-            })
-            .unwrap();
-
-        // Should receive SniffDone event (with error)
-        let event = event_rx.recv_timeout(Duration::from_secs(2)).unwrap();
-        assert!(matches!(event, WorkerEvent::SniffDone(_)));
-    }
-
-    #[test]
-    fn worker_can_dig_a_project_and_report_findings() {
-        let tmp =
-            std::env::temp_dir().join(format!("raccpack-tui-dig-test-{}", std::process::id()));
-        std::fs::create_dir_all(&tmp).unwrap();
-        std::fs::write(tmp.join(".env"), "DATABASE_URL=postgres://localhost/app").unwrap();
-
-        let (worker_tx, event_rx) = spawn_worker();
-        let den_dir = std::path::PathBuf::from("/tmp/den");
-        worker_tx
-            .send(WorkerMsg::Dig {
-                project: tmp.clone(),
-                den_dir,
-                scan_content: true,
-            })
-            .unwrap();
-
-        // Digest progress events until DigDone arrives.
-        let mut done = None;
-        for _ in 0..20 {
-            let event = event_rx.recv_timeout(Duration::from_millis(500)).unwrap();
-            if let WorkerEvent::DigDone(result) = event {
-                done = Some(result);
-                break;
-            }
-        }
-        std::fs::remove_dir_all(&tmp).unwrap();
-
-        let result = done.expect("DigDone must arrive").expect("dig run ok");
-        assert!(
-            result.files.iter().any(|f| f.path.ends_with(".env")),
-            "the .env fixture must be reported"
-        );
+impl RaidProgressSink {
+    pub fn new(inner: TuiProgressSink) -> Self {
+        Self { inner }
     }
 }
+
+impl ProgressSink for RaidProgressSink {
+    fn emit(&mut self, event: ProgressEvent) {
+        if event.operation == OperationKind::Raid {
+            self.inner.emit(event);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests;

@@ -1565,7 +1565,7 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
 name = "raccpack-cli"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -1583,7 +1583,7 @@ dependencies = [
 
 [[package]]
 name = "raccpack-core"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "age",
  "blake3",
@@ -1603,7 +1603,7 @@ dependencies = [
 
 [[package]]
 name = "raccpack-tui"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "clap",
  "crossterm",
@@ -1613,6 +1613,7 @@ dependencies = [
  "ratatui",
  "tempfile",
  "thiserror 1.0.69",
+ "zeroize",
 ]
 
 [[package]]

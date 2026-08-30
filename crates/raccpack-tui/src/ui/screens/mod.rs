@@ -2,6 +2,7 @@
 
 pub mod dig;
 pub mod help;
+pub mod raid;
 pub mod sniff;
 
 use ratatui::layout::{Alignment, Rect};

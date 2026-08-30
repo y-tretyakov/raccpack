@@ -9,6 +9,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 use ratatui::Terminal;
 
+use crate::app::raid::FlowPhase;
 use crate::app::{App, Focus, ViewId, ALL_VIEWS};
 use crate::ui::screens;
 use crate::ui::theme;
@@ -36,6 +37,9 @@ pub fn render(
 
         if app.help_visible {
             screens::help::render(f, area);
+        }
+        if let Some(flow) = &app.raid_flow {
+            screens::raid::render(f, area, flow);
         }
     })?;
     Ok(())
@@ -177,6 +181,9 @@ fn render_footer(f: &mut ratatui::Frame, area: Rect, app: &App) {
 
 /// Current-screen status line shown in the footer.
 fn footer_status(app: &App) -> String {
+    if let Some(flow) = &app.raid_flow {
+        return raid_footer(flow);
+    }
     if app.current_view == ViewId::Findings {
         return dig_footer(app);
     }
@@ -201,6 +208,28 @@ fn footer_status(app: &App) -> String {
             ""
         };
         format!("Last refresh: {timestamp}{cache}")
+    }
+}
+
+/// Footer status while a raid flow is open.
+fn raid_footer(flow: &crate::app::raid::RaidFlow) -> String {
+    match &flow.phase {
+        FlowPhase::Preparing => "Raid: preparing… (y confirm · n/Esc cancel)".to_string(),
+        FlowPhase::Preview(_) => {
+            "Raid: preview — dry run (y/Enter commit · n/Esc cancel)".to_string()
+        }
+        FlowPhase::Passphrase(_) => {
+            "Raid: entering passphrase — Enter confirm · Esc cancel".to_string()
+        }
+        FlowPhase::Running => {
+            format!(
+                "Raid: running… {}% — Esc does not cancel",
+                flow.overall_percent
+            )
+        }
+        FlowPhase::Done(result) if result.success => "Raid: success — Enter/Esc close".to_string(),
+        FlowPhase::Done(_) => "Raid: finished (see modal) — Enter/Esc close".to_string(),
+        FlowPhase::Failed(_) => "Raid: failed — Enter/Esc close".to_string(),
     }
 }
 

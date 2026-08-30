@@ -107,6 +107,12 @@ pub enum Command {
     CycleRiskFilter,
     /// Return from the Findings screen to the Projects screen.
     BackToProjects,
+    /// Open the raid flow (preview) for the selected project.
+    RaidPreview,
+    /// Confirm the raid preview / run; the passphrase is resolved in event.rs.
+    RaidRun,
+    /// Cancel the raid flow (n / Esc while previewing or entering the passphrase).
+    RaidCancel,
 }
 
 /// Top-level application state.
@@ -124,6 +130,8 @@ pub struct App {
     pub den_dir: PathBuf,
     /// Whether to run a sniff refresh automatically once the loop starts.
     pub refresh_on_start: bool,
+    /// Active raid modal flow, if any.
+    pub raid_flow: Option<raid::RaidFlow>,
 }
 
 impl Default for App {
@@ -145,13 +153,25 @@ impl App {
             dig_state: dig::DigScreenState::default(),
             den_dir: PathBuf::new(),
             refresh_on_start: false,
+            raid_flow: None,
         }
     }
 
     /// Process a terminal key event and return the resulting command.
     pub fn handle_key(&mut self, key: KeyEvent) -> Command {
+        // A raid modal takes precedence over the help overlay: once a flow is
+        // active the help cannot be shown on top of it and `Esc`/`?` dismiss
+        // only what the flow itself allows.
+        if self.raid_flow.is_some() {
+            self.help_visible = false;
+        }
+
         if self.help_visible {
             return self.handle_key_help(key);
+        }
+
+        if let Some(cmd) = self.handle_key_raid_flow(key) {
+            return cmd;
         }
 
         if let Some(cmd) = self.handle_key_content(key) {
@@ -161,6 +181,32 @@ impl App {
         match self.focus {
             Focus::Sidebar => self.handle_key_sidebar(key),
             Focus::Main => self.handle_key_main(key),
+        }
+    }
+
+    /// Keys while the raid modal is open: everything the flow does not consume
+    /// is swallowed, so no key reaches the underlying screens. Returns `None`
+    /// when no flow is active (keys fall through normally).
+    fn handle_key_raid_flow(&mut self, key: KeyEvent) -> Option<Command> {
+        let raid_cmd = self.raid_flow.as_mut()?.handle_key(key.code);
+        match raid_cmd {
+            None => Some(Command::None),
+            Some(raid::RaidCommand::PreviewConfirm) | Some(raid::RaidCommand::Run) => {
+                Some(Command::RaidRun)
+            }
+            Some(raid::RaidCommand::PreviewCancel) | Some(raid::RaidCommand::PassphraseCancel) => {
+                Some(Command::RaidCancel)
+            }
+            Some(raid::RaidCommand::PassphraseConfirm(passphrase)) => {
+                if let Some(flow) = self.raid_flow.as_mut() {
+                    flow.store_confirmed(passphrase);
+                }
+                Some(Command::RaidRun)
+            }
+            Some(raid::RaidCommand::Close) => {
+                self.raid_flow = None;
+                Some(Command::None)
+            }
         }
     }
 
@@ -182,6 +228,14 @@ impl App {
             return match key.code {
                 KeyCode::Char('r') => Some(Command::SniffRefresh),
                 KeyCode::Char('o') => Some(Command::ChangeScanRoot),
+                // Uppercase `R` opens the raid flow for the selected row.
+                KeyCode::Char('R') => {
+                    if self.sniff_state.selected_project().is_some() {
+                        Some(Command::RaidPreview)
+                    } else {
+                        Some(Command::None)
+                    }
+                }
                 // Events go to the project that is selected in the table.
                 KeyCode::Enter if self.focus == Focus::Main => {
                     if self.sniff_state.selected_project().is_some() {
@@ -348,6 +402,7 @@ impl App {
 }
 
 pub mod dig;
+pub mod raid;
 
 pub mod sniff {
     use ratatui::widgets::TableState;
@@ -964,6 +1019,175 @@ mod tests {
         assert_eq!(
             app.dig_state.selected_finding().unwrap().path,
             std::path::PathBuf::from("/a")
+        );
+    }
+
+    fn preview_result() -> raccpack_core::app::RaidResult {
+        raccpack_core::app::RaidResult {
+            project_path: std::path::PathBuf::from("/tmp/a"),
+            stages: Vec::new(),
+            stash: None,
+            rinse: None,
+            pack: None,
+            den_artifacts: Vec::new(),
+            success: true,
+            dry_run: true,
+            rolled_back: false,
+            rollback_warnings: Vec::new(),
+        }
+    }
+
+    fn raid_flow_in(phase: raid::FlowPhase) -> raid::RaidFlow {
+        let mut flow = raid::RaidFlow::new(
+            std::path::PathBuf::from("/tmp/a"),
+            std::path::PathBuf::from("/tmp/den"),
+            raid::RaidFlowOptions::default(),
+        );
+        flow.phase = phase;
+        flow
+    }
+
+    #[test]
+    fn r_uppercase_on_projects_with_selection_opens_raid_flow() {
+        let mut app = App::new();
+        app.current_view = ViewId::Projects;
+        app.sniff_state.projects = vec![project_row("a", "/tmp/a")];
+        app.sniff_state.table_state.select(Some(0));
+
+        assert_eq!(
+            app.handle_key(key(KeyCode::Char('R'))),
+            Command::RaidPreview
+        );
+        assert_eq!(app.current_view, ViewId::Projects);
+    }
+
+    #[test]
+    fn r_uppercase_on_projects_without_selection_is_noop() {
+        let mut app = App::new();
+        app.current_view = ViewId::Projects;
+        assert_eq!(app.handle_key(key(KeyCode::Char('R'))), Command::None);
+    }
+
+    #[test]
+    fn r_uppercase_ignored_in_other_views() {
+        let mut app = App::new();
+        app.current_view = ViewId::Findings;
+        assert_eq!(app.handle_key(key(KeyCode::Char('R'))), Command::None);
+        app.current_view = ViewId::Overview;
+        assert_eq!(app.handle_key(key(KeyCode::Char('R'))), Command::None);
+    }
+
+    #[test]
+    fn lowercase_r_stays_sniff_refresh_on_projects() {
+        let mut app = App::new();
+        app.current_view = ViewId::Projects;
+        assert_eq!(
+            app.handle_key(key(KeyCode::Char('r'))),
+            Command::SniffRefresh
+        );
+    }
+
+    #[test]
+    fn raid_flow_blocks_every_key_when_open() {
+        let mut app = App::new();
+        app.current_view = ViewId::Projects;
+        app.raid_flow = Some(raid_flow_in(raid::FlowPhase::Preparing));
+
+        for code in [
+            KeyCode::Char('2'),
+            KeyCode::Char('j'),
+            KeyCode::Tab,
+            KeyCode::Char('q'),
+        ] {
+            assert_eq!(
+                app.handle_key(key(code)),
+                Command::None,
+                "{code:?} must be swallowed by the active flow"
+            );
+        }
+        assert_eq!(app.current_view, ViewId::Projects, "view must not change");
+        assert!(app.running, "q must not quit while the flow is open");
+    }
+
+    #[test]
+    fn raid_flow_y_confirm_returns_raid_run() {
+        let mut app = App::new();
+        app.raid_flow = Some(raid_flow_in(raid::FlowPhase::Preview(preview_result())));
+
+        assert_eq!(app.handle_key(key(KeyCode::Char('y'))), Command::RaidRun);
+        assert!(
+            app.raid_flow.is_some(),
+            "flow stays open until the run ends"
+        );
+    }
+
+    #[test]
+    fn raid_flow_toggles_update_options_not_commands() {
+        let mut app = App::new();
+        app.raid_flow = Some(raid_flow_in(raid::FlowPhase::Preview(preview_result())));
+
+        assert_eq!(app.handle_key(key(KeyCode::Char('K'))), Command::None);
+        assert_eq!(app.handle_key(key(KeyCode::Char('S'))), Command::None);
+        assert_eq!(app.handle_key(key(KeyCode::Char('m'))), Command::None);
+        let opts = app.raid_flow.as_ref().unwrap().options;
+        assert!(opts.keep_sources);
+        assert!(opts.skip_stash);
+        assert_eq!(opts.mode, raccpack_core::app::OrchestrationMode::FailFast);
+    }
+
+    #[test]
+    fn raid_flow_passphrase_confirm_stores_on_flow() {
+        let mut app = App::new();
+        app.raid_flow = Some(raid_flow_in(
+            raid::FlowPhase::Passphrase(Default::default()),
+        ));
+
+        for c in "s3cret".chars() {
+            assert_eq!(app.handle_key(key(KeyCode::Char(c))), Command::None);
+        }
+        assert_eq!(app.handle_key(key(KeyCode::Enter)), Command::None);
+        for c in "s3cret".chars() {
+            assert_eq!(app.handle_key(key(KeyCode::Char(c))), Command::None);
+        }
+        assert_eq!(app.handle_key(key(KeyCode::Enter)), Command::RaidRun);
+        assert_eq!(
+            app.raid_flow
+                .as_mut()
+                .unwrap()
+                .take_passphrase()
+                .map(|p| p.to_string()),
+            Some("s3cret".to_string())
+        );
+    }
+
+    #[test]
+    fn esc_on_preview_cancels_flow_via_command() {
+        let mut app = App::new();
+        app.raid_flow = Some(raid_flow_in(raid::FlowPhase::Preview(preview_result())));
+        assert_eq!(app.handle_key(key(KeyCode::Esc)), Command::RaidCancel);
+    }
+
+    #[test]
+    fn esc_on_done_closes_flow_in_app() {
+        let mut app = App::new();
+        app.raid_flow = Some(raid_flow_in(raid::FlowPhase::Done(preview_result())));
+        assert_eq!(app.handle_key(key(KeyCode::Esc)), Command::None);
+        assert!(app.raid_flow.is_none(), "Done/Esc closes the flow");
+    }
+
+    #[test]
+    fn app_debug_redacts_typed_passphrase() {
+        let mut app = App::new();
+        app.raid_flow = Some(raid_flow_in(
+            raid::FlowPhase::Passphrase(Default::default()),
+        ));
+        for c in "hunter2-hunter2-ultra-secret".chars() {
+            app.handle_key(key(KeyCode::Char(c)));
+        }
+        let debug = format!("{app:?}");
+        assert!(
+            !debug.contains("hunter2-hunter2"),
+            "App Debug must not leak the typed passphrase: {debug}"
         );
     }
 }

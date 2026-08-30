@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.85-orange?style=flat-square&logo=rust" alt="Rust"/></a>
   <a href="https://doc.rust-lang.org/cargo/"><img src="https://img.shields.io/badge/Cargo-workspace-blue?style=flat-square&logo=cargo" alt="Cargo"/></a>
-  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.4.3-blue?style=flat-square" alt="version"/></a>
+  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.4.4-blue?style=flat-square" alt="version"/></a>
   <a href="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml"><img src="https://img.shields.io/badge/CI-wiki-success?style=flat-square" alt="CI"/></a>
   <a href="https://github.com/y-tretyakov/raccpack/releases"><img src="https://img.shields.io/badge/OS-Linux-success?style=flat-square" alt="Linux"/></a>
   <a href="https://clap.rs"><img src="https://img.shields.io/badge/CLI-clap-ee4b2b?style=flat-square" alt="CLI"/></a>
@@ -25,7 +25,7 @@ CLI-инструмент для сканирования директорий с
 
 ## Статус
 
-**Версия `0.4.3`** — MVP `0.1.0` закрыт; **Alpha `0.3.0` закрыта** (stash / rinse / raid / git+DX). **Detect v2 `0.4.0` закрыт** (DAG-детекторы, очистка по экосистеме, пакетный raid `racc raid --root`, wiki + E2E). **Beta B1.3: TUI-экран dig готов** (Findings — маскированные детали, фильтр риска, переключение content-скана; неблокирующий worker). Следующий: Beta `0.5.0` (TUI + Desktop).
+**Версия `0.4.4`** — MVP `0.1.0` закрыт; **Alpha `0.3.0` закрыта** (stash / rinse / raid / git+DX). **Detect v2 `0.4.0` закрыт** (DAG-детекторы, очистка по экосистеме, пакетный raid `racc raid --root`, wiki + E2E). **Beta B1.4: TUI-raid готов** (dry-run preview → passphrase-модалка → пайплайн фаз → честный результат; Atomic по умолчанию). Следующий: Beta `0.5.0` (TUI + Desktop).
 
 | Команда | Статус | Роль |
 |---------|--------|------|
@@ -36,7 +36,7 @@ CLI-инструмент для сканирования директорий с
 | **rinse** | Доступна (Alpha) | Очистка артефактов сборки по стратегиям (`rust`/`node`/`python` по умолчанию), DryRun / `--yes` |
 | **raid** | Доступна (Alpha) | Оркестрация stash → rinse → pack → move; атомарность по умолчанию (staging + WAL + rollback), manifest JSON, `--fail-fast`, `--root` для пакетного режима |
 | **init** | Доступна (Alpha) | Создание конфигурации по умолчанию (`config_version = 1`), опциональный скелет den (`--ensure-den`), `--force` |
-| **TUI** | Beta (экраны sniff + dig) | Ratatui-таблица проектов, неблокирующий worker sniff/dig, Findings с маскированными деталями, фильтр риска `f`, content-переключение `c`, навигация j/k (с 0.4.2, dig с 0.4.3) |
+| **TUI** | Beta (экраны sniff + dig + raid) | Ratatui-таблица проектов, неблокирующий worker sniff/dig/raid, Findings с маскированными деталями, фильтр риска `f`, content-переключение `c`, raid-flow `R` (preview → passphrase → прогресс фаз → результат) (с 0.4.2, dig с 0.4.3, raid с 0.4.4) |
 | **Desktop** | Планируется (Beta) | Tauri + React |
 
 Подробности и флаги: [wiki / CLI](https://y-tretyakov.github.io/raccpack/ru/cli-usage.html).
