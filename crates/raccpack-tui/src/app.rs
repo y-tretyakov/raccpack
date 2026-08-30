@@ -244,6 +244,11 @@ impl App {
                         Some(Command::None)
                     }
                 }
+                // `v` cycles the Projects rendering mode: Cards → Table → Tree.
+                KeyCode::Char('v') => {
+                    self.sniff_state.mode = self.sniff_state.mode.next();
+                    Some(Command::None)
+                }
                 // Sidebar Enter still means "move focus to main", not dig.
                 KeyCode::Enter => None,
                 _ => None,
@@ -410,6 +415,36 @@ pub mod sniff {
 
     use raccpack_core::app::ProgressEvent;
 
+    /// Rendering mode for the Projects screen. Cards is the default; Table is
+    /// the historical demoted view; Tree is a stub until V2-T1 lands.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+    pub enum ProjectsMode {
+        #[default]
+        Cards,
+        Table,
+        Tree,
+    }
+
+    impl ProjectsMode {
+        /// Next mode in the `v` cycle: Cards → Table → Tree → Cards.
+        pub fn next(self) -> Self {
+            match self {
+                Self::Cards => Self::Table,
+                Self::Table => Self::Tree,
+                Self::Tree => Self::Cards,
+            }
+        }
+
+        /// Lowercase label for titles / reports.
+        pub fn label(self) -> &'static str {
+            match self {
+                Self::Cards => "cards",
+                Self::Table => "table",
+                Self::Tree => "tree",
+            }
+        }
+    }
+
     /// A single row in the sniff project table.
     #[derive(Debug, Clone)]
     pub struct ProjectRow {
@@ -433,6 +468,8 @@ pub mod sniff {
         pub from_cache: bool,
         pub table_state: TableState,
         pub progress: Option<ProgressEvent>,
+        /// Active rendering mode (Cards default; toggled with `v`).
+        pub mode: ProjectsMode,
     }
 
     impl SniffScreenState {
@@ -1085,6 +1122,38 @@ mod tests {
             app.handle_key(key(KeyCode::Char('r'))),
             Command::SniffRefresh
         );
+    }
+
+    #[test]
+    fn v_cycles_projects_mode_in_projects_view() {
+        use crate::app::sniff::ProjectsMode;
+
+        let mut app = App::new();
+        app.current_view = ViewId::Overview;
+        // v outside Projects is inert.
+        app.handle_key(key(KeyCode::Char('v')));
+        assert_eq!(app.sniff_state.mode, ProjectsMode::Cards);
+
+        app.current_view = ViewId::Projects;
+        assert_eq!(
+            app.sniff_state.mode,
+            ProjectsMode::Cards,
+            "Cards is default"
+        );
+        app.handle_key(key(KeyCode::Char('v')));
+        assert_eq!(app.sniff_state.mode, ProjectsMode::Table);
+        app.handle_key(key(KeyCode::Char('v')));
+        assert_eq!(app.sniff_state.mode, ProjectsMode::Tree);
+        app.handle_key(key(KeyCode::Char('v')));
+        assert_eq!(app.sniff_state.mode, ProjectsMode::Cards);
+    }
+
+    #[test]
+    fn projects_mode_next_cycles_back_to_cards() {
+        use crate::app::sniff::ProjectsMode;
+        assert_eq!(ProjectsMode::Cards.next(), ProjectsMode::Table);
+        assert_eq!(ProjectsMode::Table.next(), ProjectsMode::Tree);
+        assert_eq!(ProjectsMode::Tree.next(), ProjectsMode::Cards);
     }
 
     #[test]

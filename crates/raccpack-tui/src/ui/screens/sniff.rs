@@ -6,14 +6,16 @@ use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, Cell, Row, Table};
 use ratatui::Frame;
 
+use crate::app::sniff::ProjectsMode;
 use crate::app::sniff::SniffScreenState;
 use crate::theme;
+use crate::ui::screens::{projects_cards, projects_tree};
 use crate::ui::widgets::detail::{render as render_detail, DetailLine};
 use crate::ui::widgets::format_bytes;
 
-/// Render the sniff screen. The table owns the top area; the detail strip
-/// (selected project metadata) sits below it. The chrome lives in the global
-/// header/footer.
+/// Render the sniff screen. The project area (Cards/Table/Tree) owns the top;
+/// the detail strip (selected project metadata) sits below it. The chrome
+/// lives in the global header/footer.
 pub fn render(f: &mut Frame, area: Rect, state: &mut SniffScreenState) {
     if state.is_loading {
         render_loading(f, area, state);
@@ -29,7 +31,12 @@ pub fn render(f: &mut Frame, area: Rect, state: &mut SniffScreenState) {
                 Constraint::Length(theme::SPACE_DETAIL_HEIGHT),
             ])
             .split(area);
-        render_table(f, chunks[0], state);
+        let mode = state.mode;
+        match mode {
+            ProjectsMode::Cards => projects_cards::render(f, chunks[0], state),
+            ProjectsMode::Table => render_table(f, chunks[0], state),
+            ProjectsMode::Tree => projects_tree::render(f, chunks[0]),
+        }
         render_project_detail(f, chunks[1], state);
     }
 }

@@ -3,6 +3,8 @@
 pub mod dig;
 pub mod help;
 pub mod overview;
+pub mod projects_cards;
+pub mod projects_tree;
 pub mod raid;
 pub mod sniff;
 
