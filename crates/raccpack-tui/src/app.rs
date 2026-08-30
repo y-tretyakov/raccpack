@@ -410,6 +410,7 @@ impl App {
 }
 
 pub mod activity;
+pub mod activity_feed;
 pub mod dig;
 pub mod raid;
 
