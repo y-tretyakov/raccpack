@@ -10,9 +10,10 @@ use ratatui::widgets::Paragraph;
 use ratatui::Terminal;
 
 use crate::app::raid::FlowPhase;
-use crate::app::{App, Focus, ViewId, ALL_VIEWS};
+use crate::app::{App, ViewId};
 use crate::theme;
 use crate::ui::screens;
+use crate::ui::widgets::sidebar;
 
 /// Render one complete frame.
 pub fn render(
@@ -59,6 +60,11 @@ fn render_header(f: &mut ratatui::Frame, area: Rect, app: &App) {
     let root_text = if root.is_empty() { "-" } else { &root };
     let root_span = Span::styled(root_text, Style::default().fg(theme::MUTED));
 
+    let version = Span::styled(
+        format!("v{}", env!("CARGO_PKG_VERSION")),
+        Style::default().fg(theme::MUTED),
+    );
+
     let hotkeys = Span::styled(
         "Tab views · hjkl move · ? help · q quit",
         Style::default().fg(theme::MUTED),
@@ -72,12 +78,16 @@ fn render_header(f: &mut ratatui::Frame, area: Rect, app: &App) {
         root_span.clone(),
         sep.clone(),
         space.clone(),
+        version.clone(),
+        sep.clone(),
+        space.clone(),
         hotkeys,
     ]);
+    let narrow = Line::from(vec![title, sep, space, root_span]);
     let line = if full.width() <= usize::from(area.width) {
         full
     } else {
-        Line::from(vec![title, sep, space, root_span])
+        narrow
     };
 
     f.render_widget(
@@ -94,55 +104,32 @@ fn render_body(f: &mut ratatui::Frame, area: Rect, app: &mut App) {
         .constraints([Constraint::Length(sidebar_width), Constraint::Min(0)])
         .split(area);
 
-    render_sidebar(f, chunks[0], app);
-    screens::render_screen(f, chunks[1], app);
+    sidebar::render(f, chunks[0], app);
+
+    // Main region reserves an optional right-hand activity slot for V2-E. With
+    // no content yet (`activity_width == 0`) the split degrades to the full
+    // main area, so an 80×24 terminal and the sniff table are unaffected.
+    let (content, activity) = main_split(chunks[1]);
+    screens::render_screen(f, content, app);
+    if let Some(activity_area) = activity {
+        // V2-E will draw the activity panel here once it has content to show.
+        let _ = activity_area;
+    }
 }
 
-fn render_sidebar(f: &mut ratatui::Frame, area: Rect, app: &App) {
-    let sidebar_focused = app.focus == Focus::Sidebar;
-
-    let mut lines = vec![Line::raw("")];
-    for view in ALL_VIEWS {
-        let active = app.current_view == view;
-        let item_style = if active && sidebar_focused {
-            Style::default()
-                .fg(theme::FG)
-                .bg(theme::SURFACE_RAISED)
-                .add_modifier(Modifier::BOLD)
-        } else if active {
-            Style::default()
-                .fg(theme::FOCUS)
-                .bg(theme::SURFACE)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(theme::MUTED)
-        };
-
-        let bar = Span::styled(
-            if active { "▎" } else { " " },
-            Style::default().fg(theme::FOCUS),
-        );
-        let label = Span::styled(view.label(), item_style);
-
-        // Row: " " + bar + " " + label + pad + hint. Keep the hint on the
-        // right edge of the fixed-width column.
-        let prefix_width = 3 + view.label().chars().count();
-        let pad = area.width.saturating_sub(prefix_width as u16 + 1);
-
-        lines.push(Line::from(vec![
-            Span::raw(" "),
-            bar,
-            space(),
-            label,
-            Span::styled(" ".repeat(pad as usize), Style::default().fg(theme::MUTED)),
-            Span::styled(view.key().to_string(), Style::default().fg(theme::MUTED)),
-        ]));
+/// Split the main region into `content | activity`. The activity panel is a
+/// structural placeholder until V2-E: it takes zero width (→ `None`) until a
+/// real width is supplied, at which point it is reserved and drawn.
+fn main_split(area: Rect) -> (Rect, Option<Rect>) {
+    const ACTIVITY_WIDTH: u16 = 0;
+    if ACTIVITY_WIDTH == 0 {
+        return (area, None);
     }
-
-    f.render_widget(
-        Paragraph::new(lines).style(Style::default().bg(theme::SURFACE).fg(theme::FG)),
-        area,
-    );
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Min(0), Constraint::Length(ACTIVITY_WIDTH)])
+        .split(area);
+    (chunks[0], Some(chunks[1]))
 }
 
 fn space() -> Span<'static> {
@@ -263,7 +250,7 @@ fn dig_footer(app: &App) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::App;
+    use crate::app::{App, ALL_VIEWS};
 
     #[test]
     fn sidebar_width_within_spec_range() {
@@ -311,6 +298,10 @@ mod tests {
         let sep = Span::raw("│");
         let space = Span::raw(" ");
         let root = Span::styled("-", Style::default().fg(theme::MUTED));
+        let version = Span::styled(
+            format!("v{}", env!("CARGO_PKG_VERSION")),
+            Style::default().fg(theme::MUTED),
+        );
         let hotkeys = Span::styled(
             "Tab views · hjkl move · ? help · q quit",
             Style::default().fg(theme::MUTED),
@@ -323,9 +314,13 @@ mod tests {
             root.clone(),
             sep.clone(),
             space.clone(),
+            version.clone(),
+            sep.clone(),
+            space.clone(),
             hotkeys,
         ]);
         assert!(full.width() > 0);
+        assert!(full.to_string().contains("v0."));
 
         // On a very narrow header the hotkey strip is dropped.
         let narrow = Line::from(vec![title, sep, space, root]);
@@ -339,25 +334,42 @@ mod tests {
     }
 
     #[test]
-    fn sidebar_rows_pad_to_width() {
-        // Each row must fill exactly the sidebar width (no under/overflow).
-        // Row = leading space + bar + space + label(=prefix) + pad + hint(1).
-        for view in ALL_VIEWS {
-            let prefix_width = 3 + view.label().chars().count();
-            let pad = theme::SPACE_SIDEBAR_WIDTH.saturating_sub(prefix_width as u16 + 1);
-            let total = prefix_width as u16 + pad + 1;
-            assert_eq!(
-                total,
-                theme::SPACE_SIDEBAR_WIDTH,
-                "{view:?} row (len {total}) must fill sidebar width {}",
-                theme::SPACE_SIDEBAR_WIDTH
-            );
-        }
+    fn activity_slot_is_zero_width_until_v2e() {
+        // With no activity content yet, the main split must hand back the full
+        // area and no activity rect, so an 80×24 terminal is never truncated.
+        let main = Rect::new(23, 1, 80, 22);
+        let (content, activity) = main_split(main);
+        assert_eq!(content, main);
+        assert!(activity.is_none());
     }
 
     #[test]
-    fn focus_label_matches_footer_hint() {
-        assert_eq!(Focus::Sidebar.label(), "sidebar");
-        assert_eq!(Focus::Main.label(), "main");
+    fn eighty_by_twentyfour_body_preserves_sniff_width() {
+        // 80×24 terminal: 1 header + 1 footer → body of 22 rows; the sidebar
+        // clamps to 23 columns (minus the 0-wide activity slot) leaving the
+        // sniff screen all 57 columns of the main region.
+        let term = Rect::new(0, 0, 80, 24);
+        let outer = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(theme::SPACE_HEADER_HEIGHT),
+                Constraint::Min(0),
+                Constraint::Length(theme::SPACE_FOOTER_HEIGHT),
+            ])
+            .split(term);
+        let body = outer[1];
+        assert_eq!(body.height, 22);
+
+        let sidebar_width = body.width.min(theme::SPACE_SIDEBAR_WIDTH);
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Length(sidebar_width), Constraint::Min(0)])
+            .split(body);
+        assert_eq!(chunks[0].width, 23);
+        assert_eq!(chunks[1].width, 57);
+
+        let (content, activity) = main_split(chunks[1]);
+        assert_eq!(content, chunks[1], "sniff table must keep all 57 columns");
+        assert!(activity.is_none());
     }
 }

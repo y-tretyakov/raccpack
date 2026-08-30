@@ -1,6 +1,7 @@
-//! Reusable widgets shared across screens (detail strip, …).
+//! Reusable widgets shared across screens (detail strip, sidebar, …).
 
 pub mod detail;
+pub mod sidebar;
 
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
