@@ -15,10 +15,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.4.3`** |
-| **Веха** | Detect v2 ✅ CLOSED · **Beta B1.3 done (0.4.3)** · Beta → 0.5.0 |
-| **Этап** | **B1.4** — TUI raid + progress |
-| **Предыдущее** | B1.3 TUI dig screen closed (0.4.3) |
+| **Версия** | **`0.4.4`** |
+| **Веха** | Detect v2 ✅ CLOSED · **Beta B1.4 done (0.4.4)** · Beta → 0.5.0 |
+| **Этап** | **B1.5** — TUI reveal modal |
+| **Предыдущее** | B1.4 TUI raid + progress closed (0.4.4) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
@@ -37,7 +37,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 [x] B1.2.4 Sidebar-space token в token-const, нет bump
 [x] B1.2.5 Detail strip (detail-height 7, git-маркеры, empty placeholder `·`), нет bump
 [x] B1.3  TUI dig screen (0.4.3)
-[ ] B1.4  TUI raid + progress
+[x] B1.4  TUI raid + progress (0.4.4)
 [ ] B1.5  TUI reveal modal
 [ ] B2  Desktop (Tauri + React) + BFF + ephemeral reveal
 [ ] B3  Security hardening + Safe Reveal contract
@@ -71,6 +71,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 | 2026-08-21 | MSRV **1.85**; логи → stderr; never log passphrase/raw |
 | 2026-08-22 | Detect v2 = отдельная веха **0.4.0** (закрыта) |
 | 2026-08-26 | **Один продукт на PR.** Crate только под roadmap raccpack. |
+| 2026-08-30 | Raid = **modal-overlay workflow** (не отдельный ViewId); passphrase — native-модалка 2 ввода (zeroize, redacted Debug, env-шорткат `RACCPACK_PASSPHRASE`); **Esc в Running не отменяет** (core без cancel) — блокирует до результата |
 
 ---
 
@@ -85,6 +86,24 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 ---
 
 ## Этапы (Beta)
+
+### 2026-08-30 — B1.4 — TUI raid (Atomic) + progress ✅ CLOSED
+
+- **Ветка:** `b1.4-tui-raid` (PR #113 → `dev`, squash)
+- **Версия:** 0.4.4
+- **DoD:**
+  - [x] `raid()` вызывается только из worker (`worker/raid.rs`); TUI не дублирует логику фаз
+  - [x] Preview = `RunMode::DryRun` (+ placeholder identity) — **ничего не пишет** в den (интеграция: temp den пуст после preview, и ден-дир вообще не создаётся)
+  - [x] Проверить Passphrase: **Zeroizing** везде (`PassphraseInput`, `RaidFlow.confirmed_passphrase`, `WorkerPassphrase`), **redacted Debug** в App/RaidFlow/PassphraseInput/RaidCommand/WorkerMsg; 2 ввода + mismatch reset; env-шорткат `RACCPACK_PASSPHRASE` (без модалки); Drop после use
+  - [x] Running: пайплайн STASH/RINSE/PACK/MOVE из реальных `ProgressEvent` (OperationKind::Raid через `RaidProgressSink`), ✓/→/○, `overall_percent` bar — без выдуманных процентов
+  - [x] Result honesty: Success / Rolled back (+count warnings) / Failed; FailFast → "артефакты могут остаться"; артефакты den-relative (≤5 + n more)
+  - [x] Модалка: `R` на проекте (Projects) → Preparing → Preview (проект · бейдж ATOMIC/FAIL-FAST · фазы · keep/skip · dry-run) → `y` confirm / `n`+Esc cancel / `K`/`S`/`m` toggle; Esc в Running **не** отменяет; `q` заблокирован в flow; Enter/Esc закрывает Done/Failed
+  - [x] Модульность: `app/raid/{mod,passphrase,tests}.rs` + `worker/{mod,raid,tests}.rs` (worker.rs → директория), `ui/screens/raid.rs` (render-only), `centered_rect` вынесен в `ui/widgets/mod.rs` (help переиспользует), footer raid-status, help документирует R/K/S/m
+  - [x] Тесты: unit (state machine, passphrase 2-ввод/mismatch/backspace/redacted, on_progress pipeline/unknown-phase/skip-stash), worker (preview no-write, commit missing→Err, Debug-redacted, RaidProgressSink filter), integration `tests/raid_flow_test.rs` (preview no-write, commit → ровно 1 `.age` + 1 pack + 1 manifest, no plaintext/raw в den, no passphrase в событиях, keep_sources/skip_stash, progress op=Raid)
+  - [x] `cargo test --workspace` green, `cargo fmt --check` ok, `cargo clippy --workspace --all-targets -- -D warnings` ok
+- **Файлы:** Cargo.toml, Cargo.lock, app.rs (Command Raid*, raid-keys, guard help_visible), app/raid/{mod,passphrase,tests}.rs (created), event.rs (start_raid_preview/send_raid_run/resolve_raid_passphrase, RaidProgressDone routing), worker.rs → worker/{mod,raid,tests}.rs (created), ui/layout.rs, ui/screens/{mod,raid,help}.rs (raid created), ui/widgets/mod.rs (+`centered_rect`), tests/raid_flow_test.rs (created)
+- **Решения:** raid = modal overlay поверх текущего view (не ViewId — совпадает со спекой new/b1.6 "workflow, не секция"); passphrase из env → native-модалка 2 ввода (mismatch → сброс/error), подтверждённая passphrase живёт в flow, не в Command (Command остаётся Copy); skip_stash → placeholder identity; min_risk=High, content-deny on (как CLI); preview переиспользует тот же worker-путь, что и commit
+- **Follow-up:** `app.rs` линейно растёт (state + routing + tests) → кандидат на split (routing/keys в отдельный модуль); reveal `v` (B1.5) + food-цепочка stash/rinse/pack прочих экранов; тест-дублирование `spawn_bridged_worker` в integration-тестах (2 копии) — вынести `tests/common/mod.rs` при появлении третьей
 
 ### 2026-08-29 — B1.3 — TUI dig screen (Findings) ✅ CLOSED
 

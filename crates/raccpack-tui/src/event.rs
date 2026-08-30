@@ -13,11 +13,16 @@ use crossterm::terminal::{
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
+use crate::app::raid::{FlowPhase, RaidFlow, RaidFlowOptions};
 use crate::app::{App, Command};
-use crate::worker::{WorkerEvent, WorkerMsg};
+use crate::worker::{WorkerEvent, WorkerMsg, WorkerPassphrase, DRY_RUN_PASSPHRASE};
 use raccpack_core::app::OperationKind;
 
 /// Events dispatched into the application loop.
+///
+/// The largest variant carries a completed [`WorkerEvent`] result on the UI
+/// channel; the enum is always moved, never cloned, so the size is fine.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum AppEvent {
     /// User pressed a key.
@@ -161,10 +166,92 @@ fn handle_app_command(cmd: Command, worker_tx: &mpsc::Sender<WorkerMsg>, app: &m
         Command::ChangeScanRoot => {
             // TODO: implement scan root change
         }
+        Command::RaidPreview => {
+            let Some(project) = app.sniff_state.selected_project().map(|p| p.path.clone()) else {
+                return;
+            };
+            start_raid_preview(project, app, worker_tx);
+        }
+        Command::RaidRun => send_raid_run(app, worker_tx),
+        Command::RaidCancel => {
+            // Esc / n while previewing or entering the passphrase closes the
+            // flow. The worker preview result (if any) is ignored: the guard
+            // in handle_worker_event drops events for a closed flow.
+            app.raid_flow = None;
+        }
         // Pure-in-app commands were already applied inside `App::handle_key`.
         Command::BackToProjects | Command::CycleRiskFilter => {}
         _ => {}
     }
+}
+
+/// Open the raid flow for `project` and dispatch a dry-run preview to the
+/// worker. No guard is needed beyond the missing-selection check: while a flow
+/// is active the app blocks all other keys, so a second preview cannot start.
+fn start_raid_preview(
+    project: std::path::PathBuf,
+    app: &mut App,
+    worker_tx: &mpsc::Sender<WorkerMsg>,
+) {
+    let flow = RaidFlow::new(
+        project.clone(),
+        app.den_dir.clone(),
+        RaidFlowOptions::default(),
+    );
+    let opts = flow.options.into();
+    app.raid_flow = Some(flow);
+    app.help_visible = false;
+    let den_dir = app.den_dir.clone();
+    let _ = worker_tx.send(WorkerMsg::RaidPreview {
+        project,
+        den_dir,
+        opts,
+    });
+}
+
+/// Dispatch the raid commit after resolving the passphrase.
+///
+/// Resolution order:
+/// 1. passphrase confirmed in the modal (taken out of the flow);
+/// 2. stash skipped → placeholder identity (stash phase is disabled);
+/// 3. `RACCPACK_PASSPHRASE` env → run immediately;
+/// 4. otherwise open the passphrase modal and wait for confirmation.
+fn send_raid_run(app: &mut App, worker_tx: &mpsc::Sender<WorkerMsg>) {
+    let flow = app.raid_flow.as_mut();
+    let Some(flow) = flow else {
+        return;
+    };
+    let Some(passphrase) = resolve_raid_passphrase(flow) else {
+        return; // passphrase modal opened; the run starts on confirmation
+    };
+    let project = flow.project.clone();
+    let opts = flow.options.into();
+    flow.start_running();
+    let den_dir = app.den_dir.clone();
+    let _ = worker_tx.send(WorkerMsg::RaidRun {
+        project,
+        den_dir,
+        opts,
+        passphrase,
+    });
+}
+
+/// Resolve the passphrase for a raid run (see [`send_raid_run`]); returns
+/// `None` after moving the flow to the passphrase modal.
+fn resolve_raid_passphrase(flow: &mut RaidFlow) -> Option<WorkerPassphrase> {
+    if let Some(passphrase) = flow.take_passphrase() {
+        return Some(WorkerPassphrase::from_zeroizing(passphrase));
+    }
+    if flow.options.skip_stash {
+        return Some(WorkerPassphrase::new(DRY_RUN_PASSPHRASE.to_string()));
+    }
+    if let Ok(env) = std::env::var("RACCPACK_PASSPHRASE") {
+        if !env.is_empty() {
+            return Some(WorkerPassphrase::new(env));
+        }
+    }
+    flow.start_passphrase();
+    None
 }
 
 /// Send one dig run for `project` to the worker.
@@ -197,7 +284,14 @@ fn handle_worker_event(event: WorkerEvent, app: &mut App) {
                         app.dig_state.set_loading(true);
                     }
                 }
-                // Stash/rinse/pack/raid progress has no screen yet.
+                OperationKind::Raid => {
+                    if let Some(flow) = app.raid_flow.as_mut() {
+                        if flow.phase == FlowPhase::Running {
+                            flow.on_progress(&progress);
+                        }
+                    }
+                }
+                // Stash/rinse/pack progress has no screen yet.
                 _ => {}
             }
         }
@@ -251,6 +345,24 @@ fn handle_worker_event(event: WorkerEvent, app: &mut App) {
                     app.dig_state.error = Some(e.to_string());
                 }
             }
+        }
+        WorkerEvent::RaidPreviewDone(result) => {
+            let Some(flow) = app.raid_flow.as_mut() else {
+                return; // flow closed (cancelled) before the preview landed
+            };
+            flow.phase = match result {
+                Ok(preview) => FlowPhase::Preview(preview),
+                Err(e) => FlowPhase::Failed(e.to_string()),
+            };
+        }
+        WorkerEvent::RaidDone(result) => {
+            let Some(flow) = app.raid_flow.as_mut() else {
+                return; // flow closed (cancelled) before the run finished
+            };
+            flow.phase = match result {
+                Ok(done) => FlowPhase::Done(done),
+                Err(e) => FlowPhase::Failed(e.to_string()),
+            };
         }
         WorkerEvent::Cancelled => {
             app.sniff_state.set_loading(false);

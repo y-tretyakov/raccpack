@@ -1,12 +1,12 @@
 ---
 title: TUI (terminal interface)
-description: racc-tui — an interactive terminal interface built on Ratatui. The sniff and dig screens work; raid screens are planned (Beta).
+description: racc-tui — an interactive terminal interface built on Ratatui. The sniff, dig, and raid screens work; the reveal modal is planned (Beta).
 ---
 
 # TUI (terminal interface)
 
 ::: info
-The TUI is being built in Beta (0.5.x). As of **0.4.3** the **sniff** and **dig screens** work (project table, non-blocking worker, secret findings with masked details); raid screens and the reveal modal are planned.
+The TUI is being built in Beta (0.5.x). As of **0.4.4** the **sniff**, **dig**, and **raid** screens work; the reveal modal is planned.
 :::
 
 ## What it is
@@ -27,11 +27,20 @@ The TUI is being built in Beta (0.5.x). As of **0.4.3** the **sniff** and **dig 
 - `c` toggles content scanning (re-runs dig with/without content matched values); `r` re-digs; `Esc` returns to the Sniff screen.
 - Detailed strip under the table shows the selected finding's meta; selection: `j`/`k`, first/last `g`/`G`.
 
+## Raid flow (available since 0.4.4)
+
+- Press `R` on a selected project in the Sniff screen to open the raid wizard as a modal overlay.
+- **Preview** shows first: project, mode badge (`ATOMIC` / `FAIL-FAST`), the phases that will run (stash → rinse → pack), and the dry-run note — **nothing is written yet**.
+- Confirm with `y` (or `Enter`), cancel with `n`/`Esc`. Toggles: `K` keep sources, `S` skip stash, `m` mode.
+- If the stash phase is enabled, a **passphrase modal** collects it twice (`•` masked); `RACCPACK_PASSPHRASE` env var skips the prompt. The passphrase never appears in TUI state, logs, or debug output.
+- While **running**, the modal shows the phase pipeline (`✓` done, `→` current, `○` pending), an overall progress bar, and the phase message — all from real core events. `Esc` does not cancel a running raid (core has no cancel).
+- The **result** is honest: success, rolled back (with rollback-warning count), or failed; in `FAIL-FAST` mode a note shows that already-placed artifacts may remain. Placed artifacts are listed relative to the den. `Enter`/`Esc` closes.
+
 ## Target capabilities
 
-- **raid confirmation** — a wizard that shows what will happen at each phase (stash → rinse → pack), with interactive progress.
-- **Dry-run** — a mode where all changes are visible before they are applied.
-- **reveal modal** — safe opt-in reveal of a secret's masked/short value.
+- **raid confirmation** — done (since 0.4.4): wizard with phase-by-phase progress and honest result (see above).
+- **Dry-run** — built into the raid wizard: the preview never writes to the den.
+- **reveal modal** — safe opt-in reveal of a secret's masked/short value (planned, B1.5).
 
 ## How it will work
 
