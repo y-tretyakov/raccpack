@@ -1,4 +1,4 @@
-//! Resize/small-size smoke test: renders every screen and mode on a range of
+//! Resize/small-size smoke test: renders every screen and overlay on a range of
 //! terminal sizes with a `TestBackend`, asserting the renderer never panics on
 //! zero-area/very-narrow/very-short layouts.
 
@@ -11,14 +11,13 @@ use ratatui::Terminal;
 use raccpack_core::app::RaidResult;
 
 use raccpack_tui::app::raid::{FlowPhase, RaidFlow, RaidFlowOptions};
-use raccpack_tui::app::sniff::{ProjectRow, ProjectsMode, SniffScreenState};
+use raccpack_tui::app::sniff::{ProjectRow, SniffScreenState};
 use raccpack_tui::app::{App, ViewId};
-use raccpack_tui::ui::layout::{ACTIVITY_MIN_WIDTH, ACTIVITY_WIDTH};
 use raccpack_tui::ui::screens;
-use raccpack_tui::ui::widgets::{activity, sidebar};
+use raccpack_tui::ui::widgets::sidebar;
 
-/// Every terminal size the smoke test walks: 80×24 baseline, wide terminals
-/// that unlock the activity panel, and a tiny 40×12 that stresses clamps.
+/// Every terminal size the smoke test walks: an 80×24 baseline, wide terminals
+/// and a tiny 40×12 that stresses the clamps.
 const SIZES: &[(u16, u16)] = &[(80, 24), (120, 30), (160, 40), (40, 12)];
 const SIDEBAR_WIDTH: u16 = 23;
 
@@ -35,9 +34,7 @@ fn sample_state(n: usize) -> SniffScreenState {
             })
             .collect(),
         total_size: 1234,
-        is_loading: false,
         scan_root: PathBuf::from("/workspace"),
-        error: None,
         ..Default::default()
     }
 }
@@ -62,14 +59,6 @@ fn sample_app() -> App {
         },
     ];
     app.dig_state.reapply_filter();
-    app.activity.push(
-        raccpack_tui::app::activity::ActivityKind::Ok,
-        "scan complete",
-    );
-    app.activity.push(
-        raccpack_tui::app::activity::ActivityKind::Warn,
-        "dig project-0 · 2 findings",
-    );
     app
 }
 
@@ -102,7 +91,7 @@ fn sample_flow() -> RaidFlow {
 }
 
 /// Draw one full frame exactly as `ui::layout::render` would: header+footer
-/// rows, a clamped sidebar, and an optional activity slot on wide terminals.
+/// rows and a clamped sidebar on the left of the body.
 fn draw_frame(term: &mut Terminal<TestBackend>, app: &mut App, help: bool) {
     term.draw(|f| {
         let area = f.area();
@@ -122,20 +111,7 @@ fn draw_frame(term: &mut Terminal<TestBackend>, app: &mut App, help: bool) {
             .split(outer[1]);
         sidebar::render(f, chunks[0], app);
 
-        let (content, activity_slot) = if chunks[1].width >= ACTIVITY_MIN_WIDTH {
-            let inner = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Min(0), Constraint::Length(ACTIVITY_WIDTH)])
-                .split(chunks[1]);
-            (inner[0], Some(inner[1]))
-        } else {
-            (chunks[1], None)
-        };
-
-        screens::render_screen(f, content, app);
-        if let Some(slot) = activity_slot {
-            activity::render(f, slot, &app.activity);
-        }
+        screens::render_screen(f, chunks[1], app);
 
         if help {
             screens::help::render(f, area);
@@ -147,25 +123,21 @@ fn draw_frame(term: &mut Terminal<TestBackend>, app: &mut App, help: bool) {
     .expect("frame must draw");
 }
 
-/// Render every view/mode at every size; a panic would fail the test.
+/// Render every view at every size; a panic would fail the test.
 #[test]
 fn renders_every_view_at_every_size_without_panic() {
     let mut app = sample_app();
     for &(w, h) in SIZES {
-        let sizes: [(ViewId, &str); 4] = [
-            (ViewId::Overview, "overview"),
-            (ViewId::Projects, "projects"),
-            (ViewId::Findings, "findings"),
-            (ViewId::Operations, "operations"),
-        ];
-        for (view, _name) in sizes {
+        for view in [
+            ViewId::Overview,
+            ViewId::Projects,
+            ViewId::Findings,
+            ViewId::Operations,
+        ] {
             app.current_view = view;
-            for mode in [ProjectsMode::Cards, ProjectsMode::Table, ProjectsMode::Tree] {
-                app.sniff_state.mode = mode;
-                let backend = TestBackend::new(w, h);
-                let mut term = Terminal::new(backend).expect("test backend");
-                draw_frame(&mut term, &mut app, false);
-            }
+            let backend = TestBackend::new(w, h);
+            let mut term = Terminal::new(backend).expect("test backend");
+            draw_frame(&mut term, &mut app, false);
         }
     }
 }
@@ -189,16 +161,16 @@ fn overlays_render_at_every_size_without_panic() {
     }
 }
 
-/// Empty/no-scan state (overview empty hints, sniff empty) must not panic.
+/// Empty/no-scan state (overview hints, sniff empty, dig empty) must not panic.
 #[test]
 fn empty_states_render_at_every_size_without_panic() {
     let mut app = App::new();
     for &(w, h) in SIZES {
-        for &(view, _name) in &[
-            (ViewId::Overview, "overview"),
-            (ViewId::Projects, "projects"),
-            (ViewId::Findings, "findings"),
-            (ViewId::Operations, "operations"),
+        for &view in &[
+            ViewId::Overview,
+            ViewId::Projects,
+            ViewId::Findings,
+            ViewId::Operations,
         ] {
             app.current_view = view;
             let backend = TestBackend::new(w, h);

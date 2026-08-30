@@ -1,31 +1,29 @@
 ---
 title: TUI (terminal interface)
-description: racc-tui — an interactive terminal interface built on Ratatui. The Overview dashboard, sniff (Projects), dig, and raid screens work; the reveal modal is planned (Beta).
+description: racc-tui — an interactive terminal interface built on Ratatui. The sniff, dig, and raid screens work; the reveal modal is planned (Beta).
 ---
 
 # TUI (terminal interface)
 
 ::: info
-The TUI is being built in Beta (0.5.x). As of **0.4.5** the **Overview**, **Projects** (sniff), **dig**, and **raid** screens work with the **Visual System 2.0** look and feel; the reveal modal is planned.
+The TUI is being built in Beta (0.5.x). As of **0.4.4** the **sniff**, **dig**, and **raid** screens work; the reveal modal is planned.
 :::
 
 ## What it is
 
-`racc-tui` is an interactive terminal interface built on Ratatui. It lets you work with projects and secrets without memorizing commands: an overview dashboard, project cards, and confirmations.
+`racc-tui` is an interactive terminal interface built on Ratatui. It lets you work with projects and secrets without memorizing commands: navigation, the project table, and confirmations.
 
-## Shell (since 0.4.5)
+## Shell
 
-- **Sidebar**: `◈ RACCPACK` brand, workspace path, navigation, live badges — `Projects` shows the real scanned-project count, `Findings` counts findings from the last dig (amber when > 0, hidden until dig has run). The current version is shown at the bottom.
-- **Header**: brand + scan root + version; keyboard hints on the right (collapsed on narrow terminals).
-- **Overview** (start screen): a KPI strip (projects / Rust / JS-TS / total size / git repos), a **workspace health** line (`✓ detection READY`, `(cache)` when loaded from the cache, or hints before the first scan), and recent project cards.
-- **Activity stream** (wide terminals, content ≥ 120 cols): live, user-meaningful events (`✔` ok, `!` warn, `✖` error, `·` info) from real sniff/dig/raid runs — distinct from the debug log (`l`).
+- **Sidebar**: brand `◈ RACCPACK` + workspace root, navigation, live badges — `Projects` shows the real count of scanned projects, `Findings` counts the findings of the last dig (amber when > 0, muted 0, `·` until the first dig). The renderer version sits at the bottom.
+- **Header**: brand, scan root, and version; hotkey hints on the right (collapsed on narrow terminals).
+- **Footer**: status counters.
 
-## Projects screen (Sniff) (since 0.4.2, Cards since 0.4.5)
+## Sniff screen (available since 0.4.2)
 
-- Lists projects from the scan root. **Cards are the default view**; press `v` to cycle **Cards → Table → Tree → Cards** (Tree is a stub until the full nested view lands).
-- Card hierarchy: name → language · size → git state (`●` clean) → path. The selected card has an orange border.
+- Lists projects from the scan root in a table: name, language, frameworks, size, git-repository flag.
 - Runs `sniff` in a background worker thread, so the UI stays responsive (shows a progress indicator) while the scan runs.
-- Navigation: `j`/`k` (or arrows) move the selection; `r` triggers a refresh; `o` is reserved for changing the scan root (not yet implemented); `R` opens the raid flow for the selected project; `Enter` opens a project (dig, since 0.4.3).
+- Navigation: `j`/`k` (or arrows) move the selection; `r` triggers a refresh; `o` is reserved for changing the scan root (not yet implemented); `Enter` opens a project (dig, since 0.4.3).
 
 ## Dig screen (available since 0.4.3)
 
@@ -66,7 +64,7 @@ Long operations (a deep `dig`, a full `raid`) send progress events: phase, perce
 
 ## Visual system (design tokens)
 
-The TUI color semantics come from design tokens in **DTCG** format (`docs/design-tokens/raccpack.tokens.json`) — a single source for both the TUI and the future Desktop. Since 0.4.5 the TUI uses **Visual System 2.0**: graphite surfaces with an orange brand/focus accent (teal is no longer used). Tests assert the palette contract (e.g. focus == brand orange), and sizes (sidebar width, panel heights) use **terminal cells**. A visual re-theme is a one-file change, not a grep across widgets.
+The TUI color semantics come from design tokens in **DTCG** format (`docs/design-tokens/raccpack.tokens.json`) — a single source for both the TUI and the future Desktop. The current palette is **graphite + orange** (brand/focus orange; teal is no longer used) defined via primitive → semantic token mapping. Screens use semantic names (`bg`, `fg`, `accent`, `muted`, `danger`, `selection`, etc.), and sizes (sidebar width, panel heights) use **terminal cells**. A visual re-theme is a one-file change, not a grep across widgets.
 
 ## See also
 

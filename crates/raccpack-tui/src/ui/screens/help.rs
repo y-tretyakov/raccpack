@@ -49,10 +49,6 @@ fn help_items() -> Vec<HelpItem> {
             description: "Refresh (Projects) · re-dig (Findings)",
         },
         HelpItem {
-            key: "v",
-            description: "Projects: Cards → Table → Tree",
-        },
-        HelpItem {
             key: "Enter",
             description: "Activate sidebar item · dig selected project",
         },
@@ -214,14 +210,5 @@ mod tests {
                 "help must document the raid keys {expected:?}, got {keys:?}"
             );
         }
-    }
-
-    #[test]
-    fn help_items_cover_projects_mode_key() {
-        let keys: Vec<_> = help_items().iter().map(|i| i.key).collect();
-        assert!(
-            keys.contains(&"v"),
-            "help must document the projects mode key 'v', got {keys:?}"
-        );
     }
 }

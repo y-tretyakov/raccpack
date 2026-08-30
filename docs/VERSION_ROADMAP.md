@@ -24,17 +24,16 @@
 
 ## Текущая позиция
 
-> **Detect v2 exit (0.4.0) done.** **Alpha exit: 0.3.0.** **B1.2 TUI sniff screen done (0.4.2).** **B1.2.5 detail strip done (no bump).** **B1.3 TUI dig screen done (0.4.3).** **B1.4 TUI raid + progress done (0.4.4).** **B1-V2 Visual System 2.0 done (0.4.5)** (V2-A theme tokens, V2-B shell, V2-C overview, V2-D projects Cards, V2-E activity, V2-F polish + app split).
+> **Detect v2 exit (0.4.0) done.** **Alpha exit: 0.3.0.** **B1.2 TUI sniff screen done (0.4.2).** **B1.2.5 detail strip done (no bump).** **B1.3 TUI dig screen done (0.4.3).** **B1.4 TUI raid + progress done (0.4.4).** **TUI visual polish (no bump): графит+оранж тема, shell (бренд ◈ RACCPACK + live-бейджи + версия в header), resize-смоук.**
 
 | | |
 |--|--|
-| **Текущая версия workspace** | **`0.4.5`** |
-| Последний этап | **B1-V2 (V2-A…F)** — TUI Visual System 2.0 |
-| Следующий этап | **B1.5** — TUI reveal modal (→ `0.4.6`, затем Beta `0.5.0`) |
+| **Текущая версия workspace** | **`0.4.4`** |
+| Последний этап | **B1.4** — TUI raid (Atomic) + progress |
+| Следующий этап | **B1.5** — TUI reveal modal (Beta → `0.5.0`) |
 | Detect v2 exit | **`0.4.0`** ✅ (batch raid CLI + wiki + E2E) |
 
 Б1.2.x polish (без bump версии): B1.2.1 chrome/nav, B1.2.2 clap launch, B1.2.3 design tokens, B1.2.4 sidebar-space token, B1.2.5 detail strip.
-Визуальная фаза B1-V2 (A…F, без промежуточных bump): V2-A theme tokens, V2-B shell (brand+badges), V2-C overview dashboard, V2-D projects Cards/Table/Tree, V2-E activity, V2-F polish + module split → закрыта одним **0.4.5**.
 
 ```text
 0.1.0  MVP
@@ -44,10 +43,8 @@
 0.4.1           Beta B1.1   TUI skeleton
 0.4.2           Beta B1.2   TUI sniff screen        ✅
 0.4.3           Beta B1.3   TUI dig screen          ✅
-0.4.4           Beta B1.4   TUI raid + progress     ✅
-0.4.5           Beta B1-V2  TUI Visual System 2.0   ✅ (← закрыт)
-0.4.6           Beta B1.5   TUI reveal modal        ← ВЫ ЗДЕСЬ
-0.4.7 …        Beta B1.5+ / B2
+0.4.4           Beta B1.4   TUI raid + progress     ← ВЫ ЗДЕСЬ
+0.4.5 …        Beta B1.5+
 0.5.0 …        Beta exit
 0.9.0 …        RC
 1.0.0          Stable
@@ -145,38 +142,37 @@
 | B1.2 | **0.4.2** | ✅ sniff screen |
 | B1.3 | **0.4.3** | ✅ dig screen |
 | B1.4 | **0.4.4** | ✅ raid + progress |
-| B1-V2 (V2-A…F) | **0.4.5** | ✅ Visual System 2.0: theme tokens (graphite+orange, DTCG v0.2.0), shell (brand+badges), overview dashboard, projects Cards default (Table demoted, Tree stub), activity stream, polish + module split |
-| B1.5 | **0.4.6** | ⬜ reveal modal |
+| B1.5 | **0.4.5** | ⬜ reveal modal |
 
 ### B2 — Desktop
 
 | Этап | Версия | Статус |
 |------|--------|--------|
-| B2.1 | **0.4.7** | ⬜ Tauri + React skeleton |
-| B2.2 | **0.4.8** | ⬜ BFF sniff/dig/raid |
-| B2.3 | **0.4.9** | ⬜ UI tables |
-| B2.4 | **0.4.10** | ⬜ raid + passphrase |
-| B2.5 | **0.4.11** | ⬜ reveal IPC |
+| B2.1 | **0.4.6** | ⬜ Tauri + React skeleton |
+| B2.2 | **0.4.7** | ⬜ BFF sniff/dig/raid |
+| B2.3 | **0.4.8** | ⬜ UI tables |
+| B2.4 | **0.4.9** | ⬜ raid + passphrase |
+| B2.5 | **0.4.10** | ⬜ reveal IPC |
 
 ### B3 — Security + reveal
 
 | Этап | Версия | Статус |
 |------|--------|--------|
-| B3.1 | **0.4.12** | ⬜ content-deny + default_pack |
-| B3.2 | **0.4.13** | ⬜ EnabledGroups |
-| B3.3 | **0.4.14** | ⬜ path containment + perms |
-| B3.4 | **0.4.15** | ⬜ EphemeralSecret |
-| B3.5 | **0.4.16** | ⬜ CLI reveal |
-| B3.6 | **0.4.17** | ⬜ threat checklist |
-| B3.7 | **0.4.18** | ⬜ reveal audit |
+| B3.1 | **0.4.11** | ⬜ content-deny + default_pack |
+| B3.2 | **0.4.12** | ⬜ EnabledGroups |
+| B3.3 | **0.4.13** | ⬜ path containment + perms |
+| B3.4 | **0.4.14** | ⬜ EphemeralSecret |
+| B3.5 | **0.4.15** | ⬜ CLI reveal |
+| B3.6 | **0.4.16** | ⬜ threat checklist |
+| B3.7 | **0.4.17** | ⬜ reveal audit |
 
 ### B4 — Productization
 
 | Этап | Версия | Статус |
 |------|--------|--------|
-| B4.1 | **0.4.19** | ⬜ `racc den` list/gc |
-| B4.2 | **0.4.20** | ⬜ parallel_jobs |
-| B4.3 | **0.4.21** | ⬜ user docs |
+| B4.1 | **0.4.18** | ⬜ `racc den` list/gc |
+| B4.2 | **0.4.19** | ⬜ parallel_jobs |
+| B4.3 | **0.4.20** | ⬜ user docs |
 | B4.4 | **0.5.0** | ⬜ tag = **Beta exit** |
 
 ---
@@ -224,7 +220,7 @@ version = "0.4.0"
 
 ```bash
 cargo run -p raccpack-cli -- --version
-# raccpack-cli 0.4.5   →  B1-V2 (TUI Visual System 2.0, Beta)
+# raccpack-cli 0.4.4   →  B1.4 (TUI raid + progress, Beta)
 ```
 
 | Версия | Значит «есть» |
@@ -252,7 +248,6 @@ cargo run -p raccpack-cli -- --version
 | ≥ 0.4.2 | TUI sniff screen (worker bridge + loading) |
 | ≥ 0.4.3 | TUI dig screen (findings table + detail strip) |
 | ≥ 0.4.4 | TUI raid flow (preview → passphrase → progress → result) |
-| ≥ 0.4.5 | TUI Visual System 2.0 (graphite+orange theme, sidebar badges, Overview dashboard, Projects Cards, activity stream) |
 | ≥ 0.5.0 | TUI + Desktop + reveal |
 
 ---
@@ -273,7 +268,7 @@ cargo run -p raccpack-cli -- --version
 ## Сводка «сейчас»
 
 ```text
-Текущая версия:  0.4.5
-Этап:            B1-V2 (V2-A…F TUI Visual System 2.0) — CLOSED
-Следующий bump:  0.4.6 (B1.5 reveal modal)
+Текущая версия:  0.4.4
+Этап:            B1.4 (TUI raid + progress) — CLOSED
+Следующий bump:  0.4.5 (B1.5 reveal modal)
 ```

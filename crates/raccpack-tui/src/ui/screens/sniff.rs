@@ -6,16 +6,13 @@ use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, Cell, Row, Table};
 use ratatui::Frame;
 
-use crate::app::sniff::ProjectsMode;
 use crate::app::sniff::SniffScreenState;
 use crate::theme;
-use crate::ui::screens::{projects_cards, projects_tree};
 use crate::ui::widgets::detail::{render as render_detail, DetailLine};
-use crate::ui::widgets::format_bytes;
 
-/// Render the sniff screen. The project area (Cards/Table/Tree) owns the top;
-/// the detail strip (selected project metadata) sits below it. The chrome
-/// lives in the global header/footer.
+/// Render the sniff screen. The table owns the top area; the detail strip
+/// (selected project metadata) sits below it. The chrome lives in the global
+/// header/footer.
 pub fn render(f: &mut Frame, area: Rect, state: &mut SniffScreenState) {
     if state.is_loading {
         render_loading(f, area, state);
@@ -31,12 +28,7 @@ pub fn render(f: &mut Frame, area: Rect, state: &mut SniffScreenState) {
                 Constraint::Length(theme::SPACE_DETAIL_HEIGHT),
             ])
             .split(area);
-        let mode = state.mode;
-        match mode {
-            ProjectsMode::Cards => projects_cards::render(f, chunks[0], state),
-            ProjectsMode::Table => render_table(f, chunks[0], state),
-            ProjectsMode::Tree => projects_tree::render(f, chunks[0]),
-        }
+        render_table(f, chunks[0], state);
         render_project_detail(f, chunks[1], state);
     }
 }
@@ -225,10 +217,38 @@ fn git_glyph_for(is_repo: bool) -> (&'static str, ratatui::style::Color) {
     }
 }
 
+/// Format bytes as human-readable string.
+fn format_bytes(bytes: u64) -> String {
+    const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
+    let mut size = bytes as f64;
+    let mut unit_idx = 0;
+
+    while size >= 1024.0 && unit_idx < UNITS.len() - 1 {
+        size /= 1024.0;
+        unit_idx += 1;
+    }
+
+    if unit_idx == 0 {
+        format!("{} {}", size as u64, UNITS[unit_idx])
+    } else {
+        format!("{:.1} {}", size, UNITS[unit_idx])
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn format_bytes_test() {
+        assert_eq!(format_bytes(0), "0 B");
+        assert_eq!(format_bytes(512), "512 B");
+        assert_eq!(format_bytes(1024), "1.0 KB");
+        assert_eq!(format_bytes(1536), "1.5 KB");
+        assert_eq!(format_bytes(1024 * 1024), "1.0 MB");
+        assert_eq!(format_bytes(1024 * 1024 * 1024), "1.0 GB");
+    }
 
     #[test]
     fn project_row_creation() {

@@ -1,9 +1,9 @@
 # Raccpack — roadmap до 1.0.0
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
-**Текущая точка:** Alpha 0.3.0 закрыт; **Detect v2 0.4.0 закрыт** (D1–D4 all ✅). **Beta B1.4 TUI raid + progress done (0.4.4)**. **TUI Visual System 2.0 done (0.4.5)**. Далее Beta.
+**Текущая точка:** Alpha 0.3.0 закрыт; **Detect v2 0.4.0 закрыт** (D1–D4 all ✅). **Beta B1.4 TUI raid + progress done (0.4.4)**. Далее Beta.
 
-**Текущая версия:** `0.4.5` — сверять `docs/VERSION_ROADMAP.md`.
+**Текущая версия:** `0.4.4` — сверять `docs/VERSION_ROADMAP.md`.
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
 
 Версионирование до 1.0.0 — **0.x** (ломающие изменения API допустимы).  
@@ -154,7 +154,7 @@
 - ✅ B1.2 — Экран sniff: список проектов, стек (и дерево при DAG), размер. (+ sub-stages: B1.2.1 chrome/nav, B1.2.2 clap launch, B1.2.3 design tokens DTCG, B1.2.4 sidebar-space token, B1.2.5 detail strip)
 - ✅ B1.3 — Экран dig: risk filter `f`, content-toggle `c`, masked-only (без raw), shared detail strip, Esc → Projects.
 - ✅ B1.4 — Развёрнутый raid-flow: preview (dry-run) → passphrase modal → running-pipeline progress → honest result (Atomic/rolled-back/failed); `R` на проекте; K/S/m toggles; вызов того же facade через worker.
-- ✅ **B1-V2 (0.4.5)** — Visual System 2.0: graphite+orange theme (DTCG v0.2.0), shell (brand, live sidebar badges), Overview dashboard (KPI + recent project cards), Projects Cards default (`v` → Cards/Table/Tree), activity stream (≥120 px/col), polish + module split (app.rs ≤450). Ветки: `v2-a-theme`…`v2-f-polish` (PR #114…#119).
+- ✅ B1.4 (нет bump) — Визуальный полиш TUI: тема графит+оранж через design-токены (DTCG v0.2.0), shell (бренд `◈ RACCPACK` + live-бейджи + версия в header), resize-смоук 4 размеров. Остальные эксперименты V2 (overview-дашборд, Projects Cards, activity-лента, split app.rs) откачены.
 - B1.5 — Безопасный modal reveal (opt-in).
 
 ## Фаза B2 — Desktop skeleton (Tauri)
