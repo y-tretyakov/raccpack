@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.85-orange?style=flat-square&logo=rust" alt="Rust"/></a>
   <a href="https://doc.rust-lang.org/cargo/"><img src="https://img.shields.io/badge/Cargo-workspace-blue?style=flat-square&logo=cargo" alt="Cargo"/></a>
-  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.4.4-blue?style=flat-square" alt="version"/></a>
+  <a href="Cargo.toml"><img src="https://img.shields.io/badge/version-0.4.5-blue?style=flat-square" alt="version"/></a>
   <a href="https://github.com/y-tretyakov/raccpack/actions/workflows/wiki.yml"><img src="https://img.shields.io/badge/CI-wiki-success?style=flat-square" alt="CI"/></a>
   <a href="https://github.com/y-tretyakov/raccpack/releases"><img src="https://img.shields.io/badge/OS-Linux-success?style=flat-square" alt="Linux"/></a>
   <a href="https://clap.rs"><img src="https://img.shields.io/badge/CLI-clap-ee4b2b?style=flat-square" alt="CLI"/></a>
@@ -25,7 +25,7 @@ CLI tool for scanning project directories, finding secrets, cleaning build trash
 
 ## Status
 
-**Version `0.4.4`** — MVP `0.1.0` closed; **Alpha `0.3.0` closed** (stash / rinse / raid / git+DX). **Detect v2 `0.4.0` closed** (composite DAG detectors, scoped rinse, batch raid `racc raid --root`, wiki + E2E). **Beta B1.4: TUI raid flow done** (dry-run preview → passphrase modal → phase pipeline progress → honest result; Atomic default). Next: Beta `0.5.0` (TUI + Desktop).
+**Version `0.4.5`** — MVP `0.1.0` closed; **Alpha `0.3.0` closed** (stash / rinse / raid / git+DX). **Detect v2 `0.4.0` closed** (composite DAG detectors, scoped rinse, batch raid `racc raid --root`, wiki + E2E). **Beta B1.4: TUI raid flow done (0.4.4)** (dry-run preview → passphrase modal → phase pipeline progress → honest result; Atomic default). **Visual System 2.0 (0.4.5)**: graphite+orange theme (DTCG v0.2.0), shell with live sidebar badges, Overview dashboard (KPI + project cards), Projects Cards default (Table demoted, Tree stub), activity stream (wide terminals), module split (app.rs ≤ 450). Next: Beta `0.5.0` (TUI reveal + Desktop).
 
 | Command | Status | Role |
 |---------|--------|------|
@@ -36,7 +36,7 @@ CLI tool for scanning project directories, finding secrets, cleaning build trash
 | **rinse** | Available (Alpha) | Build-trash cleanup by strategies (`rust`/`node`/`python` default, more opt-in), DryRun default / `--yes` |
 | **raid** | Available (Alpha) | Orchestrated stash → rinse → pack → move in one command; atomic default (staging + WAL + rollback), manifest JSON in den, `--fail-fast` mode, exit 1 on `!success`; `--root` for batch mode across all projects |
 | **init** | Available (Alpha) | Create default config (`config_version = 1`) with prefilled paths; optional den skeleton (`--ensure-den`), `--force` to overwrite |
-| **TUI** | Beta (sniff + dig + raid screens) | Ratatui project table, non-blocking worker sniff/dig/raid, Findings with masked details, risk filter `f`, content-toggle `c`, raid flow `R` (preview → passphrase → progress → result) (since 0.4.2, dig since 0.4.3, raid since 0.4.4) |
+| **TUI** | Beta (sniff + dig + raid + visual shell) | Ratatui: graphite+orange Visual System 2.0, sidebar with live badges, Overview dashboard (KPI + project cards), Projects Cards default (`v` cycles Cards/Table/Tree), Findings with masked details, risk filter `f`, content-toggle `c`, raid flow `R` (preview → passphrase → progress → result), activity stream on wide terminals (since 0.4.2, dig 0.4.3, raid 0.4.4, visual 0.4.5) |
 | **Desktop** | Planned (Beta) | Tauri + React |
 
 Details and exact flags: [wiki / CLI](https://y-tretyakov.github.io/raccpack/cli-usage.html).

@@ -8,7 +8,7 @@ description: How raccpack is evolving toward version 1.0.0 — what is already a
 How raccpack is evolving toward version 1.0.0 — and what you can use today.
 
 ::: info
-Current version: **0.4.4** — Alpha complete; Detect v2 complete (D1 ✅; D2 ✅; D3 ✅; D4 ✅ wiki + E2E + batch raid); **Beta B1.4 TUI raid + progress done**.
+Current version: **0.4.5** — Alpha complete; Detect v2 complete (D1 ✅; D2 ✅; D3 ✅; D4 ✅ wiki + E2E + batch raid); **Beta B1.4 TUI raid + progress done (0.4.4)**; **TUI Visual System 2.0 done (0.4.5)**.
 Dates are approximate. "Available" status means the functionality can be used in the current version built from source.
 :::
 
@@ -41,6 +41,7 @@ Dates are approximate. "Available" status means the functionality can be used in
 - [x] TUI sniff screen — project table, non-blocking worker sniff, progress, j/k navigation (since 0.4.2).
 - [x] TUI dig screen — findings table (masked only), risk filter `f`, content-scan toggle `c`, detail strip, Esc back to projects (since 0.4.3).
 - [x] TUI raid screen — `R` opens the raid wizard (dry-run preview → passphrase modal → phase pipeline progress → honest result, Atomic by default) (since 0.4.4).
+- [x] TUI Visual System 2.0 — graphite+orange theme (DTCG v0.2.0), shell with live sidebar badges, Overview dashboard (KPI + project cards), Projects cards default (`v` cycles Cards/Table/Tree), activity stream on wide terminals, module split (since 0.4.5).
 - [ ] TUI — reveal modal.
 - [ ] Desktop (Tauri + React) — desktop application.
 - [ ] Den management: `racc den list`, `staging` cleanup.
