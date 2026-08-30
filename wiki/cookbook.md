@@ -5,7 +5,7 @@ description: "Practical raccpack scenarios: onboarding, dry-run safety, a full r
 
 # Usage cookbook — scenarios and scripts
 
-Status: accurate for **raccpack 0.4.5** (Detect v2 complete: DAG composite detectors, batch raid `racc raid --root`; Beta B1.4 TUI raid done; Visual System 2.0 TUI done).
+Status: accurate for **raccpack 0.4.4** (Detect v2 complete: DAG composite detectors, batch raid `racc raid --root`; Beta B1.4 TUI sniff + dig + raid screens done).
 
 Ready-made recipes on top of the command surface. If a flag isn't described here or on
 the command's page, it doesn't exist in the current version.

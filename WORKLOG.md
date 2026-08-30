@@ -15,10 +15,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.4.5`** |
-| **Веха** | Detect v2 ✅ CLOSED · **Beta B1.4 done (0.4.4)** · **B1-V2 Visual System 2.0 done (0.4.5)** · Beta → 0.5.0 |
-| **Этап** | **B1.5** — TUI reveal modal (→ 0.4.6) |
-| **Предыдущее** | B1-V2 (V2-A…F) TUI Visual System 2.0 closed (0.4.5) |
+| **Версия** | **`0.4.4`** |
+| **Веха** | Detect v2 ✅ CLOSED · **Beta B1.4 done (0.4.4)** · Beta → 0.5.0 |
+| **Этап** | **B1.5** — TUI reveal modal |
+| **Предыдущее** | B1.4 TUI raid + progress closed (0.4.4) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
@@ -38,8 +38,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 [x] B1.2.5 Detail strip (detail-height 7, git-маркеры, empty placeholder `·`), нет bump
 [x] B1.3  TUI dig screen (0.4.3)
 [x] B1.4  TUI raid + progress (0.4.4)
-[x] B1-V2 TUI Visual System 2.0 (0.4.5): theme tokens, shell+badges, overview, projects Cards, activity, polish+split
-[ ] B1.5  TUI reveal modal (→ 0.4.6)
+[ ] B1.5  TUI reveal modal
 [ ] B2  Desktop (Tauri + React) + BFF + ephemeral reveal
 [ ] B3  Security hardening + Safe Reveal contract
 [ ] B4  Productization (den gc, parallel sniff, docs) → Beta exit 0.5.0
@@ -87,20 +86,6 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 ---
 
 ## Этапы (Beta)
-
-### 2026-08-30 — B1-V2 (V2-A…F) — TUI Visual System 2.0 ✅ CLOSED (0.4.5)
-
-- **Ветки:** `v2-a-theme` … `v2-f-polish` (PR #114…#119 → `dev`, squash). **Версия:** 0.4.5 (единственный bump всей фазы в V2-F; V2-A…E — «нет bump»).
-- **DoD по V2-A (theme):** graphite+orange палитра (DTCG v0.2.0, 14 primitive + semantic surface-raised/info/analysis + git алиасы); teal удалён → `FOCUS`/`BRAND_PRIMARY` = `#FF8A3D`, `SELECTION→surface_raised`, `ACCENT_DIM` удалён; `src/theme/{mod,primitive,semantic,intent}.rs`, `ui/theme.rs` удалён; ban-тест на teal в primitive.rs.
-- **DoD по V2-B (shell):** `ui/widgets/sidebar.rs` — brand `◈ RACCPACK` + workspace, nav с live-badges (Projects = count, Findings = WARNING если >0, `·` до dig), версия снизу; header = brand + root + версия; activity-слот хук `main_split` (`ACTIVITY_WIDTH=0` до V2-E); footer без изменений.
-- **DoD по V2-C (overview):** `ui/screens/overview.rs` — KPI strip (projects/Rust/JS-TS/size/git из реальных counts), recent cards (PRIMARY→SECONDARY→STATE→METADATA, `·` для пустого), health (`✓ detection READY`, `(cache)`, подсказки до скана — не blank stub); **`format_bytes` извлечён в `ui/widgets/mod.rs`** (единый источник для sniff + kpi + cards).
-- **DoD по V2-D (projects):** `ProjectsMode::{Cards,Table,Tree}`, **Cards default**, `v` циклит; общая селекция j/k/g/G/Enter/R инвариантна между режимами; `projects_cards.rs` (grid, brand-border) + `projects_tree.rs` (stub hint); content-флаг `c` сохранён; help документирует `v`.
-- **DoD по V2-E (activity):** `app/activity.rs` (ActivityLog cap 32, newest-first, `(n)`) + `app/activity_feed.rs` + `ui/widgets/activity.rs` (глифы `✔/!/✖/·`, NO_COLOR-safe); источники: Progress (троттл ≥10 п.п./сменa текста), SniffDone/DigDone (ok/err, findings>0 → warn), старты r/dig; панель только ≥120 колонок content (28 ширина), 80×24 скрыта; raid-фазы не дублируются; секреты/пароли не попадают. Rework: event.rs 459→423 (split activity_feed, попытка 1).
-- **DoD по V2-F (polish + hygiene):** app.rs 1267→**171** (split: `app/sniff.rs`, `app/keys.rs`, тесты в `app/tests/*`), `resize_smoke_test.rs` (все view × modes × `[80×24,120×30,160×40,40×12]` без паники), TerminalGuard нетронут + test `drop_never_panics`, help c `v`; DAG-panel — follow-up (данных per-repo нет).
-- **Сквозная верификация:** `cargo test --workspace` green (прогоны по merge-ready tip каждого этапа; у V2-E rework 459→423), `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` — все зелёные; CI зелёный по каждому PR.
-- **Файлы (суммарно):** `src/theme/{mod,primitive,semantic,intent}.rs`, `ui/widgets/{sidebar,kpi_strip,project_card,activity}.rs`, `ui/screens/{overview,projects_cards,projects_tree}.rs`, `app.rs` + `app/{sniff,keys,tests/*,activity,activity_feed}.rs`, `event.rs`, `ui/layout.rs`, `ui/screens/{mod,sniff,help}.rs`, `ui/widgets/mod.rs`, `docs/design-tokens/raccpack.tokens.json` (v0.2.0), Cargo.toml/lock, README.md/ru, `docs/VERSION_ROADMAP.md`, `docs/raccpack-roadmap-v1.md`, wiki (tui-usage/roadmap/introduction).
-- **Решения:** вся фаза A…F по одному плану (пользовательское да); единственный bump 0.4.5 в V2-F (прецедент B1.2.3–5); B1.5 reveal — **после** визуальной фазы (→ 0.4.6); палитра графит+оранж, teal запрещён; sidebar-ширина и glyph `●/·/·` не менялись; activity — только широкие терминалы (80×24 не деградирует); modules ≤450 строк (event.rs/app.rs после сплитов).
-- **Follow-up:** DAG-panel (когда появятся per-repo stack/graph данные); findings-badge на project-card (нужен роутинг dig_state в render — отложено); Tree-view полный (не stub); `--no-activity-close` (широкий терминал); `spawn_bridged_worker` ×2 в integration — вынести `tests/common/mod.rs` при 3-й копии; wiki-раздел про клавиши визуальной фазы (частично в этой записи — tui-usage обновлён).
 
 ### 2026-08-30 — B1.4 — TUI raid (Atomic) + progress ✅ CLOSED
 

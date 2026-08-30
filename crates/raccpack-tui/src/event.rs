@@ -421,18 +421,3 @@ fn event_reader(tx: mpsc::Sender<AppEvent>) {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// `TerminalGuard::new()` needs a real TTY, so build the guard through its
-    /// private field (visible in-module) and drop it. `Drop` tolerates
-    /// terminal-operation failures (`let _ = ...`), so this must never unwrap,
-    /// panic, or unwind — even when no terminal is attached.
-    #[test]
-    fn terminal_guard_drop_never_panics() {
-        let guard = TerminalGuard { _private: () };
-        drop(guard);
-    }
-}
