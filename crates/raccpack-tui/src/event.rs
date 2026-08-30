@@ -179,6 +179,7 @@ fn handle_app_command(cmd: Command, worker_tx: &mpsc::Sender<WorkerMsg>, app: &m
             // in handle_worker_event drops events for a closed flow.
             app.raid_flow = None;
         }
+        Command::Reveal => send_reveal(app, worker_tx),
         // Pure-in-app commands were already applied inside `App::handle_key`.
         Command::BackToProjects | Command::CycleRiskFilter => {}
         _ => {}
@@ -256,6 +257,9 @@ fn resolve_raid_passphrase(flow: &mut RaidFlow) -> Option<WorkerPassphrase> {
 
 /// Send one dig run for `project` to the worker.
 fn start_dig(project: std::path::PathBuf, app: &mut App, worker_tx: &mpsc::Sender<WorkerMsg>) {
+    // A new dig invalidates any in-flight reveal; drop the modal (zeroizes the
+    // secret if one was shown).
+    app.reveal = None;
     app.dig_state.set_loading(true);
     app.dig_state.project = Some(project.clone());
     let den_dir = app.den_dir.clone();
@@ -264,6 +268,28 @@ fn start_dig(project: std::path::PathBuf, app: &mut App, worker_tx: &mpsc::Sende
         project,
         den_dir,
         scan_content,
+    });
+}
+
+/// Dispatch a confirmed ephemeral reveal to the worker.
+///
+/// The modal already holds the sensitive file path + reference; the resolved
+/// project directory (`dig_state.project`) is passed as `dir_root` so the core
+/// can enforce path containment. The worker replies with `RevealReady`
+/// (zeroized value) or `RevealFailed`.
+fn send_reveal(app: &mut App, worker_tx: &mpsc::Sender<WorkerMsg>) {
+    let Some(dir_root) = app.dig_state.project.clone() else {
+        return;
+    };
+    let Some(modal) = app.reveal.as_ref() else {
+        return;
+    };
+    let path = modal.path.clone();
+    let reference = modal.reference.clone();
+    let _ = worker_tx.send(WorkerMsg::Reveal {
+        path,
+        dir_root,
+        reference,
     });
 }
 
@@ -363,6 +389,22 @@ fn handle_worker_event(event: WorkerEvent, app: &mut App) {
                 Ok(done) => FlowPhase::Done(done),
                 Err(e) => FlowPhase::Failed(e.to_string()),
             };
+        }
+        WorkerEvent::RevealReady(secret) => {
+            // Only land the value if the modal is still open and expecting it.
+            // Dropping the modal (or ignoring this event) zeroizes the secret.
+            if let Some(modal) = app.reveal.as_mut() {
+                if matches!(modal.phase, crate::app::reveal::RevealPhase::Revealing) {
+                    modal.set_ready(secret);
+                }
+            }
+        }
+        WorkerEvent::RevealFailed(err) => {
+            if let Some(modal) = app.reveal.as_mut() {
+                if matches!(modal.phase, crate::app::reveal::RevealPhase::Revealing) {
+                    modal.set_failed(err.to_string());
+                }
+            }
         }
         WorkerEvent::Cancelled => {
             app.sniff_state.set_loading(false);

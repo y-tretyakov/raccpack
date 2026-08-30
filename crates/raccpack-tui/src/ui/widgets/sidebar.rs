@@ -266,6 +266,7 @@ mod tests {
             risk: raccpack_core::domain::SensitiveRisk::High,
             kind: ".env".into(),
             git_status: "tracked".into(),
+            content_ref: None,
         });
         let line = nav_line(
             ViewId::Findings,
@@ -325,6 +326,7 @@ mod tests {
             risk: raccpack_core::domain::SensitiveRisk::High,
             kind: ".env".into(),
             git_status: "tracked".into(),
+            content_ref: None,
         });
         let (text, style) = nav_badge(&app, ViewId::Findings).unwrap();
         assert_eq!(text, "1");

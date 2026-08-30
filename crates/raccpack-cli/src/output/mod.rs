@@ -333,6 +333,7 @@ mod tests {
                     risk: SensitiveRisk::Medium,
                     labels: vec!["JWT-like".to_string()],
                     content_match: Some(masked("eyJ0…abc")),
+                    content_ref: None,
                     git_status: None,
                 },
                 SensitiveFile {
@@ -340,6 +341,7 @@ mod tests {
                     risk: SensitiveRisk::High,
                     labels: vec!["Env file".to_string()],
                     content_match: Some(masked("DB=****")),
+                    content_ref: None,
                     git_status: None,
                 },
                 SensitiveFile {
@@ -347,6 +349,7 @@ mod tests {
                     risk: SensitiveRisk::Critical,
                     labels: vec!["Private key PEM".to_string()],
                     content_match: None,
+                    content_ref: None,
                     git_status: None,
                 },
                 SensitiveFile {
@@ -354,6 +357,7 @@ mod tests {
                     risk: SensitiveRisk::Critical,
                     labels: vec!["AWS Access Key".to_string()],
                     content_match: Some(masked("AKIA…23")),
+                    content_ref: None,
                     git_status: None,
                 },
             ],

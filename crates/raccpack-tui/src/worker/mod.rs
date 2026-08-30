@@ -15,6 +15,8 @@ use raccpack_core::app::{
 use raccpack_core::config::RaccConfig;
 use raccpack_core::detect::DetectMode;
 use raccpack_core::domain::Error;
+use raccpack_core::secrets::FindingRef;
+use zeroize::Zeroizing;
 
 use self::raid::{run_raid_commit, run_raid_preview};
 
@@ -37,6 +39,10 @@ pub enum WorkerEvent {
     RaidPreviewDone(Result<raccpack_core::app::RaidResult, Error>),
     /// Raid commit completed.
     RaidDone(Result<raccpack_core::app::RaidResult, Error>),
+    /// Ephemeral reveal finished; carries the raw value zeroized, shown once.
+    RevealReady(WorkerRevealSecret),
+    /// Ephemeral reveal failed; no raw value is ever sent on failure.
+    RevealFailed(Error),
     /// Operation cancelled.
     Cancelled,
 }
@@ -70,6 +76,13 @@ pub enum WorkerMsg {
         den_dir: PathBuf,
         opts: RaidWorkerOpts,
         passphrase: WorkerPassphrase,
+    },
+    /// Reveal one secret value (opt-in). `dir_root` is the project root used
+    /// for path containment; the reference pinpoints the value to reveal.
+    Reveal {
+        path: PathBuf,
+        dir_root: PathBuf,
+        reference: FindingRef,
     },
     /// Cancel current operation.
     Cancel,
@@ -131,6 +144,13 @@ pub fn spawn_worker() -> (mpsc::Sender<WorkerMsg>, mpsc::Receiver<WorkerEvent>) 
                 } => {
                     run_raid_commit(project, den_dir, opts, passphrase, event_tx.clone());
                 }
+                WorkerMsg::Reveal {
+                    path,
+                    dir_root,
+                    reference,
+                } => {
+                    run_reveal(path, dir_root, reference, event_tx.clone());
+                }
                 WorkerMsg::Cancel => {
                     let _ = event_tx.send(WorkerEvent::Cancelled);
                 }
@@ -173,6 +193,53 @@ fn run_dig(config: RaccConfig, opts: DigOptions, event_tx: mpsc::Sender<WorkerEv
     let mut sink = TuiProgressSink::new(event_tx.clone());
     let result = raccpack_core::app::dig(&ctx, &opts, &mut sink);
     let _ = event_tx.send(WorkerEvent::DigDone(result));
+}
+
+/// The raw revealed secret, zeroized on drop and `Debug`-redacted.
+///
+/// This is the only payload that may carry a raw secret value from the worker
+/// to the UI, and it does so transiently: it lives only in the reveal modal's
+/// `Ready` phase and is dropped (zeroized) the moment the modal closes.
+pub struct WorkerRevealSecret(Zeroizing<String>);
+
+impl WorkerRevealSecret {
+    /// Wrap a revealed value into a zeroized, redacted payload.
+    pub fn new(value: String) -> Self {
+        Self(Zeroizing::new(value))
+    }
+
+    /// Borrow the raw value for a single modal render.
+    pub fn expose(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for WorkerRevealSecret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("WorkerRevealSecret(**)")
+    }
+}
+
+/// Run one opt-in reveal in the worker thread.
+///
+/// The core re-reads the file fresh and returns an [`EphemeralSecret`] only on
+/// an exact hash match; the value is copied into a zeroized payload and sent to
+/// the UI. On failure, only the error is forwarded — never a value.
+fn run_reveal(
+    path: PathBuf,
+    dir_root: PathBuf,
+    reference: FindingRef,
+    event_tx: mpsc::Sender<WorkerEvent>,
+) {
+    match raccpack_core::secrets::reveal_finding(&path, &dir_root, &reference) {
+        Ok(secret) => {
+            let payload = WorkerRevealSecret::new(secret.expose().to_string());
+            let _ = event_tx.send(WorkerEvent::RevealReady(payload));
+        }
+        Err(e) => {
+            let _ = event_tx.send(WorkerEvent::RevealFailed(e));
+        }
+    }
 }
 
 /// Progress sink that forwards events to the UI via a channel.

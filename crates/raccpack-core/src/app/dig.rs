@@ -17,8 +17,8 @@ use crate::domain::{Result, SensitiveRisk};
 use crate::git::{find_repo_root, GitClient, GitFileStatus, ProcessGitClient};
 use crate::scan::{ensure_scan_root, SkipPolicy};
 use crate::secrets::{
-    scan::scan_secrets_with_count, ContentScanLimits, MaskedValue, SecretScanOptions,
-    SensitiveFinding,
+    scan::scan_secrets_with_count, ContentScanLimits, FindingRef, FindingSource, MaskedValue,
+    SecretScanOptions, SensitiveFinding,
 };
 
 use super::context::{AppContext, SecretExitPolicy};
@@ -61,6 +61,10 @@ pub struct SensitiveFile {
     pub labels: Vec<String>,
     /// Masked preview of the highest-risk content hit, if any.
     pub content_match: Option<MaskedValue>,
+    /// Opt-in reference to **where** the highest-risk content value lives
+    /// (marker id + line + value hash). Carries no raw value; the TUI uses it
+    /// to request an ephemeral reveal. Set only when there is a content match.
+    pub content_ref: Option<FindingRef>,
     /// Git status of the file as a stable snake_case string (`"tracked"`,
     /// `"untracked"`, `"ignored"`, …) when the scanned root sits inside a git
     /// working tree; `None` outside a repo or whenever git is unavailable
@@ -219,8 +223,33 @@ fn finding_to_file(finding: &SensitiveFinding) -> SensitiveFile {
         risk: finding.risk,
         labels: finding.labels.clone(),
         content_match: finding.content_match.clone(),
+        content_ref: content_ref_for(finding),
         git_status: None,
     }
+}
+
+/// Build a [`FindingRef`] for the highest-risk content match, if any.
+///
+/// The finding stores only the masked `content_match` plus its `sources`; the
+/// ref is recovered by finding the `Content` source whose `value_hash` matches
+/// `content_match` (the highest-risk content hit). Multiple sources sharing the
+/// same hash resolve to the first — reveal re-hashes and picks the matching
+/// value regardless of which line, so any one of them is a valid ref.
+fn content_ref_for(finding: &SensitiveFinding) -> Option<FindingRef> {
+    let value_hash = finding.content_match.as_ref()?.value_hash.clone();
+    finding.sources.iter().find_map(|source| match source {
+        FindingSource::Content {
+            marker_id,
+            masked,
+            line,
+        } if masked.value_hash == value_hash => Some(FindingRef {
+            path: finding.path.clone(),
+            marker_id: marker_id.clone(),
+            line: line.unwrap_or(1),
+            value_hash: value_hash.clone(),
+        }),
+        _ => None,
+    })
 }
 
 /// Best-effort git enrichment: fill `git_status` on each finding.

@@ -113,6 +113,8 @@ pub enum Command {
     RaidRun,
     /// Cancel the raid flow (n / Esc while previewing or entering the passphrase).
     RaidCancel,
+    /// Dispatch an ephemeral reveal to the worker (confirmed on the modal).
+    Reveal,
 }
 
 /// Top-level application state.
@@ -132,6 +134,8 @@ pub struct App {
     pub refresh_on_start: bool,
     /// Active raid modal flow, if any.
     pub raid_flow: Option<raid::RaidFlow>,
+    /// Active reveal modal (opt-in, ephemeral), if any.
+    pub reveal: Option<reveal::RevealModal>,
 }
 
 impl Default for App {
@@ -154,20 +158,25 @@ impl App {
             den_dir: PathBuf::new(),
             refresh_on_start: false,
             raid_flow: None,
+            reveal: None,
         }
     }
 
     /// Process a terminal key event and return the resulting command.
     pub fn handle_key(&mut self, key: KeyEvent) -> Command {
-        // A raid modal takes precedence over the help overlay: once a flow is
-        // active the help cannot be shown on top of it and `Esc`/`?` dismiss
-        // only what the flow itself allows.
-        if self.raid_flow.is_some() {
+        // A raid or reveal modal takes precedence over the help overlay: once
+        // a flow/modal is active, help cannot be shown on top of it and
+        // `Esc`/`?` dismiss only what the modal itself allows.
+        if self.raid_flow.is_some() || self.reveal.is_some() {
             self.help_visible = false;
         }
 
         if self.help_visible {
             return self.handle_key_help(key);
+        }
+
+        if let Some(cmd) = self.handle_key_reveal(key) {
+            return cmd;
         }
 
         if let Some(cmd) = self.handle_key_raid_flow(key) {
@@ -181,6 +190,22 @@ impl App {
         match self.focus {
             Focus::Sidebar => self.handle_key_sidebar(key),
             Focus::Main => self.handle_key_main(key),
+        }
+    }
+
+    /// Keys while the reveal modal is open. Everything the modal does not
+    /// consume is swallowed, so no key reaches the underlying screens. Returns
+    /// `None` when no modal is active (keys fall through normally).
+    fn handle_key_reveal(&mut self, key: KeyEvent) -> Option<Command> {
+        let modal = self.reveal.as_mut()?;
+        match modal.handle_key(key.code) {
+            reveal::RevealCommand::Confirm => Some(Command::Reveal),
+            reveal::RevealCommand::Close => {
+                // Dropping the modal zeroizes any in-flight secret.
+                self.reveal = None;
+                Some(Command::None)
+            }
+            reveal::RevealCommand::None => Some(Command::None),
         }
     }
 
@@ -257,6 +282,17 @@ impl App {
                 // `f` is purely local state, no worker round-trip needed.
                 KeyCode::Char('f') => {
                     self.dig_state.cycle_min_risk();
+                    Some(Command::None)
+                }
+                // `v` opens the confirm step for an opt-in reveal, only when the
+                // selected row carries a safe content reference.
+                KeyCode::Char('v') => {
+                    if let Some(row) = self.dig_state.selected_finding() {
+                        if let Some(reference) = row.content_ref.clone() {
+                            self.reveal =
+                                Some(reveal::RevealModal::new(row.path.clone(), reference));
+                        }
+                    }
                     Some(Command::None)
                 }
                 _ => None,
@@ -403,6 +439,7 @@ impl App {
 
 pub mod dig;
 pub mod raid;
+pub mod reveal;
 
 pub mod sniff {
     use ratatui::widgets::TableState;
@@ -987,12 +1024,14 @@ mod tests {
                 risk: raccpack_core::domain::SensitiveRisk::Critical,
                 kind: ".env".to_string(),
                 git_status: "tracked".to_string(),
+                content_ref: None,
             },
             dig::FindingRow {
                 path: std::path::PathBuf::from("/b"),
                 risk: raccpack_core::domain::SensitiveRisk::High,
                 kind: "key".to_string(),
                 git_status: String::new(),
+                content_ref: None,
             },
         ];
         app.dig_state.reapply_filter();

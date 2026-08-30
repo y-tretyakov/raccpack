@@ -143,3 +143,50 @@ fn dig_missing_project_reports_error() {
         "digging a nonexistent project must surface an error"
     );
 }
+
+/// B1.5 case 10 — the raw secret literal that lives in the scanned file must
+/// never appear in `DigScreenState`/`FindingRow` Debug after a full content dig,
+/// even though the file itself is re-readable at reveal time. This holds whether
+/// or not a content ref is present on the row; the TUI state carries metadata
+/// only.
+#[test]
+fn dig_state_never_contains_raw_secret_literal() {
+    let tmp = tempfile::tempdir().unwrap();
+    // A distinctive AWS access key value; the raw literal must never enter the
+    // TUI screen state (only the masked preview does).
+    let raw = "AKIARAWVALUE1234567890AB";
+    let project = tmp.path().join("srv");
+    std::fs::create_dir_all(&project).unwrap();
+    std::fs::write(project.join("creds.txt"), format!("{raw}\n")).unwrap();
+
+    let (worker_tx, ui_rx) = spawn_bridged_worker();
+    worker_tx
+        .send(WorkerMsg::Dig {
+            project: project.clone(),
+            den_dir: PathBuf::from("/tmp/b1.5-den"),
+            scan_content: true,
+        })
+        .unwrap();
+
+    let result = wait_for_dig(&ui_rx).expect("dig run should succeed");
+    assert!(
+        result.files.iter().any(|f| f.path.ends_with("creds.txt")),
+        "creds.txt must be reported as a finding"
+    );
+
+    let mut state = DigScreenState::default();
+    state.set_dig_result(result);
+
+    let debug = format!("{state:?}");
+    assert!(
+        !debug.contains(raw),
+        "raw secret literal leaked into DigScreenState Debug: {debug}"
+    );
+    for row in &state.findings {
+        let row_debug = format!("{row:?}");
+        assert!(
+            !row_debug.contains(raw),
+            "raw secret literal leaked into FindingRow Debug: {row_debug}"
+        );
+    }
+}
