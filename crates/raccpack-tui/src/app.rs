@@ -132,8 +132,6 @@ pub struct App {
     pub refresh_on_start: bool,
     /// Active raid modal flow, if any.
     pub raid_flow: Option<raid::RaidFlow>,
-    /// User-meaningful semantic event stream (Activity panel).
-    pub activity: activity::ActivityLog,
 }
 
 impl Default for App {
@@ -156,7 +154,6 @@ impl App {
             den_dir: PathBuf::new(),
             refresh_on_start: false,
             raid_flow: None,
-            activity: activity::ActivityLog::default(),
         }
     }
 
@@ -409,8 +406,6 @@ impl App {
     }
 }
 
-pub mod activity;
-pub mod activity_feed;
 pub mod dig;
 pub mod raid;
 
