@@ -24,7 +24,7 @@
 
 ## Текущая позиция
 
-> **Detect v2 exit (0.4.0) done.** **Alpha exit: 0.3.0.** **B1.2 TUI sniff screen done (0.4.2).** **B1.2.5 detail strip done (no bump).** **B1.3 TUI dig screen done (0.4.3).** **B1.4 TUI raid + progress done (0.4.4).**
+> **Detect v2 exit (0.4.0) done.** **Alpha exit: 0.3.0.** **B1.2 TUI sniff screen done (0.4.2).** **B1.2.5 detail strip done (no bump).** **B1.3 TUI dig screen done (0.4.3).** **B1.4 TUI raid + progress done (0.4.4).** **TUI visual polish (no bump): графит+оранж тема, shell (бренд ◈ RACCPACK + live-бейджи + версия в header), resize-смоук.**
 
 | | |
 |--|--|

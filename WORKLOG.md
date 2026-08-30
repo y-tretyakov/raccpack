@@ -87,6 +87,22 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 
 ## Этапы (Beta)
 
+### 2026-08-30 — B1.4-vis — TUI visual polish (theme + shell), V2 rollback ✅ CLOSED (no bump)
+
+- **Ветка:** `tui-v2-min` (PR #120 → `dev`, squash)
+- **Версия:** 0.4.4 (без bump)
+- **Контекст/решение человека:** визуальная фаза V2 (V2-A…F, PR #114–#119, bump 0.4.5) **откачена полностью** — остаётся только: 1) тема **графит+оранж** (DTCG v0.2.0, teal удалён, ban-тест), 2) **shell**: sidebar с брендом `◈ RACCPACK` + live-бейджи (Projects count / Findings amber·0·`·`) + версия внизу, 3) **header с версией** (узкий fallback), 4) **resize-смоук 4 размеров** (80×24 / 120×30 / 160×40 / 40×12).
+- **Откачено (rework не из-за багов — buckshot удовлетворил, решение человека):** overview-дашборд (V2-C), Projects Cards/Tree default + `v` (V2-D), activity-лента + activity-slot hook (V2-E, включая `main_split` в layout.rs), split app.rs 1267→171 (V2-F), bump 0.4.5 с каскадом B2–B4, wiki/README pages под 0.4.5.
+- **Метод:** ветка от `d2b4e0a` (B1.4) + cherry-pick `bce277c` (V2-A theme) + `ef94447` (V2-B shell) → удалён activity-slot (layout.rs: `main_split`, нулевой test) → новый `tests/resize_smoke_test.rs` для пережившего набора экранов (Overview stub / Projects sniff / Findings dig / Operations stub + Help overlay + Raid modal).
+- **DoD:**
+  - [x] Тема графит+оранж работает: focal/brand селекция stays (тест focus == brand orange)
+  - [x] Sidebar: бренд, workspace, live-badges (типографика, не палитра), версия `v0.4.4` снизу
+  - [x] Header: бренд + root + version; на узком — hotkeys сворачиваются
+  - [x] Ресайз-безопасность: 4 размера × все view + оверлеи без паники
+  - [x] `cargo test --workspace` green, `cargo fmt --check` ok, `cargo clippy --workspace --all-targets -- -D warnings` ok
+- **Файлы:** crates/raccpack-tui/src/theme/{mod,primitive,semantic,intent}.rs, ui/layout.rs, ui/widgets/{mod,sidebar}.rs, ui/screens/mod.rs, tests/resize_smoke_test.rs (created), docs/design-tokens/raccpack.tokens.json (v0.2.0), README.md, README.ru.md, docs/VERSION_ROADMAP.md, docs/raccpack-roadmap-v1.md, WORKLOG.md (this), wiki/{tui-usage,roadmap,introduction,facade-api,cookbook}.md + ru/*
+- **Решения:** версия остаётся 0.4.4 (bump-фаза откачена); «B1.4-vis» не отдельный этап версии — полиш в линии 0.4.4; follow-up из V2 (DAG-panel, app.rs split) остаются открытыми как и были; спеки/docs V2 (`docs/PROMPT_TUI_VISUAL_REWORK.md`, `docs/beta/b1/V2-*`) локально-untracked, не коммитятся.
+
 ### 2026-08-30 — B1.4 — TUI raid (Atomic) + progress ✅ CLOSED
 
 - **Ветка:** `b1.4-tui-raid` (PR #113 → `dev`, squash)

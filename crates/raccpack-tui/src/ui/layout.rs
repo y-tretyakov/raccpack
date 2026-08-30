@@ -106,30 +106,7 @@ fn render_body(f: &mut ratatui::Frame, area: Rect, app: &mut App) {
 
     sidebar::render(f, chunks[0], app);
 
-    // Main region reserves an optional right-hand activity slot for V2-E. With
-    // no content yet (`activity_width == 0`) the split degrades to the full
-    // main area, so an 80×24 terminal and the sniff table are unaffected.
-    let (content, activity) = main_split(chunks[1]);
-    screens::render_screen(f, content, app);
-    if let Some(activity_area) = activity {
-        // V2-E will draw the activity panel here once it has content to show.
-        let _ = activity_area;
-    }
-}
-
-/// Split the main region into `content | activity`. The activity panel is a
-/// structural placeholder until V2-E: it takes zero width (→ `None`) until a
-/// real width is supplied, at which point it is reserved and drawn.
-fn main_split(area: Rect) -> (Rect, Option<Rect>) {
-    const ACTIVITY_WIDTH: u16 = 0;
-    if ACTIVITY_WIDTH == 0 {
-        return (area, None);
-    }
-    let chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Min(0), Constraint::Length(ACTIVITY_WIDTH)])
-        .split(area);
-    (chunks[0], Some(chunks[1]))
+    screens::render_screen(f, chunks[1], app);
 }
 
 fn space() -> Span<'static> {
@@ -334,20 +311,10 @@ mod tests {
     }
 
     #[test]
-    fn activity_slot_is_zero_width_until_v2e() {
-        // With no activity content yet, the main split must hand back the full
-        // area and no activity rect, so an 80×24 terminal is never truncated.
-        let main = Rect::new(23, 1, 80, 22);
-        let (content, activity) = main_split(main);
-        assert_eq!(content, main);
-        assert!(activity.is_none());
-    }
-
-    #[test]
     fn eighty_by_twentyfour_body_preserves_sniff_width() {
         // 80×24 terminal: 1 header + 1 footer → body of 22 rows; the sidebar
-        // clamps to 23 columns (minus the 0-wide activity slot) leaving the
-        // sniff screen all 57 columns of the main region.
+        // clamps to 23 columns leaving the sniff screen all 57 columns of the
+        // main region — no resize truncation on the baseline size.
         let term = Rect::new(0, 0, 80, 24);
         let outer = Layout::default()
             .direction(Direction::Vertical)
@@ -367,9 +334,5 @@ mod tests {
             .split(body);
         assert_eq!(chunks[0].width, 23);
         assert_eq!(chunks[1].width, 57);
-
-        let (content, activity) = main_split(chunks[1]);
-        assert_eq!(content, chunks[1], "sniff table must keep all 57 columns");
-        assert!(activity.is_none());
     }
 }
