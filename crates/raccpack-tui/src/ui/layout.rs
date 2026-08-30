@@ -106,23 +106,30 @@ fn render_body(f: &mut ratatui::Frame, area: Rect, app: &mut App) {
 
     sidebar::render(f, chunks[0], app);
 
-    // Main region reserves an optional right-hand activity slot for V2-E. With
-    // no content yet (`activity_width == 0`) the split degrades to the full
-    // main area, so an 80×24 terminal and the sniff table are unaffected.
+    // Main region reserves an optional right-hand activity slot on wide
+    // terminals (≥ ACTIVITY_MIN_WIDTH); below that the split degrades to the
+    // full main area, so an 80×24 terminal and the sniff table are unaffected.
     let (content, activity) = main_split(chunks[1]);
     screens::render_screen(f, content, app);
     if let Some(activity_area) = activity {
-        // V2-E will draw the activity panel here once it has content to show.
-        let _ = activity_area;
+        crate::ui::widgets::activity::render(f, activity_area, &app.activity);
     }
 }
 
-/// Split the main region into `content | activity`. The activity panel is a
-/// structural placeholder until V2-E: it takes zero width (→ `None`) until a
-/// real width is supplied, at which point it is reserved and drawn.
+/// Minimum main-region width (columns) for the activity panel to be shown.
+/// Below the threshold the panel is hidden and content keeps the full width.
+pub const ACTIVITY_MIN_WIDTH: u16 = 120;
+
+/// Width reserved for the activity panel once [`ACTIVITY_MIN_WIDTH`] is met.
+pub const ACTIVITY_WIDTH: u16 = 28;
+
+/// Split the main region into `content | activity`.
+///
+/// The activity panel only appears on wide terminals: when the main region is
+/// narrower than [`ACTIVITY_MIN_WIDTH`] the split degrades to the full area
+/// and `None`, so an 80×24 terminal and the sniff table are unaffected.
 fn main_split(area: Rect) -> (Rect, Option<Rect>) {
-    const ACTIVITY_WIDTH: u16 = 0;
-    if ACTIVITY_WIDTH == 0 {
+    if area.width < ACTIVITY_MIN_WIDTH {
         return (area, None);
     }
     let chunks = Layout::default()
@@ -334,20 +341,38 @@ mod tests {
     }
 
     #[test]
-    fn activity_slot_is_zero_width_until_v2e() {
-        // With no activity content yet, the main split must hand back the full
-        // area and no activity rect, so an 80×24 terminal is never truncated.
-        let main = Rect::new(23, 1, 80, 22);
+    fn activity_panel_hidden_below_min_width() {
+        let main = Rect::new(23, 1, ACTIVITY_MIN_WIDTH - 1, 22);
         let (content, activity) = main_split(main);
         assert_eq!(content, main);
         assert!(activity.is_none());
     }
 
     #[test]
+    fn activity_panel_reserved_from_min_width() {
+        let main = Rect::new(0, 0, ACTIVITY_MIN_WIDTH, 22);
+        let (content, activity) = main_split(main);
+        assert_eq!(content.width, ACTIVITY_MIN_WIDTH - ACTIVITY_WIDTH);
+        let panel = activity.expect("activity panel must appear at the threshold");
+        assert_eq!(panel.width, ACTIVITY_WIDTH);
+        assert_eq!(
+            panel.x,
+            main.x + content.width,
+            "panel sits right of content"
+        );
+    }
+
+    #[test]
+    fn activity_width_is_28() {
+        assert_eq!(ACTIVITY_WIDTH, 28);
+    }
+
+    #[test]
     fn eighty_by_twentyfour_body_preserves_sniff_width() {
         // 80×24 terminal: 1 header + 1 footer → body of 22 rows; the sidebar
-        // clamps to 23 columns (minus the 0-wide activity slot) leaving the
-        // sniff screen all 57 columns of the main region.
+        // clamps to 23 columns; the main region is 57 columns — below
+        // ACTIVITY_MIN_WIDTH, so the activity panel stays hidden and the sniff
+        // screen keeps all 57 columns of the main region.
         let term = Rect::new(0, 0, 80, 24);
         let outer = Layout::default()
             .direction(Direction::Vertical)

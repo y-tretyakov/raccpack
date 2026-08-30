@@ -13,8 +13,10 @@ use crossterm::terminal::{
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
+use crate::app::activity::{project_label, ActivityKind};
 use crate::app::raid::{FlowPhase, RaidFlow, RaidFlowOptions};
 use crate::app::{App, Command};
+use crate::ui::widgets::format_bytes;
 use crate::worker::{WorkerEvent, WorkerMsg, WorkerPassphrase, DRY_RUN_PASSPHRASE};
 use raccpack_core::app::OperationKind;
 
@@ -131,6 +133,7 @@ pub fn run_event_loop(app: &mut App) -> io::Result<()> {
 fn handle_app_command(cmd: Command, worker_tx: &mpsc::Sender<WorkerMsg>, app: &mut App) {
     match cmd {
         Command::Sniff | Command::SniffRefresh => {
+            app.activity.push(ActivityKind::Info, "sniff started");
             app.sniff_state.set_loading(true);
             let scan_root = app.sniff_state.scan_root.clone();
             let den_dir = app.den_dir.clone();
@@ -256,15 +259,26 @@ fn resolve_raid_passphrase(flow: &mut RaidFlow) -> Option<WorkerPassphrase> {
 
 /// Send one dig run for `project` to the worker.
 fn start_dig(project: std::path::PathBuf, app: &mut App, worker_tx: &mpsc::Sender<WorkerMsg>) {
+    app.activity.push(
+        ActivityKind::Info,
+        format!("dig {} started", project_label(&project)),
+    );
     app.dig_state.set_loading(true);
     app.dig_state.project = Some(project.clone());
     let den_dir = app.den_dir.clone();
-    let scan_content = app.dig_state.scan_content;
     let _ = worker_tx.send(WorkerMsg::Dig {
         project,
         den_dir,
-        scan_content,
+        scan_content: app.dig_state.scan_content,
     });
+}
+
+fn dig_project_label(app: &App) -> String {
+    app.dig_state
+        .project
+        .as_deref()
+        .map(project_label)
+        .unwrap_or_else(|| "-".to_string())
 }
 
 /// Handle events from the worker thread.
@@ -273,12 +287,14 @@ fn handle_worker_event(event: WorkerEvent, app: &mut App) {
         WorkerEvent::Progress(progress) => {
             match progress.operation {
                 OperationKind::Sniff => {
+                    app.activity.push_progress(&progress);
                     app.sniff_state.progress = Some(progress);
                     if !app.sniff_state.is_loading {
                         app.sniff_state.set_loading(true);
                     }
                 }
                 OperationKind::Dig => {
+                    app.activity.push_progress(&progress);
                     app.dig_state.progress = Some(progress);
                     if !app.dig_state.is_loading {
                         app.dig_state.set_loading(true);
@@ -302,6 +318,19 @@ fn handle_worker_event(event: WorkerEvent, app: &mut App) {
 
             match result {
                 Ok(sniff_result) => {
+                    app.activity.push(
+                        ActivityKind::Ok,
+                        format!(
+                            "Scan complete · {} projects · {}{}",
+                            sniff_result.report.projects.len(),
+                            format_bytes(sniff_result.report.total_size_bytes),
+                            if sniff_result.from_cache {
+                                " (cache)"
+                            } else {
+                                ""
+                            }
+                        ),
+                    );
                     app.sniff_state.from_cache = sniff_result.from_cache;
                     app.sniff_state.projects = sniff_result
                         .report
@@ -326,6 +355,7 @@ fn handle_worker_event(event: WorkerEvent, app: &mut App) {
                     }
                 }
                 Err(e) => {
+                    app.activity.push(ActivityKind::Error, "Scan failed");
                     app.sniff_state.error = Some(e.to_string());
                 }
             }
@@ -337,11 +367,23 @@ fn handle_worker_event(event: WorkerEvent, app: &mut App) {
 
             match result {
                 Ok(dig_result) => {
+                    let findings = dig_result.files.len();
+                    let kind = if findings > 0 {
+                        ActivityKind::Warn
+                    } else {
+                        ActivityKind::Ok
+                    };
+                    let project = dig_project_label(app);
+                    app.activity
+                        .push(kind, format!("dig {project} · {findings} findings"));
                     app.dig_state.set_dig_result(dig_result);
                     // Move the selection onto the first visible row.
                     app.dig_state.select_first();
                 }
                 Err(e) => {
+                    let project = dig_project_label(app);
+                    app.activity
+                        .push(ActivityKind::Error, format!("dig {project} failed"));
                     app.dig_state.error = Some(e.to_string());
                 }
             }
@@ -356,13 +398,26 @@ fn handle_worker_event(event: WorkerEvent, app: &mut App) {
             };
         }
         WorkerEvent::RaidDone(result) => {
-            let Some(flow) = app.raid_flow.as_mut() else {
+            let Some(flow) = app.raid_flow.as_ref() else {
                 return; // flow closed (cancelled) before the run finished
             };
-            flow.phase = match result {
-                Ok(done) => FlowPhase::Done(done),
-                Err(e) => FlowPhase::Failed(e.to_string()),
+            let project = project_label(&flow.project);
+            let (kind, message, next) = match result {
+                Ok(done) => (
+                    ActivityKind::Ok,
+                    format!("raid {project} · completed"),
+                    FlowPhase::Done(done),
+                ),
+                Err(e) => (
+                    ActivityKind::Error,
+                    format!("raid {project} · failed"),
+                    FlowPhase::Failed(e.to_string()),
+                ),
             };
+            app.activity.push(kind, message);
+            if let Some(flow) = app.raid_flow.as_mut() {
+                flow.phase = next;
+            }
         }
         WorkerEvent::Cancelled => {
             app.sniff_state.set_loading(false);

@@ -1,6 +1,7 @@
 //! Reusable widgets shared across screens (detail strip, sidebar, KPI tiles,
 //! project cards, …) plus the widget-level formatting helpers.
 
+pub mod activity;
 pub mod detail;
 pub mod kpi_strip;
 pub mod project_card;
