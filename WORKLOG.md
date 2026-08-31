@@ -39,6 +39,8 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 [x] B1.3  TUI dig screen (0.4.3)
 [x] B1.4  TUI raid + progress (0.4.4)
 [x] B1.5  TUI reveal modal (0.4.5)
+[x] T-00  CLI→TUI: split app.rs (фундамент трека docs/cli-in-tui), нет bump
+[ ] T-01..T-06  CLI→TUI: Operations hub, pack/stash/rinse flows, init+Settings, Overview
 [ ] B2  Desktop (Tauri + React) + BFF + ephemeral reveal
 [ ] B3  Security hardening + Safe Reveal contract
 [ ] B4  Productization (den gc, parallel sniff, docs) → Beta exit 0.5.0
@@ -86,6 +88,24 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 ---
 
 ## Этапы (Beta)
+
+### 2026-08-31 — T-00 — CLI→TUI: split `app.rs` by concept ✅ CLOSED (no bump)
+
+- **Трек:** `docs/cli-in-tui/PLAN.md` — перенос всего CLI-функционала в TUI (этап T-00 из 7).
+- **Ветка:** `t00-app-rs-split` (PR #122 → `dev`, squash); stage-ветка удалена.
+- **Версия:** 0.4.5 (без bump — технический рефакторинг, поведение не изменилось).
+- **Сделано:**
+  - `crates/raccpack-tui/src/app.rs` (1232 → **95** строк) разбит по концептам: `app/nav.rs` (Focus, ViewId, ALL_VIEWS, Command), `app/handlers.rs` (impl App: handle_key_*), `app/sniff.rs` (ProjectRow, SniffScreenState), `app/tests.rs` (700, тесты — разрешённый exception).
+  - Публичные пути сохранены: `crate::app::{App,Command,ViewId,Focus,ALL_VIEWS}` через `pub use nav::…`, `crate::app::sniff::{…}` + `crate::app::SniffScreenState/ProjectRow`. `lib.rs` не менялся.
+  - Логика, keymap, DTO, worker-контракты — verbatim; `raccpack-core` не тронут.
+- **DoD:**
+  - [x] `app.rs` ≤ 450 строк (95); все логические файлы ≤ 450 (tests.rs = 700 — осознанный exception для тестов)
+  - [x] Поведение идентично: `cargo test -p raccpack-tui` 189 passed; `cargo test --workspace` green (см. примечание про pre-existing)
+  - [x] fmt + clippy `-D warnings` чисты
+  - [x] Анти-паттернов нет: без `utils.rs`, без дубликатов `Focus::label`/`ViewId::*` (только nav.rs), worker/core не тронуты
+- **Файлы:** `crates/raccpack-tui/src/app.rs` (changed), `src/app/{nav,handlers,sniff,tests}.rs` (created).
+- **Примечание (pre-existing баг версии):** единственный красный тест `ui::widgets::sidebar::tests::version_footer_matches_cargo_pkg_version` (sidebar.rs:225, hardcoded `0.4.4`, после bump `0.4.5`) — **падает и на чистом `dev`**, не связан с T-00. По решению человека: T-00 принят как есть, баг — **отдельный follow-up** (фикс hardcoded версии в sidebar.rs). Не закрыт до исправления; вне scope T-00.
+- **Решения:** рефакторинг сделан эволюционно (тонкий корневой `app.rs` + подмодули, re-exports), не гнался за «идеальной» архитектурой; `handle_key_*` сделаны `pub(crate)` (внутренние). Тесты перенесены целиком verbatim.
 
 ### 2026-08-30 — B1.5 — TUI reveal modal ✅ CLOSED (0.4.5)
 
