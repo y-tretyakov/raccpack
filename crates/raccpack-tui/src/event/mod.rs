@@ -14,6 +14,7 @@ use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
 use crate::app::operations::OperationKind;
+use crate::app::pack::{PackFlow, PackFlowOptions, PackFlowPhase};
 use crate::app::raid::{FlowPhase, RaidFlow, RaidFlowOptions};
 use crate::app::{App, Command};
 use crate::worker::{WorkerEvent, WorkerMsg, WorkerPassphrase, DRY_RUN_PASSPHRASE};
@@ -181,9 +182,10 @@ fn handle_app_command(cmd: Command, worker_tx: &mpsc::Sender<WorkerMsg>, app: &m
             };
             match app.operations_state.selected {
                 OperationKind::Raid => start_raid_preview(project, app, worker_tx),
-                // Pack/Stash/Rinse have no real flow yet (T-02..T-04): opening
-                // them only shows a notice, never a core operation.
-                kind @ (OperationKind::Pack | OperationKind::Stash | OperationKind::Rinse) => {
+                OperationKind::Pack => start_pack_preview(project, app, worker_tx),
+                // Stash/Rinse have no real flow yet (T-03/T-04): opening them
+                // only shows a notice, never a core operation.
+                kind @ (OperationKind::Stash | OperationKind::Rinse) => {
                     app.operations_state.open_stub(kind);
                 }
             }
@@ -194,6 +196,19 @@ fn handle_app_command(cmd: Command, worker_tx: &mpsc::Sender<WorkerMsg>, app: &m
             // flow. The worker preview result (if any) is ignored: the guard
             // in handle_worker_event drops events for a closed flow.
             app.raid_flow = None;
+        }
+        Command::PackPreview => {
+            let Some(project) = app.sniff_state.selected_project().map(|p| p.path.clone()) else {
+                return;
+            };
+            start_pack_preview(project, app, worker_tx);
+        }
+        Command::PackRun => send_pack_run(app, worker_tx),
+        Command::PackCancel => {
+            app.pack_flow = None;
+        }
+        Command::PackDone => {
+            app.pack_flow = None;
         }
         Command::Reveal => send_reveal(app, worker_tx),
         // Pure-in-app commands were already applied inside `App::handle_key`.
@@ -220,6 +235,49 @@ fn start_raid_preview(
     app.help_visible = false;
     let den_dir = app.den_dir.clone();
     let _ = worker_tx.send(WorkerMsg::RaidPreview {
+        project,
+        den_dir,
+        opts,
+    });
+}
+
+/// Open the pack flow for `project` and dispatch a dry-run preview to the
+/// worker. No guard is needed beyond the missing-selection check: while a flow
+/// is active the app blocks all other keys, so a second preview cannot start.
+fn start_pack_preview(
+    project: std::path::PathBuf,
+    app: &mut App,
+    worker_tx: &mpsc::Sender<WorkerMsg>,
+) {
+    let flow = PackFlow::new(
+        project.clone(),
+        app.den_dir.clone(),
+        PackFlowOptions::default(),
+    );
+    let opts = flow.options.clone().into();
+    app.pack_flow = Some(flow);
+    app.help_visible = false;
+    let den_dir = app.den_dir.clone();
+    let _ = worker_tx.send(WorkerMsg::PackPreview {
+        project,
+        den_dir,
+        opts,
+    });
+}
+
+/// Dispatch the pack commit to the worker. No passphrase is needed at the
+/// pack level (only stash encrypts secrets).
+fn send_pack_run(app: &mut App, worker_tx: &mpsc::Sender<WorkerMsg>) {
+    let Some(flow) = app.pack_flow.as_ref() else {
+        return;
+    };
+    let project = flow.project.clone();
+    let den_dir = flow.den_dir.clone();
+    let opts = flow.options.clone().into();
+    if let Some(flow) = app.pack_flow.as_mut() {
+        flow.start_running();
+    }
+    let _ = worker_tx.send(WorkerMsg::PackRun {
         project,
         den_dir,
         opts,
@@ -333,7 +391,14 @@ fn handle_worker_event(event: WorkerEvent, app: &mut App) {
                         }
                     }
                 }
-                // Stash/rinse/pack progress has no screen yet.
+                CoreOperationKind::Pack => {
+                    if let Some(flow) = app.pack_flow.as_mut() {
+                        if flow.phase == crate::app::pack::PackFlowPhase::Running {
+                            flow.on_progress(progress.percent, &progress.message);
+                        }
+                    }
+                }
+                // Stash/rinse progress has no screen yet.
                 _ => {}
             }
         }
@@ -404,6 +469,24 @@ fn handle_worker_event(event: WorkerEvent, app: &mut App) {
             flow.phase = match result {
                 Ok(done) => FlowPhase::Done(done),
                 Err(e) => FlowPhase::Failed(e.to_string()),
+            };
+        }
+        WorkerEvent::PackPreviewDone(result) => {
+            let Some(flow) = app.pack_flow.as_mut() else {
+                return; // flow closed (cancelled) before the preview landed
+            };
+            flow.phase = match result {
+                Ok(preview) => PackFlowPhase::Preview(preview),
+                Err(e) => PackFlowPhase::Failed(e.to_string()),
+            };
+        }
+        WorkerEvent::PackDone(result) => {
+            let Some(flow) = app.pack_flow.as_mut() else {
+                return; // flow closed (cancelled) before the run finished
+            };
+            flow.phase = match result {
+                Ok(done) => PackFlowPhase::Done(done),
+                Err(e) => PackFlowPhase::Failed(e.to_string()),
             };
         }
         WorkerEvent::RevealReady(secret) => {

@@ -104,13 +104,21 @@ pub enum Command {
     /// Open the raid flow (preview) for the selected project.
     RaidPreview,
     /// Open the operation selected on the Operations hub: routes to the raid
-    /// flow for Raid, or to a stub notice for Pack/Stash/Rinse (the real flows
-    /// are planned stages; no core work is dispatched for a stub).
+    /// flow for Raid, the pack flow for Pack, or to a stub notice for
+    /// Stash/Rinse (the real flows are planned stages).
     OpenOperation,
     /// Confirm the raid preview / run; the passphrase is resolved in event.rs.
     RaidRun,
     /// Cancel the raid flow (n / Esc while previewing or entering the passphrase).
     RaidCancel,
+    /// Open pack preview (dry run) for the selected project.
+    PackPreview,
+    /// Confirm pack run (commit).
+    PackRun,
+    /// Cancel pack flow (n / Esc while previewing).
+    PackCancel,
+    /// Close pack result (Done / Failed phase).
+    PackDone,
     /// Dispatch an ephemeral reveal to the worker (confirmed on the modal).
     Reveal,
 }

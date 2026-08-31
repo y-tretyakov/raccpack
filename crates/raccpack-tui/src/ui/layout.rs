@@ -42,6 +42,9 @@ pub fn render(
         if let Some(flow) = &app.raid_flow {
             screens::raid::render(f, area, flow);
         }
+        if let Some(flow) = &app.pack_flow {
+            screens::pack::render(f, area, flow);
+        }
         if let Some(modal) = &app.reveal {
             screens::reveal::render(f, area, modal);
         }
@@ -151,6 +154,9 @@ fn footer_status(app: &App) -> String {
     if let Some(flow) = &app.raid_flow {
         return raid_footer(flow);
     }
+    if let Some(flow) = &app.pack_flow {
+        return pack_footer(flow);
+    }
     if app.current_view == ViewId::Findings {
         return dig_footer(app);
     }
@@ -197,6 +203,23 @@ fn raid_footer(flow: &crate::app::raid::RaidFlow) -> String {
         FlowPhase::Done(result) if result.success => "Raid: success — Enter/Esc close".to_string(),
         FlowPhase::Done(_) => "Raid: finished (see modal) — Enter/Esc close".to_string(),
         FlowPhase::Failed(_) => "Raid: failed — Enter/Esc close".to_string(),
+    }
+}
+
+/// Footer status while a pack flow is open.
+fn pack_footer(flow: &crate::app::pack::PackFlow) -> String {
+    match &flow.phase {
+        crate::app::pack::PackFlowPhase::Preparing => {
+            "Pack: preparing… (y confirm · n/Esc cancel)".to_string()
+        }
+        crate::app::pack::PackFlowPhase::Preview(_) => {
+            "Pack: preview — dry run (y/Enter commit · c/n toggles · n/Esc cancel)".to_string()
+        }
+        crate::app::pack::PackFlowPhase::Running => {
+            format!("Pack: running… {}% — Esc does not cancel", flow.percent)
+        }
+        crate::app::pack::PackFlowPhase::Done(_) => "Pack: success — Enter/Esc close".to_string(),
+        crate::app::pack::PackFlowPhase::Failed(_) => "Pack: failed — Enter/Esc close".to_string(),
     }
 }
 

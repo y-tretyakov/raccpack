@@ -2,6 +2,7 @@
 //!
 //! Submodules: [`self::raid`] hosts the raid preview / commit runs.
 
+pub mod pack;
 pub mod raid;
 
 use std::path::PathBuf;
@@ -18,8 +19,10 @@ use raccpack_core::domain::Error;
 use raccpack_core::secrets::FindingRef;
 use zeroize::Zeroizing;
 
+use self::pack::{run_pack_commit, run_pack_preview};
 use self::raid::{run_raid_commit, run_raid_preview};
 
+pub use self::pack::PackWorkerOpts;
 pub use self::raid::{RaidWorkerOpts, WorkerPassphrase};
 
 /// Placeholder identity used where the stash phase is skipped or the run is a
@@ -39,6 +42,10 @@ pub enum WorkerEvent {
     RaidPreviewDone(Result<raccpack_core::app::RaidResult, Error>),
     /// Raid commit completed.
     RaidDone(Result<raccpack_core::app::RaidResult, Error>),
+    /// Pack preview completed (dry run, nothing written).
+    PackPreviewDone(Result<raccpack_core::app::PackResult, Error>),
+    /// Pack commit completed.
+    PackDone(Result<raccpack_core::app::PackResult, Error>),
     /// Ephemeral reveal finished; carries the raw value zeroized, shown once.
     RevealReady(WorkerRevealSecret),
     /// Ephemeral reveal failed; no raw value is ever sent on failure.
@@ -76,6 +83,18 @@ pub enum WorkerMsg {
         den_dir: PathBuf,
         opts: RaidWorkerOpts,
         passphrase: WorkerPassphrase,
+    },
+    /// Run a dry-run pack preview for a project.
+    PackPreview {
+        project: PathBuf,
+        den_dir: PathBuf,
+        opts: PackWorkerOpts,
+    },
+    /// Run a pack commit for a project.
+    PackRun {
+        project: PathBuf,
+        den_dir: PathBuf,
+        opts: PackWorkerOpts,
     },
     /// Reveal one secret value (opt-in). `dir_root` is the project root used
     /// for path containment; the reference pinpoints the value to reveal.
@@ -143,6 +162,20 @@ pub fn spawn_worker() -> (mpsc::Sender<WorkerMsg>, mpsc::Receiver<WorkerEvent>) 
                     passphrase,
                 } => {
                     run_raid_commit(project, den_dir, opts, passphrase, event_tx.clone());
+                }
+                WorkerMsg::PackPreview {
+                    project,
+                    den_dir,
+                    opts,
+                } => {
+                    run_pack_preview(project, den_dir, opts, event_tx.clone());
+                }
+                WorkerMsg::PackRun {
+                    project,
+                    den_dir,
+                    opts,
+                } => {
+                    run_pack_commit(project, den_dir, opts, event_tx.clone());
                 }
                 WorkerMsg::Reveal {
                     path,
@@ -275,6 +308,26 @@ impl RaidProgressSink {
 impl ProgressSink for RaidProgressSink {
     fn emit(&mut self, event: ProgressEvent) {
         if event.operation == OperationKind::Raid {
+            self.inner.emit(event);
+        }
+    }
+}
+
+/// Progress sink that forwards only `OperationKind::Pack` events to the UI,
+/// wrapping the shared [`TuiProgressSink`].
+pub struct PackProgressSink {
+    inner: TuiProgressSink,
+}
+
+impl PackProgressSink {
+    pub fn new(inner: TuiProgressSink) -> Self {
+        Self { inner }
+    }
+}
+
+impl ProgressSink for PackProgressSink {
+    fn emit(&mut self, event: ProgressEvent) {
+        if event.operation == OperationKind::Pack {
             self.inner.emit(event);
         }
     }

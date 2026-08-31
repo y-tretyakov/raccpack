@@ -3,6 +3,7 @@
 pub mod dig;
 pub mod help;
 pub mod operations;
+pub mod pack;
 pub mod raid;
 pub mod reveal;
 pub mod sniff;

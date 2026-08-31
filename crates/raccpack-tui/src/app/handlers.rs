@@ -1,6 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::operations::OperationKind;
+use crate::app::pack;
 use crate::app::raid;
 use crate::app::reveal;
 use crate::app::App;
@@ -46,6 +47,20 @@ impl App {
                 self.raid_flow = None;
                 Some(Command::None)
             }
+        }
+    }
+
+    /// Keys while the pack modal is open: everything the flow does not consume
+    /// is swallowed. Returns `None` when no flow is active.
+    pub(crate) fn handle_key_pack_flow(&mut self, key: KeyEvent) -> Option<Command> {
+        let cmd = self.pack_flow.as_mut()?.handle_key(key.code)?;
+        match cmd {
+            pack::PackCommand::PreviewConfirm => Some(Command::PackRun),
+            pack::PackCommand::PreviewCancel | pack::PackCommand::Close => {
+                self.pack_flow = None;
+                Some(Command::None)
+            }
+            pack::PackCommand::Run => Some(Command::PackRun),
         }
     }
 

@@ -231,14 +231,11 @@ mod tests {
 
     #[test]
     fn stub_notice_names_the_planned_stage() {
-        for kind in [
-            OperationKind::Pack,
-            OperationKind::Stash,
-            OperationKind::Rinse,
-        ] {
+        for kind in [OperationKind::Stash, OperationKind::Rinse] {
             let stage = kind.planned_stage().expect("future stages are mapped");
             assert!(stage.starts_with("T-0"), "{kind:?} maps to a track stage");
         }
+        assert_eq!(OperationKind::Pack.planned_stage(), None);
         assert_eq!(OperationKind::Raid.planned_stage(), None);
     }
 }

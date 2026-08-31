@@ -221,8 +221,8 @@ mod tests {
             joined.iter().any(|l| l.trim() == expected),
             "footer must exactly read {expected:?}, got {joined:?}"
         );
-        // V2 phase is «no bump»: workspace is still at 0.4.4.
-        assert_eq!(env!("CARGO_PKG_VERSION"), "0.4.4");
+        // Sanity: the footer reads exactly the workspace version.
+        assert_eq!(env!("CARGO_PKG_VERSION"), "0.4.6");
     }
 
     #[test]
