@@ -5,7 +5,7 @@ description: "Практические сценарии raccpack: onboarding, dr
 
 # Usage cookbook — сценарии и скрипты
 
-Статус: актуально для **raccpack 0.4.5** (Detect v2 завершена: композитные DAG-детекторы, пакетный рейд `racc raid --root`; Beta B1.4 TUI sniff + dig + raid screens done; B1.5 TUI reveal modal done).
+Статус: актуально для **raccpack 0.4.6** (Detect v2 завершена: композитные DAG-детекторы, пакетный рейд `racc raid --root`; Beta B1.4 TUI sniff + dig + raid screens done; B1.5 TUI reveal modal done; T-02 TUI pack flow done).
 
 Готовые рецепты поверх командной поверхности. Если флаг не описан здесь или на
 странице команды — его нет в текущей версии.

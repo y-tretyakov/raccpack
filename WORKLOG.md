@@ -15,10 +15,10 @@
 
 | | |
 |--|--|
-| **Версия** | **`0.4.5`** |
-| **Веха** | Detect v2 ✅ CLOSED · **Beta B1.5 done (0.4.5)** · Beta → 0.5.0 |
-| **Этап** | **B2.1** — Desktop Tauri skeleton |
-| **Предыдущее** | B1.5 TUI reveal modal closed (0.4.5) |
+| **Версия** | **`0.4.6`** |
+| **Веха** | Detect v2 ✅ CLOSED · **Beta; трек CLI→TUI: T-02 done (0.4.6)** · Beta → 0.5.0 |
+| **Этап** | **T-02** — TUI pack flow (0.4.6) · далее T-03 stash flow (0.4.7) → B2 Desktop |
+| **Предыдущее** | T-01 Operations hub closed (no bump) · B1.5 reveal closed (0.4.5) |
 
 ```text
 MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 0.9.0 → 1.0.0
@@ -41,13 +41,15 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 [x] B1.5  TUI reveal modal (0.4.5)
 [x] T-00  CLI→TUI: split app.rs (фундамент трека docs/cli-in-tui), нет bump
 [x] T-01  CLI→TUI: Operations hub, нет bump
-[ ] T-02..T-06  CLI→TUI: pack/stash/rinse flows, init+Settings, Overview
+[x] T-02  CLI→TUI: TUI pack flow (0.4.6)
+[ ] T-03..T-06  CLI→TUI: stash/rinse flows, init+Settings, Overview (0.4.7..0.4.10)
 [ ] B2  Desktop (Tauri + React) + BFF + ephemeral reveal
 [ ] B3  Security hardening + Safe Reveal contract
 [ ] B4  Productization (den gc, parallel sniff, docs) → Beta exit 0.5.0
 ```
 
-Спеки TUI: `docs/raccpack-tui-spec-*.md` (уточнять по мере B1).
+Спеки TUI: `docs/raccpack-tui-spec-*.md` (уточнять по мере B1).  
+Трек CLI→TUI: спеки и план — `docs/cli-in-tui/`; версии T-этапов — `docs/VERSION_ROADMAP.md` (T-02..T-06 = 0.4.6..0.4.10, далее B2).
 
 ---
 
@@ -75,6 +77,7 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 | 2026-08-22 | Detect v2 = отдельная веха **0.4.0** (закрыта) |
 | 2026-08-26 | **Один продукт на PR.** Crate только под roadmap raccpack. |
 | 2026-08-30 | Raid = **modal-overlay workflow** (не отдельный ViewId); passphrase — native-модалка 2 ввода (zeroize, redacted Debug, env-шорткат `RACCPACK_PASSPHRASE`); **Esc в Running не отменяет** (core без cancel) — блокирует до результата |
+| 2026-08-31 | **Версии трека CLI→TUI:** все T-0x идут bump `0.4.x` последовательно (T-02=0.4.6 … T-06=0.4.10); T-00/T-01 — без bump; после завершения T-06 → переход на B2 Desktop (0.4.11+). Номера и этапы зафиксированы в `docs/VERSION_ROADMAP.md` и `docs/raccpack-roadmap-v1.md`. |
 
 ---
 
@@ -89,6 +92,29 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 ---
 
 ## Этапы (Beta)
+
+### 2026-08-31 — T-02 — CLI→TUI: TUI pack flow ✅ CLOSED (0.4.6)
+
+- **Трек:** `docs/cli-in-tui/PLAN.md` — перенос CLI → TUI (этап T-02 из 7; после T-01).
+- **Ветка:** `t02-pack-flow` (PR #124 → `dev`, squash); stage-ветка удалена.
+- **Версия:** 0.4.6 (bump — новый пользовательский флоу; решение по версиям T-этапов зафиксировано в «Решения» и `docs/VERSION_ROADMAP.md`).
+- **Сделано:** полноценный TUI-флоу `pack` (ранее — только фаза raid):
+  - Пайплайн по общему контракту PLAN §4: выбор проекта (из sniff/Operations) → dry-run preview → confirm `y/N` → progress → result.
+  - Опции до confirm: content-deny `c`, zstd-level `z`, custom output-name `o` (inline-редактор имени).
+  - `app/pack.rs` — state machine (`PackFlow`, `PackFlowOptions`, `PackFlowPhase`, `PackCommand`); `worker/pack.rs` — `run_pack_preview` / `run_pack_commit` (+ `PackWorkerOpts`, `PackProgressSink`); `ui/screens/pack.rs` — рендер модалки.
+  - Pack только через core facade; UI без pack-логики. Dry-run никогда не пишет в den; commit только с явным confirm. Path containment и raw secrets — в core.
+  - Reuse: `build_config`, `TuiProgressSink`, `AppContext`, `PackProgressSink`.
+- **DoD:**
+  - [x] `pack()` вызывается только через core facade; в UI нет pack-логики
+  - [x] Dry-run по умолчанию, никогда не пишет в den (тест `pack_dry_run_preview_writes_nothing`)
+  - [x] Commit только после явного confirm; результат показывает путь в den (тесты `pack_commit_places_tar_zst_in_den`, `pack_commit_requires_confirm_*`, `pack_cancel_*`)
+  - [x] Опции `--no-content-deny` / `--zstd-level` / `--output-name` доступны до confirm и влияют на результат (`pack_content_deny_toggle_*`, `pack_commit_zstd_level_*`, `pack_commit_output_name_*`)
+  - [x] Path containment (core; тест `pack_commit_rejects_den_inside_project_without_panic`)
+  - [x] `cargo test --workspace` green; fmt + clippy `-D warnings` чисты (перепроверка Orchestrator по merge-ready tip)
+- **Файлы:** `Cargo.toml`/`Cargo.lock` (0.4.6), `src/app.rs` (pack_flow поле), `src/app/nav.rs` (Pack* commands), `src/app/handlers.rs` (`handle_key_pack_flow`), `src/app/operations.rs` (Pack → `planned_stage: None`), `src/app/pack.rs` (created), `src/worker/mod.rs`, `src/worker/pack.rs` (created), `src/ui/layout.rs` (pack overlay + footer), `src/ui/screens/mod.rs`, `src/ui/screens/pack.rs` (created), `src/ui/screens/operations.rs`, `src/ui/widgets/sidebar.rs` (фикс hardcoded версии), `src/event/{mod,tests}.rs`, `tests/pack_flow_integration_test.rs` (created).
+- **Rework (попыток 1):** ревью Orchestrator выявило 2 пробела по DoD → ticket: (1) не реализован `--output-name`; (2) интеграционные кейсы §5 (1–5) не покрыты автотестами. Dev добавил `output_name` (inline-редактор), Test — `tests/pack_flow_integration_test.rs` (9 тестов). После фикса — повторная приёмка по merge-ready дереву зелёная.
+- **Закрыл pre-existing follow-up:** sidebar-тест версии (`version_footer_matches_cargo_pkg_version`) обновлён с hardcoded `0.4.4` на `0.4.6` — баг версии из T-00/T-01 закрыт (в том же PR).
+- **Решения:** pack flow по образцу raid (modal-overlay); `output_name` — inline-редактор по клавише `o` (Enter commit, Esc cancel, пусто → auto). `PackProgressSink` фильтрует `OperationKind::Pack` (symметрич. raid). Версия T-02 = 0.4.6 (сдвиг B2 на 0.4.11+).
 
 ### 2026-08-31 — T-01 — CLI→TUI: Operations hub ✅ CLOSED (no bump)
 

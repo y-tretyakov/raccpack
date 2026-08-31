@@ -1,12 +1,12 @@
 ---
 title: TUI (terminal interface)
-description: racc-tui — an interactive terminal interface built on Ratatui. The sniff, dig, and raid screens work, plus an opt-in reveal modal (since 0.4.5).
+description: racc-tui — an interactive terminal interface built on Ratatui. The sniff, dig, raid, and pack screens work, plus an opt-in reveal modal (since 0.4.5).
 ---
 
 # TUI (terminal interface)
 
 ::: info
-The TUI is being built in Beta (0.5.x). As of **0.4.5** the **sniff**, **dig**, and **raid** screens work, plus an **opt-in reveal modal** for secret values.
+The TUI is being built in Beta (0.5.x). As of **0.4.6** the **sniff**, **dig**, **raid**, and **pack** screens work, plus an **opt-in reveal modal** for secret values.
 :::
 
 ## What it is
@@ -50,11 +50,19 @@ The TUI is being built in Beta (0.5.x). As of **0.4.5** the **sniff**, **dig**, 
 - While **running**, the modal shows the phase pipeline (`✓` done, `→` current, `○` pending), an overall progress bar, and the phase message — all from real core events. `Esc` does not cancel a running raid (core has no cancel).
 - The **result** is honest: success, rolled back (with rollback-warning count), or failed; in `FAIL-FAST` mode a note shows that already-placed artifacts may remain. Placed artifacts are listed relative to the den. `Enter`/`Esc` closes.
 
+## Pack flow (available since 0.4.6)
+
+- Reachable from the **Operations** screen (hotkey `p`) with a project selected from `sniff`; opened as a modal overlay.
+- **Preview** shows first: the project, the dry-run note, and the target output — **nothing is written to the den yet**.
+- Options available before confirming with `y`/`Enter` (cancel with `n`/`Esc`): `c` toggles content deny (deny files whose contents contain secrets), `z` cycles the zstd compression level, `o` opens the inline editor for a custom output name (`Enter` confirms, `Esc` aborts, empty falls back to the auto name).
+- **Progress** mirrors core events; the **result** lists the placed `tar.zst` path relative to the den. `Enter`/`Esc` closes.
+
 ## Target capabilities
 
 - **raid confirmation** — done (since 0.4.4): wizard with phase-by-phase progress and honest result (see above).
-- **Dry-run** — built into the raid wizard: the preview never writes to the den.
+- **Dry-run** — built into the raid wizard and the pack flow: the preview never writes to the den.
 - **reveal modal** — done (since 0.4.5): safe opt-in reveal, value shown once then zeroized (see above).
+- **pack flow** — done (since 0.4.6): preview → confirm → progress → result with content-deny, zstd level, and custom output-name options (see above).
 
 ## How it will work
 

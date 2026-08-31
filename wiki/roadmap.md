@@ -8,7 +8,7 @@ description: How raccpack is evolving toward version 1.0.0 — what is already a
 How raccpack is evolving toward version 1.0.0 — and what you can use today.
 
 ::: info
-Current version: **0.4.5** — Alpha complete; Detect v2 complete (D1 ✅; D2 ✅; D3 ✅; D4 ✅ wiki + E2E + batch raid); **Beta B1.4 TUI raid + progress done; B1.5 TUI reveal modal done**.
+Current version: **0.4.6** — Alpha complete; Detect v2 complete (D1 ✅; D2 ✅; D3 ✅; D4 ✅ wiki + E2E + batch raid); **Beta B1.4 TUI raid + progress done; B1.5 TUI reveal modal done; CLI→TUI: T-02 pack flow done**.
 Dates are approximate. "Available" status means the functionality can be used in the current version built from source.
 :::
 
@@ -42,6 +42,8 @@ Dates are approximate. "Available" status means the functionality can be used in
 - [x] TUI dig screen — findings table (masked only), risk filter `f`, content-scan toggle `c`, detail strip, Esc back to projects (since 0.4.3).
 - [x] TUI raid screen — `R` opens the raid wizard (dry-run preview → passphrase modal → phase pipeline progress → honest result, Atomic by default) (since 0.4.4).
 - [x] TUI reveal modal — `v` on a content finding → confirm → value shown once, zeroized on close (since 0.4.5).
+- [x] TUI pack flow — dedicated `pack` wizard from Operations (dry-run preview → confirm → progress → result; content-deny `c`, zstd-level `z`, custom output-name `o`) (since 0.4.6).
+- [ ] TUI stash / rinse flows, init+Settings, Overview dashboard (planned for 0.4.7–0.4.10).
 - [ ] Desktop (Tauri + React) — desktop application.
 - [ ] Den management: `racc den list`, `staging` cleanup.
 - [ ] Hard verification that "no secrets end up in logs/errors".

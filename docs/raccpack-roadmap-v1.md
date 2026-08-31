@@ -1,9 +1,9 @@
 # Raccpack — roadmap до 1.0.0
 
 **Статус:** обновлено с учётом атомарных откатов, композитных детекторов и эфемерной верификации секретов.  
-**Текущая точка:** Alpha 0.3.0 закрыт; **Detect v2 0.4.0 закрыт** (D1–D4 all ✅). **Beta B1.4 TUI raid + progress done (0.4.4). Beta B1.5 TUI reveal modal done (0.4.5).** Далее Beta.
+**Текущая точка:** Alpha 0.3.0 закрыт; **Detect v2 0.4.0 закрыт** (D1–D4 all ✅). **Beta B1.4 TUI raid + progress done (0.4.4). Beta B1.5 TUI reveal modal done (0.4.5).** **Трек CLI→TUI (0.4.6): T-00/T-01 без bump, T-02 pack flow done.** Далее Beta (T-03..T-06 → Desktop B2).
 
-**Текущая версия:** `0.4.5` — сверять `docs/VERSION_ROADMAP.md`.
+**Текущая версия:** `0.4.6` — сверять `docs/VERSION_ROADMAP.md`.
 Цель: стабильный **1.0.0** с ядром, CLI, TUI и Desktop (Tauri), по видению архитектуры и контракту facade/den.
 
 Версионирование до 1.0.0 — **0.x** (ломающие изменения API допустимы).  

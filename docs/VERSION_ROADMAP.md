@@ -24,14 +24,34 @@
 
 ## Текущая позиция
 
-> **Detect v2 exit (0.4.0) done.** **Alpha exit: 0.3.0.** **B1.2 TUI sniff screen done (0.4.2).** **B1.2.5 detail strip done (no bump).** **B1.3 TUI dig screen done (0.4.3).** **B1.4 TUI raid + progress done (0.4.4).** **B1.5 TUI reveal modal done (0.4.5).** **TUI visual polish (no bump): графит+оранж тема, shell (бренд ◈ RACCPACK + live-бейджи + версия в header), resize-смоук.**
+> **Detect v2 exit (0.4.0) done.** **Alpha exit: 0.3.0.** **B1.2 TUI sniff screen done (0.4.2).** **B1.2.5 detail strip done (no bump).** **B1.3 TUI dig screen done (0.4.3).** **B1.4 TUI raid + progress done (0.4.4).** **B1.5 TUI reveal modal done (0.4.5).** **TUI visual polish (no bump): графит+оранж тема, shell (бренд ◈ RACCPACK + live-бейджи + версия в header), resize-смоук.** **Трек CLI-in-TUI: T-00 app.rs split (без bump), T-01 Operations hub (без bump), T-02 Pack flow done (0.4.6).**
 
 | | |
 |--|--|
-| **Текущая версия workspace** | **`0.4.5`** |
-| Последний этап | **B1.5** — TUI reveal modal (opt-in показ значения секрета, zeroize при закрытии) |
-| Следующий этап | Beta B2 — TUI polish / далее к `0.5.0` |
+| **Текущая версия workspace** | **`0.4.6`** |
+| Последний этап | **T-02** — TUI pack flow (preview → confirm → progress → result; опции c/z/output-name) |
+| Следующий этап | **T-03** — TUI stash flow (0.4.7) → затем T-04..T-06, далее B2 Desktop |
 | Detect v2 exit | **`0.4.0`** ✅ (batch raid CLI + wiki + E2E) |
+
+Трек CLI-in-TUI (см. `docs/cli-in-tui/PLAN.md`): перенос недостающего CLI в TUI. T-00/T-01 — без bump. Далее T-02..T-06 закрывают pack/stash/rinse/init+settings/overview.**
+
+```text
+0.1.0  MVP
+0.2.0 … 0.2.11  Alpha A1–A3
+0.2.12 … 0.3.0  Alpha A4
+0.3.1 … 0.4.0   Detect v2   ✅ D4.4 done
+0.4.1           Beta B1.1   TUI skeleton
+0.4.2           Beta B1.2   TUI sniff screen        ✅
+0.4.3           Beta B1.3   TUI dig screen          ✅
+0.4.4           Beta B1.4   TUI raid + progress     ✅
+0.4.5           Beta B1.5   TUI reveal modal        ✅
+0.4.6           CLI→TUI T-02  TUI pack flow         ← ВЫ ЗДЕСЬ
+0.4.7 … 0.4.10  CLI→TUI T-03..T-06 (stash/rinse/init+settings/overview)
+0.4.11 …        Beta B2..B4 (Desktop + security + productization)
+0.5.0 …        Beta exit
+0.9.0 …        RC
+1.0.0          Stable
+```
 
 Б1.2.x polish (без bump версии): B1.2.1 chrome/nav, B1.2.2 clap launch, B1.2.3 design tokens, B1.2.4 sidebar-space token, B1.2.5 detail strip.
 
@@ -144,35 +164,47 @@
 | B1.4 | **0.4.4** | ✅ raid + progress |
 | B1.5 | **0.4.5** | ✅ reveal modal |
 
+### CLI-in-TUI (T-этапы; `docs/cli-in-tui/`)
+
+| Этап | Версия | Статус | Фича |
+|------|--------|--------|------|
+| T-00 | без bump | ✅ | app.rs split по концептам (behavior-preserving) |
+| T-01 | без bump | ✅ | Operations hub (список + выбор проекта + маршрутизация) |
+| T-02 | **0.4.6** | ✅ | TUI pack flow (preview → confirm → progress → result; c/z/output-name) |
+| T-03 | **0.4.7** | ⬜ | TUI stash flow |
+| T-04 | **0.4.8** | ⬜ | TUI rinse flow |
+| T-05 | **0.4.9** | ⬜ | Init-wizard + Settings (config/paths) |
+| T-06 | **0.4.10** | ⬜ | Overview dashboard |
+
 ### B2 — Desktop
 
 | Этап | Версия | Статус |
 |------|--------|--------|
-| B2.1 | **0.4.6** | ⬜ Tauri + React skeleton |
-| B2.2 | **0.4.7** | ⬜ BFF sniff/dig/raid |
-| B2.3 | **0.4.8** | ⬜ UI tables |
-| B2.4 | **0.4.9** | ⬜ raid + passphrase |
-| B2.5 | **0.4.10** | ⬜ reveal IPC |
+| B2.1 | **0.4.11** | ⬜ Tauri + React skeleton |
+| B2.2 | **0.4.12** | ⬜ BFF sniff/dig/raid |
+| B2.3 | **0.4.13** | ⬜ UI tables |
+| B2.4 | **0.4.14** | ⬜ raid + passphrase |
+| B2.5 | **0.4.15** | ⬜ reveal IPC |
 
 ### B3 — Security + reveal
 
 | Этап | Версия | Статус |
 |------|--------|--------|
-| B3.1 | **0.4.11** | ⬜ content-deny + default_pack |
-| B3.2 | **0.4.12** | ⬜ EnabledGroups |
-| B3.3 | **0.4.13** | ⬜ path containment + perms |
-| B3.4 | **0.4.14** | ⬜ EphemeralSecret |
-| B3.5 | **0.4.15** | ⬜ CLI reveal |
-| B3.6 | **0.4.16** | ⬜ threat checklist |
-| B3.7 | **0.4.17** | ⬜ reveal audit |
+| B3.1 | **0.4.16** | ⬜ content-deny + default_pack |
+| B3.2 | **0.4.17** | ⬜ EnabledGroups |
+| B3.3 | **0.4.18** | ⬜ path containment + perms |
+| B3.4 | **0.4.19** | ⬜ EphemeralSecret |
+| B3.5 | **0.4.20** | ⬜ CLI reveal |
+| B3.6 | **0.4.21** | ⬜ threat checklist |
+| B3.7 | **0.4.22** | ⬜ reveal audit |
 
 ### B4 — Productization
 
 | Этап | Версия | Статус |
 |------|--------|--------|
-| B4.1 | **0.4.18** | ⬜ `racc den` list/gc |
-| B4.2 | **0.4.19** | ⬜ parallel_jobs |
-| B4.3 | **0.4.20** | ⬜ user docs |
+| B4.1 | **0.4.23** | ⬜ `racc den` list/gc |
+| B4.2 | **0.4.24** | ⬜ parallel_jobs |
+| B4.3 | **0.4.25** | ⬜ user docs |
 | B4.4 | **0.5.0** | ⬜ tag = **Beta exit** |
 
 ---
@@ -220,7 +252,7 @@ version = "0.4.0"
 
 ```bash
 cargo run -p raccpack-cli -- --version
-# raccpack-cli 0.4.5   →  B1.5 (TUI reveal modal, Beta)
+# raccpack-cli 0.4.6   →  T-02 (TUI pack flow, CLI→TUI)
 ```
 
 | Версия | Значит «есть» |
@@ -249,6 +281,7 @@ cargo run -p raccpack-cli -- --version
 | ≥ 0.4.3 | TUI dig screen (findings table + detail strip) |
 | ≥ 0.4.4 | TUI raid flow (preview → passphrase → progress → result) |
 | ≥ 0.4.5 | TUI reveal modal (opt-in `v` → confirm → ephemeral value → zeroize) |
+| ≥ 0.4.6 | TUI pack flow (T-02): preview → confirm → progress → result; опции c/z/output-name |
 | ≥ 0.5.0 | TUI + Desktop + reveal CLI |
 
 ---
@@ -269,7 +302,7 @@ cargo run -p raccpack-cli -- --version
 ## Сводка «сейчас»
 
 ```text
-Текущая версия:  0.4.5
-Этап:            B1.5 (TUI reveal modal) — CLOSED
-Следующий bump:  0.4.6 (B2.1 Desktop Tauri skeleton)
+Текущая версия:  0.4.6
+Этап:            T-02 (TUI pack flow) — CLOSED
+Следующий bump:  0.4.7 (T-03 TUI stash flow)
 ```

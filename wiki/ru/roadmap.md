@@ -8,7 +8,7 @@ description: Как raccpack развивается к версии 1.0.0 — ч
 Как raccpack развивается к версии 1.0.0 — и что вы можете использовать уже сегодня.
 
 ::: info
-Текущая версия: **0.4.5** — Alpha завершена; Detect v2 завершена (D1 ✅; D2 ✅; D3 ✅; D4 ✅ wiki + E2E + batch raid); **Beta B1.4 TUI raid + progress done; B1.5 TUI reveal modal done**.
+Текущая версия: **0.4.6** — Alpha завершена; Detect v2 завершена (D1 ✅; D2 ✅; D3 ✅; D4 ✅ wiki + E2E + batch raid); **Beta B1.4 TUI raid + progress done; B1.5 TUI reveal modal done; CLI→TUI: T-02 pack flow done**.
 Сроки ориентировочные. Статус «доступно» означает, что функциональность можно использовать в текущей версии из исходников.
 :::
 
@@ -42,6 +42,8 @@ description: Как raccpack развивается к версии 1.0.0 — ч
 - [x] TUI-экран dig — таблица находок (только маскированные значения), фильтр риска `f`, переключатель content-скана `c`, полоса деталей, Esc назад к проектам (с 0.4.3).
 - [x] TUI-экран raid — `R` открывает мастер raid (dry-run preview → passphrase-модалка → пайплайн фаз → честный результат, Atomic по умолчанию) (с 0.4.4).
 - [x] TUI reveal-модалка — `v` на находке по содержимому → confirm → значение показано один раз, zeroize при закрытии (с 0.4.5).
+- [x] TUI pack flow — отдельный мастер `pack` из Operations (dry-run preview → confirm → прогресс → результат; content-deny `c`, zstd `z`, custom output-name `o`) (с 0.4.6).
+- [ ] TUI stash / rinse flow, Init-wizard + Settings, Overview-дашборд (планируется 0.4.7–0.4.10).
 - [ ] Desktop (Tauri + React) — настольное приложение.
 - [ ] Управление den: `racc den list`, очистка `staging`.
 - [ ] Жёсткая проверка «секретов нет в логах/ошибках».
