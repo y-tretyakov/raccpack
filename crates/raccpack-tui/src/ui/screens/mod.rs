@@ -2,6 +2,7 @@
 
 pub mod dig;
 pub mod help;
+pub mod operations;
 pub mod raid;
 pub mod reveal;
 pub mod sniff;
@@ -27,12 +28,11 @@ pub fn render_screen(f: &mut Frame, area: Rect, app: &mut App) {
         ),
         ViewId::Projects => crate::ui::screens::sniff::render(f, area, &mut app.sniff_state),
         ViewId::Findings => crate::ui::screens::dig::render(f, area, &mut app.dig_state),
-        ViewId::Operations => render_stub(
+        ViewId::Operations => crate::ui::screens::operations::render(
             f,
             area,
-            "Operations",
-            "No operations in progress.\nHistory will appear here.",
-            theme::DANGER,
+            &mut app.operations_state,
+            app.sniff_state.selected_project().map(|p| p.path.as_path()),
         ),
     }
 }
