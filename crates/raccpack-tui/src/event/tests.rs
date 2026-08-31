@@ -43,12 +43,29 @@ fn open_operation_routes_raid_to_raid_flow() {
 }
 
 #[test]
-fn open_operation_pack_stash_rinse_route_to_stub_only() {
-    for kind in [
-        OperationKind::Pack,
-        OperationKind::Stash,
-        OperationKind::Rinse,
-    ] {
+fn open_operation_routes_pack_to_pack_flow() {
+    let (tx, rx) = mpsc::channel::<WorkerMsg>();
+    let mut app = app_with_project();
+    app.operations_state.selected = OperationKind::Pack;
+
+    handle_app_command(Command::OpenOperation, &tx, &mut app);
+
+    let flow = app
+        .pack_flow
+        .as_ref()
+        .expect("activating Pack must open the pack flow");
+    assert_eq!(flow.project, project_path());
+    match rx.recv_timeout(Duration::from_secs(1)) {
+        Ok(WorkerMsg::PackPreview { project, .. }) => {
+            assert_eq!(project, project_path());
+        }
+        other => panic!("expected PackPreview, got {other:?}"),
+    }
+}
+
+#[test]
+fn open_operation_stash_rinse_route_to_stub_only() {
+    for kind in [OperationKind::Stash, OperationKind::Rinse] {
         let (tx, rx) = mpsc::channel::<WorkerMsg>();
         let mut app = app_with_project();
         app.operations_state.selected = kind;
@@ -58,6 +75,10 @@ fn open_operation_pack_stash_rinse_route_to_stub_only() {
         assert!(
             app.raid_flow.is_none(),
             "{kind:?} must not open a raid flow"
+        );
+        assert!(
+            app.pack_flow.is_none(),
+            "{kind:?} must not open a pack flow"
         );
         assert_eq!(app.operations_state.stub, Some(kind));
         assert!(

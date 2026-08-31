@@ -12,6 +12,7 @@ pub mod dig;
 pub mod handlers;
 pub mod nav;
 pub mod operations;
+pub mod pack;
 pub mod raid;
 pub mod reveal;
 pub mod sniff;
@@ -35,6 +36,8 @@ pub struct App {
     pub refresh_on_start: bool,
     /// Active raid modal flow, if any.
     pub raid_flow: Option<raid::RaidFlow>,
+    /// Active pack modal flow, if any.
+    pub pack_flow: Option<pack::PackFlow>,
     /// Active reveal modal (opt-in, ephemeral), if any.
     pub reveal: Option<reveal::RevealModal>,
 }
@@ -60,16 +63,17 @@ impl App {
             den_dir: PathBuf::new(),
             refresh_on_start: false,
             raid_flow: None,
+            pack_flow: None,
             reveal: None,
         }
     }
 
     /// Process a terminal key event and return the resulting command.
     pub fn handle_key(&mut self, key: KeyEvent) -> Command {
-        // A raid or reveal modal takes precedence over the help overlay: once
+        // A raid, pack, or reveal modal takes precedence over the help overlay: once
         // a flow/modal is active, help cannot be shown on top of it and
         // `Esc`/`?` dismiss only what the modal itself allows.
-        if self.raid_flow.is_some() || self.reveal.is_some() {
+        if self.raid_flow.is_some() || self.pack_flow.is_some() || self.reveal.is_some() {
             self.help_visible = false;
         }
 
@@ -78,6 +82,10 @@ impl App {
         }
 
         if let Some(cmd) = self.handle_key_reveal(key) {
+            return cmd;
+        }
+
+        if let Some(cmd) = self.handle_key_pack_flow(key) {
             return cmd;
         }
 

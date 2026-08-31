@@ -77,10 +77,10 @@ impl OperationKind {
     }
 
     /// Future stage that owns this operation's real flow. `None` when the
-    /// flow already exists (Raid).
+    /// flow already exists (Pack, Raid).
     pub fn planned_stage(self) -> Option<&'static str> {
         match self {
-            Self::Pack => Some("T-02"),
+            Self::Pack => None,
             Self::Stash => Some("T-03"),
             Self::Rinse => Some("T-04"),
             Self::Raid => None,
@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn planned_stage_maps_future_stages_only() {
-        assert_eq!(OperationKind::Pack.planned_stage(), Some("T-02"));
+        assert_eq!(OperationKind::Pack.planned_stage(), None);
         assert_eq!(OperationKind::Stash.planned_stage(), Some("T-03"));
         assert_eq!(OperationKind::Rinse.planned_stage(), Some("T-04"));
         assert_eq!(OperationKind::Raid.planned_stage(), None);
