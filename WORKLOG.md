@@ -40,7 +40,8 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 [x] B1.4  TUI raid + progress (0.4.4)
 [x] B1.5  TUI reveal modal (0.4.5)
 [x] T-00  CLI→TUI: split app.rs (фундамент трека docs/cli-in-tui), нет bump
-[ ] T-01..T-06  CLI→TUI: Operations hub, pack/stash/rinse flows, init+Settings, Overview
+[x] T-01  CLI→TUI: Operations hub, нет bump
+[ ] T-02..T-06  CLI→TUI: pack/stash/rinse flows, init+Settings, Overview
 [ ] B2  Desktop (Tauri + React) + BFF + ephemeral reveal
 [ ] B3  Security hardening + Safe Reveal contract
 [ ] B4  Productization (den gc, parallel sniff, docs) → Beta exit 0.5.0
@@ -88,6 +89,25 @@ MVP 0.1.0 ✅ → Alpha 0.3.0 ✅ → Detect v2 0.4.0 ✅ → Beta 0.5.0 → RC 
 ---
 
 ## Этапы (Beta)
+
+### 2026-08-31 — T-01 — CLI→TUI: Operations hub ✅ CLOSED (no bump)
+
+- **Трек:** `docs/cli-in-tui/PLAN.md` — перенос CLI → TUI (этап T-01 из 7; после T-00).
+- **Ветка:** `t01-operations-hub` (PR #123 → `dev`, squash); stage-ветка удалена.
+- **Версия:** 0.4.5 (без bump — наполнение существующего стаба-экрана, новой CLI-поверхности нет).
+- **Сделано:**
+  - Стаб **Operations** → центр операций: список Pack/Stash/Rinse/Raid, навигация `j`/`k`/arrows/`g`/`G` + hotkeys `p`/`s`/`r`/`d`, выбранный проект из sniff.
+  - `Enter` → один `Command::OpenOperation`: **Raid** → reuse существующего `start_raid_preview`/`RaidFlow::new`; **Pack/Stash/Rinse** → stub-notice (реальные флоу — T-02..T-04), без core/worker-сигналов.
+  - `src/app/operations.rs` (OperationKind, ALL_OPERATIONS, OperationsScreenState), `src/ui/screens/operations.rs` (рендер), `src/event/{mod,tests}.rs` (event.rs был 446 строк → разнесён, тесты в tests.rs), `tests/operations_hub_test.rs` (10 integration).
+- **DoD:**
+  - [x] Operations показывает список операций + выбранный проект
+  - [x] Выбор проекта из sniff → запуск существующего raid-flow
+  - [x] Pack/Stash/Rinse маршрутизируются на stub (без вызова core)
+  - [x] Пустое состояние (нет sniff-проектов) — подсказка, без паники; активация без проекта не крашит (guard)
+  - [x] Слои: core не тронут; raid переиспользует `start_raid_preview`/`RaidFlow::new`; raw secrets отсутствуют
+  - [x] `cargo test -p raccpack-tui` 207 passed; operations_hub integration 10/10; workspace green; fmt + clippy `-D warnings` чисты (единственный red — известный pre-existing sidebar-баг версии)
+- **Файлы:** `src/app.rs`, `src/app/{handlers,nav}.rs`, `src/app/operations.rs` (created), `src/event.rs`→`src/event/{mod,tests}.rs`, `src/ui/screens/mod.rs`, `src/ui/screens/operations.rs` (created), `tests/operations_hub_test.rs` (created).
+- **Решения:** один `Command::OpenOperation` (вид берётся из `operations_state.selected`), а не три команды; вариант `raid` открывает через `planned_stage: None`, остальные — `planned_stage: Some(T-0X)`. `event/mod.rs` = 465 строк (логика) — слегка выше потолка 450: фиксируется follow-up на дальнейший split при работе с T-02..T-04. Тесты логики вынесены в `event/tests.rs` (паттерн как в `app/`, `raid/`, `worker/`).
 
 ### 2026-08-31 — T-00 — CLI→TUI: split `app.rs` by concept ✅ CLOSED (no bump)
 
