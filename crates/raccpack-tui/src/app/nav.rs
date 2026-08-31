@@ -103,6 +103,10 @@ pub enum Command {
     BackToProjects,
     /// Open the raid flow (preview) for the selected project.
     RaidPreview,
+    /// Open the operation selected on the Operations hub: routes to the raid
+    /// flow for Raid, or to a stub notice for Pack/Stash/Rinse (the real flows
+    /// are planned stages; no core work is dispatched for a stub).
+    OpenOperation,
     /// Confirm the raid preview / run; the passphrase is resolved in event.rs.
     RaidRun,
     /// Cancel the raid flow (n / Esc while previewing or entering the passphrase).

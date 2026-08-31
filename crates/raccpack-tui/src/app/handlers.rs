@@ -1,5 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
+use crate::app::operations::OperationKind;
 use crate::app::raid;
 use crate::app::reveal;
 use crate::app::App;
@@ -168,6 +169,19 @@ impl App {
 
     /// Keys while the main area owns list/arrow navigation.
     pub(crate) fn handle_key_main(&mut self, key: KeyEvent) -> Command {
+        // A stub notice (Pack/Stash/Rinse placeholder) blocks the Operations
+        // screen until dismissed, mirroring how the raid flow and reveal modal
+        // own their keys. Esc / Enter dismiss; everything else is swallowed.
+        if self.current_view == ViewId::Operations && self.operations_state.stub.is_some() {
+            return match key.code {
+                KeyCode::Esc | KeyCode::Enter => {
+                    self.operations_state.stub = None;
+                    Command::None
+                }
+                _ => Command::None,
+            };
+        }
+
         match key.code {
             // Esc on Findings returns to the project list (dig scope closes);
             // elsewhere it returns to the sidebar.
@@ -213,6 +227,31 @@ impl App {
                 self.dig_state.select_last();
                 Command::None
             }
+            KeyCode::Char('j') | KeyCode::Down if self.current_view == ViewId::Operations => {
+                self.operations_state.select_next();
+                Command::None
+            }
+            KeyCode::Char('k') | KeyCode::Up if self.current_view == ViewId::Operations => {
+                self.operations_state.select_previous();
+                Command::None
+            }
+            KeyCode::Char('g') if self.current_view == ViewId::Operations => {
+                self.operations_state.select_first();
+                Command::None
+            }
+            KeyCode::Char('G') if self.current_view == ViewId::Operations => {
+                self.operations_state.select_last();
+                Command::None
+            }
+            // Activate the highlighted operation; requires a sniff-selected
+            // project (routing happens in event.rs).
+            KeyCode::Enter if self.current_view == ViewId::Operations => {
+                if self.sniff_state.selected_project().is_some() {
+                    Command::OpenOperation
+                } else {
+                    Command::None
+                }
+            }
             KeyCode::Tab => {
                 self.current_view = self.current_view.next();
                 Command::None
@@ -243,6 +282,15 @@ impl App {
             }
             KeyCode::Char('?') => {
                 self.help_visible = true;
+                Command::None
+            }
+            // Operation shortcut keys (`p`/`s`/`r`/`d`) jump the selection;
+            // any other char on Operations stays a no-op. Quit and help are
+            // handled by the arms above, so shortcuts never shadow them.
+            KeyCode::Char(c) if self.current_view == ViewId::Operations => {
+                if let Some(kind) = OperationKind::from_key(c) {
+                    self.operations_state.selected = kind;
+                }
                 Command::None
             }
             _ => Command::None,

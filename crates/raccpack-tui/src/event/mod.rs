@@ -13,10 +13,11 @@ use crossterm::terminal::{
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
+use crate::app::operations::OperationKind;
 use crate::app::raid::{FlowPhase, RaidFlow, RaidFlowOptions};
 use crate::app::{App, Command};
 use crate::worker::{WorkerEvent, WorkerMsg, WorkerPassphrase, DRY_RUN_PASSPHRASE};
-use raccpack_core::app::OperationKind;
+use raccpack_core::app::OperationKind as CoreOperationKind;
 
 /// Events dispatched into the application loop.
 ///
@@ -172,6 +173,21 @@ fn handle_app_command(cmd: Command, worker_tx: &mpsc::Sender<WorkerMsg>, app: &m
             };
             start_raid_preview(project, app, worker_tx);
         }
+        Command::OpenOperation => {
+            // The handler already guards on a selected project; this check is a
+            // second line of defence so the dispatch layer never panics.
+            let Some(project) = app.sniff_state.selected_project().map(|p| p.path.clone()) else {
+                return;
+            };
+            match app.operations_state.selected {
+                OperationKind::Raid => start_raid_preview(project, app, worker_tx),
+                // Pack/Stash/Rinse have no real flow yet (T-02..T-04): opening
+                // them only shows a notice, never a core operation.
+                kind @ (OperationKind::Pack | OperationKind::Stash | OperationKind::Rinse) => {
+                    app.operations_state.open_stub(kind);
+                }
+            }
+        }
         Command::RaidRun => send_raid_run(app, worker_tx),
         Command::RaidCancel => {
             // Esc / n while previewing or entering the passphrase closes the
@@ -298,19 +314,19 @@ fn handle_worker_event(event: WorkerEvent, app: &mut App) {
     match event {
         WorkerEvent::Progress(progress) => {
             match progress.operation {
-                OperationKind::Sniff => {
+                CoreOperationKind::Sniff => {
                     app.sniff_state.progress = Some(progress);
                     if !app.sniff_state.is_loading {
                         app.sniff_state.set_loading(true);
                     }
                 }
-                OperationKind::Dig => {
+                CoreOperationKind::Dig => {
                     app.dig_state.progress = Some(progress);
                     if !app.dig_state.is_loading {
                         app.dig_state.set_loading(true);
                     }
                 }
-                OperationKind::Raid => {
+                CoreOperationKind::Raid => {
                     if let Some(flow) = app.raid_flow.as_mut() {
                         if flow.phase == FlowPhase::Running {
                             flow.on_progress(&progress);
@@ -444,3 +460,6 @@ fn event_reader(tx: mpsc::Sender<AppEvent>) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

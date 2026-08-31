@@ -5,11 +5,13 @@ use std::path::PathBuf;
 use crossterm::event::KeyEvent;
 
 pub use nav::{Command, Focus, ViewId, ALL_VIEWS};
+pub use operations::{OperationKind, OperationsScreenState};
 pub use sniff::{ProjectRow, SniffScreenState};
 
 pub mod dig;
 pub mod handlers;
 pub mod nav;
+pub mod operations;
 pub mod raid;
 pub mod reveal;
 pub mod sniff;
@@ -25,6 +27,8 @@ pub struct App {
     pub sniff_state: sniff::SniffScreenState,
     /// State for the dig screen.
     pub dig_state: dig::DigScreenState,
+    /// State for the Operations hub screen.
+    pub operations_state: operations::OperationsScreenState,
     /// Resolved den directory (flag > env > default `~/.raccpack/den`).
     pub den_dir: PathBuf,
     /// Whether to run a sniff refresh automatically once the loop starts.
@@ -52,6 +56,7 @@ impl App {
             running: true,
             sniff_state: sniff::SniffScreenState::default(),
             dig_state: dig::DigScreenState::default(),
+            operations_state: operations::OperationsScreenState::default(),
             den_dir: PathBuf::new(),
             refresh_on_start: false,
             raid_flow: None,
